@@ -13,10 +13,11 @@ export function toApplicationDto(
 ): ApplicationDto {
   return {
     id: app.id as string,
-    regNumber: formatRegNumber(app.regYear, app.regSeq),
+    regNumber: formatRegNumber(app.regYear, app.regSeq, app.department),
     regYear: app.regYear,
     regSeq: app.regSeq,
     regDate: toIsoDate(app.regDate),
+    department: app.department,
     customer: app.customer,
     customerRepresentative: app.customerRepresentative ?? null,
     phone: app.phone,

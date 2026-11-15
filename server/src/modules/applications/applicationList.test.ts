@@ -32,6 +32,7 @@ async function seed(rows: Seed[]) {
     rows.map((row, i) => {
       const regDate = row.regDate ?? '2026-03-01';
       return {
+        department: 'ODESA',
         regYear: row.regYear ?? Number(regDate.slice(0, 4)),
         regSeq: row.regSeq ?? i + 1,
         regDate: new Date(`${regDate}T00:00:00Z`),
@@ -62,7 +63,12 @@ describe('applications registry list', () => {
     auth = { Authorization: `Bearer ${session.accessToken}` };
     me = session.user._id;
     colleague = (
-      await User.create({ login: 'colleague', fullName: 'Колега Іванівна', passwordHash: 'x' })
+      await User.create({
+        login: 'colleague',
+        fullName: 'Колега Іванівна',
+        passwordHash: 'x',
+        department: 'ODESA',
+      })
     )._id;
   });
 
@@ -78,7 +84,7 @@ describe('applications registry list', () => {
     expect(res.status).toBe(200);
     expect(res.body.meta).toEqual({ page: 1, limit: 20, total: 1, totalPages: 1 });
     expect(res.body.data[0]).toMatchObject({
-      regNumber: '1т/26',
+      regNumber: '1т/26-8',
       regDate: '2026-03-01',
       customer: 'ТОВ «Альфа»',
       customerRepresentative: null,
@@ -99,10 +105,10 @@ describe('applications registry list', () => {
     });
 
     it.each([
-      [undefined, ['10т/26', '9т/26', '2т/26', '30т/25']],
-      ['regDate', ['30т/25', '2т/26', '9т/26', '10т/26']],
-      ['-regNumber', ['10т/26', '9т/26', '2т/26', '30т/25']],
-      ['regNumber', ['30т/25', '2т/26', '9т/26', '10т/26']],
+      [undefined, ['10т/26-8', '9т/26-8', '2т/26-8', '30т/25-8']],
+      ['regDate', ['30т/25-8', '2т/26-8', '9т/26-8', '10т/26-8']],
+      ['-regNumber', ['10т/26-8', '9т/26-8', '2т/26-8', '30т/25-8']],
+      ['regNumber', ['30т/25-8', '2т/26-8', '9т/26-8', '10т/26-8']],
     ])('sort=%s', async (sort, expected) => {
       const res = await list(sort ? { sort } : {});
       expect(numbers(res)).toEqual(expected);
@@ -138,10 +144,10 @@ describe('applications registry list', () => {
         { regSeq: 16, regDate: '2026-02-01' },
       ]);
 
-      expect(numbers(await list({ number: '15т/26' }))).toEqual(['15т/26']);
+      expect(numbers(await list({ number: '15т/26-8' }))).toEqual(['15т/26-8']);
       expect(numbers(await list({ number: '15', sort: 'regNumber' }))).toEqual([
-        '15т/25',
-        '15т/26',
+        '15т/25-8',
+        '15т/26-8',
       ]);
     });
   });
@@ -187,8 +193,8 @@ describe('applications registry list', () => {
     const last = await list({ limit: 10, page: 3, sort: 'regNumber' });
 
     expect(first.body.meta).toEqual({ page: 1, limit: 10, total: 25, totalPages: 3 });
-    expect(numbers(first)[0]).toBe('1т/26');
-    expect(numbers(last)).toEqual(['21т/26', '22т/26', '23т/26', '24т/26', '25т/26']);
+    expect(numbers(first)[0]).toBe('1т/26-8');
+    expect(numbers(last)).toEqual(['21т/26-8', '22т/26-8', '23т/26-8', '24т/26-8', '25т/26-8']);
   });
 
   it.each([
@@ -213,6 +219,7 @@ describe('GET /users/options', () => {
       login: 'gone',
       fullName: 'Архівний Працівник',
       passwordHash: 'x',
+      department: 'ODESA',
       isActive: false,
     });
 

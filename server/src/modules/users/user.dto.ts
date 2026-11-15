@@ -9,6 +9,7 @@ export function toUserDto(user: UserDocument): UserDto {
     id: user.id as string,
     login: user.login,
     fullName: user.fullName,
+    department: user.department,
     role: user.role,
     canManageRegistration: user.canManageRegistration,
     isActive: user.isActive,

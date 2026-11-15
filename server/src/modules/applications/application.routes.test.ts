@@ -42,7 +42,8 @@ describe('applications API', () => {
     expect(res.status).toBe(201);
     expect(res.body).toMatchObject({
       regSeq: 1,
-      regNumber: expect.stringMatching(/^1т\/\d{2}$/),
+      regNumber: expect.stringMatching(/^1т\/\d{2}-8$/),
+      department: 'ODESA',
       regDate: expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/),
       phone: '+380671234567',
       email: 'office@example.ua',

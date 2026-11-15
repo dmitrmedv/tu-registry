@@ -24,7 +24,7 @@ describe('database (replica set)', () => {
     try {
       await expect(
         session.withTransaction(async () => {
-          await Counter.create([{ _id: 2026, lastSeq: 1 }], { session });
+          await Counter.create([{ _id: '2026:ODESA', lastSeq: 1 }], { session });
           throw new Error('boom');
         }),
       ).rejects.toThrow('boom');
@@ -36,7 +36,12 @@ describe('database (replica set)', () => {
   });
 
   it('neutralizes query-selector injection via sanitizeFilter', async () => {
-    await User.create({ login: 'alice', fullName: 'Alice', passwordHash: 'x' });
+    await User.create({
+      login: 'alice',
+      fullName: 'Alice',
+      passwordHash: 'x',
+      department: 'ODESA',
+    });
 
     // Simulates an attacker sending {"login": {"$ne": null}} instead of a string:
     // the operator is wrapped in $eq and the query is rejected instead of matching everyone.

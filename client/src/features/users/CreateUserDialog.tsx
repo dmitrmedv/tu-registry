@@ -5,7 +5,8 @@ import type { z } from 'zod';
 import { toApiError } from '@/shared/api/apiError';
 import { Alert, Button, CheckboxField, Dialog, SelectField, TextField } from '@/shared/ui';
 import { useCreateUser } from './queries';
-import { MANAGE_REGISTRATION_HINT, ROLE_OPTIONS } from './roleOptions';
+import { DEPARTMENT_OPTIONS } from '@/shared/lib/labels';
+import { DEPARTMENT_HINT, MANAGE_REGISTRATION_HINT, ROLE_OPTIONS } from './roleOptions';
 import styles from './users.module.scss';
 
 type FormInput = z.input<typeof createUserSchema>;
@@ -29,7 +30,13 @@ export function CreateUserDialog({ open, onClose, onCreated }: Props) {
     formState: { errors, isSubmitting },
   } = useForm<FormInput, unknown, FormOutput>({
     resolver: zodResolver(createUserSchema),
-    defaultValues: { login: '', fullName: '', role: 'USER', canManageRegistration: false },
+    defaultValues: {
+      login: '',
+      fullName: '',
+      department: '' as FormInput['department'],
+      role: 'USER',
+      canManageRegistration: false,
+    },
   });
 
   const close = () => {
@@ -75,6 +82,13 @@ export function CreateUserDialog({ open, onClose, onCreated }: Props) {
           {...register('login')}
         />
         <TextField label="ПІБ" error={errors.fullName?.message} {...register('fullName')} />
+        <SelectField
+          label="Управління"
+          options={[{ value: '', label: '— оберіть —' }, ...DEPARTMENT_OPTIONS]}
+          hint={DEPARTMENT_HINT}
+          error={errors.department?.message}
+          {...register('department')}
+        />
         <SelectField label="Роль" options={ROLE_OPTIONS} {...register('role')} />
         <CheckboxField
           label="Уповноважений користувач"

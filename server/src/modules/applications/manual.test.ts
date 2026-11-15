@@ -5,7 +5,7 @@ import { signedInUser } from '../../test/auth';
 import { useTestDb } from '../../test/db';
 import { clock } from '../../utils/clock';
 import { AuditLog } from '../audit/auditLog.model';
-import { Counter } from '../numbering/counter.model';
+import { Counter, counterId } from '../numbering/counter.model';
 import { Application } from './application.model';
 import { ApplicationChange } from './applicationChange.model';
 
@@ -74,7 +74,7 @@ describe('manual (back-dated) registration', () => {
 
     expect(res.status).toBe(201);
     expect(res.body).toMatchObject({
-      regNumber: '15т/25',
+      regNumber: '15т/25-8',
       regYear: 2025,
       regSeq: 15,
       regDate: '2025-06-10',
@@ -84,7 +84,7 @@ describe('manual (back-dated) registration', () => {
     expect(res.body.createdAt.startsWith('2026-')).toBe(true);
     expect(await ApplicationChange.countDocuments({ action: 'CREATED' })).toBe(1);
     const audit = await AuditLog.findOne({ action: 'APPLICATION_MANUAL_CREATED' });
-    expect(audit?.details).toEqual({ regNumber: '15т/25', regDate: '2025-06-10' });
+    expect(audit?.details).toEqual({ regNumber: '15т/25-8', regDate: '2025-06-10' });
   });
 
   it('takes the year from the registration date: the same digits differ by year', async () => {
@@ -100,7 +100,7 @@ describe('manual (back-dated) registration', () => {
       .send({ ...fields, regDate: '2025-01-02', regSeq: '14' });
 
     expect([in2024.status, in2025.status]).toEqual([201, 201]);
-    expect([in2024.body.regNumber, in2025.body.regNumber]).toEqual(['14т/24', '14т/25']);
+    expect([in2024.body.regNumber, in2025.body.regNumber]).toEqual(['14т/24-8', '14т/25-8']);
   });
 
   describe('number check before saving', () => {
@@ -119,8 +119,12 @@ describe('manual (back-dated) registration', () => {
         .query({ regDate: '2024-01-05', regSeq: '15' })
         .set(auth);
 
-      expect(taken.body).toEqual({ regNumber: '15т/25', available: false, takenOn: '2025-06-10' });
-      expect(free.body).toEqual({ regNumber: '15т/24', available: true, takenOn: null });
+      expect(taken.body).toEqual({
+        regNumber: '15т/25-8',
+        available: false,
+        takenOn: '2025-06-10',
+      });
+      expect(free.body).toEqual({ regNumber: '15т/24-8', available: true, takenOn: null });
     });
 
     it('validates the query and is limited to authorized users', async () => {
@@ -169,8 +173,8 @@ describe('manual (back-dated) registration', () => {
     }
 
     expect(ahead.status).toBe(201);
-    expect(autoNumbers).toEqual(['3т/26', '4т/26', '6т/26']);
-    expect((await Counter.findById(2026))?.lastSeq).toBe(6);
+    expect(autoNumbers).toEqual(['3т/26-8', '4т/26-8', '6т/26-8']);
+    expect((await Counter.findById(counterId(2026, 'ODESA')))?.lastSeq).toBe(6);
   });
 
   it.each([
@@ -191,7 +195,7 @@ describe('manual (back-dated) registration', () => {
       details: { field: 'regNumber' },
     });
     expect(res.body.error.message).toMatch(
-      /^Номер 1т\/26 уже зайнятий \(заява від \d{2}\.\d{2}\.2026\)$/,
+      /^Номер 1т\/26-8 уже зайнятий \(заява від \d{2}\.\d{2}\.2026\)$/,
     );
   });
 
@@ -207,7 +211,7 @@ describe('manual (back-dated) registration', () => {
   });
 
   it.each([
-    ['a full number instead of digits', { regSeq: '15т/25' }, 'regSeq'],
+    ['a full number instead of digits', { regSeq: '15т/25-8' }, 'regSeq'],
     ['a zero number', { regSeq: '0' }, 'regSeq'],
     ['a missing number', { regSeq: undefined }, 'regSeq'],
     ['a date in the future (server time)', { regDate: '2026-03-13', regSeq: '1' }, 'regDate'],

@@ -50,12 +50,15 @@ export async function listAuditLogs(query: AuditListQueryData): Promise<Paginate
     findUserSummaries(userIds),
     applicationIds.length
       ? Application.find({ _id: mongoose.trusted({ $in: applicationIds }) })
-          .select('regYear regSeq')
+          .select('regYear regSeq department')
           .lean()
       : [],
   ]);
   const regNumbers = new Map(
-    applications.map((app) => [String(app._id), formatRegNumber(app.regYear, app.regSeq)]),
+    applications.map((app) => [
+      String(app._id),
+      formatRegNumber(app.regYear, app.regSeq, app.department),
+    ]),
   );
 
   return {

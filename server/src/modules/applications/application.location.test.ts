@@ -149,16 +149,33 @@ describe('settlement, area type and the registry search and sort', () => {
 
     it('uses an index for every text and date sort instead of sorting in memory', async () => {
       await Promise.all(allModels.map((model) => model.syncIndexes()));
-      const filter = buildListFilter({ page: 1, limit: 20, sort: 'customer' });
-      for (const field of ['customer', 'settlement', 'objectAddress', 'customerRepresentative']) {
-        for (const sort of [field, `-${field}`] as const) {
-          const plan = listSort(sort as 'customer');
-          if (plan.kind !== 'indexed') throw new Error(`${sort} is expected to use an index`);
-          const query = Application.find(filter).sort(plan.sort);
-          if (plan.collation) query.collation(plan.collation);
-          const explained = JSON.stringify(await query.explain('queryPlanner'));
-          expect(explained, sort).toContain('IXSCAN');
-          expect(explained, sort).not.toContain('"stage":"SORT"');
+      // An admin's "all departments" view, and a user's (always one department).
+      for (const department of [undefined, 'ODESA' as const]) {
+        const filter = buildListFilter({ page: 1, limit: 20, sort: 'customer', department });
+        for (const field of [
+          'regNumber',
+          'regDate',
+          'customer',
+          'settlement',
+          'objectAddress',
+          'customerRepresentative',
+        ]) {
+          for (const sort of [field, `-${field}`] as const) {
+            const plan = listSort(sort as 'customer');
+            if (plan.kind !== 'indexed') throw new Error(`${sort} is expected to use an index`);
+            const query = Application.find(filter).sort(plan.sort);
+            if (plan.collation) query.collation(plan.collation);
+            // The plan MongoDB picked; rejected alternatives may well contain a SORT stage.
+            const explained = JSON.stringify(
+              (
+                (await query.explain('queryPlanner')) as unknown as {
+                  queryPlanner: { winningPlan: unknown };
+                }
+              ).queryPlanner.winningPlan,
+            );
+            expect(explained, `${sort} ${department}`).toContain('IXSCAN');
+            expect(explained, `${sort} ${department}`).not.toContain('"stage":"SORT"');
+          }
         }
       }
     });

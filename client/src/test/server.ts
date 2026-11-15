@@ -22,6 +22,7 @@ export function makeUser(overrides: Partial<UserDto> = {}): UserDto {
     id: '6af96bac7a1158295ab39ee5',
     login: 'admin',
     fullName: 'Адміністратор Системи',
+    department: 'ODESA',
     role: 'ADMIN',
     canManageRegistration: true,
     isActive: true,

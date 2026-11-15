@@ -1,4 +1,4 @@
-import { type ApplicationDto, formatPhone } from '@tu-registry/shared';
+import { type ApplicationDto, DEPARTMENT_NAMES, formatPhone } from '@tu-registry/shared';
 import type { ReactNode } from 'react';
 import { formatCalendarDate, formatDateTime } from '@/shared/lib/format';
 import { AREA_TYPE_LABELS, formatObjectCategory, OBJECT_TYPE_LABELS } from '@/shared/lib/labels';
@@ -31,6 +31,7 @@ export function ApplicationDetails({ app }: { app: ApplicationDto }) {
         <h2 id="registration">Реєстрація</h2>
         <dl>
           <Field label="Номер">{app.regNumber}</Field>
+          <Field label="Управління">{DEPARTMENT_NAMES[app.department]}</Field>
           <Field label="Дата реєстрації">{formatCalendarDate(app.regDate)}</Field>
           <Field label="Спосіб">
             {app.registrationMode === 'MANUAL' ? 'Внесено вручну' : 'Автоматично'}

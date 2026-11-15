@@ -33,7 +33,7 @@ async function add() {
     console.log('Demo applications already exist. Remove them first with --remove.');
     return;
   }
-  const users = await User.find().select('_id').lean();
+  const users = await User.find().select('_id department').lean();
   if (users.length === 0) throw new Error('No users found: run db:seed first');
 
   // Continue after any real 2020 numbers, so nothing collides.
@@ -46,6 +46,8 @@ async function add() {
       regYear: DEMO_YEAR,
       regSeq: firstSeq + i,
       regDate: new Date(Date.UTC(DEMO_YEAR, 0, 1 + day)),
+      // Like a real registration: the author's department.
+      department: users[i % users.length]!.department,
       customer: `${DEMO_PREFIX}${CUSTOMERS[i % CUSTOMERS.length]} №${i + 1}`,
       customerRepresentative: i % 3 === 0 ? undefined : `Представник ${i + 1}`,
       phone: `+38067${String(1000000 + i).padStart(7, '0')}`,

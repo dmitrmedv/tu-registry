@@ -3,6 +3,7 @@ import {
   type ApplicationSort,
   AREA_TYPE_LABELS,
   codesByLabel,
+  DEPARTMENT_NAMES,
   OBJECT_CATEGORY_LABELS,
   OBJECT_TYPE_LABELS,
   type SortField,
@@ -38,9 +39,18 @@ export function buildListFilter(query: ApplicationListQueryData) {
     const text = query[param];
     if (text) filter[field] = contains(text);
   }
+  if (query.department) filter.department = query.department;
   if (query.number) {
     filter.regSeq = query.number.seq;
     if ('year' in query.number) filter.regYear = query.number.year;
+    // "15т/26-8" names a department; for a user it must also be their own (another
+    // department's number then simply finds nothing).
+    if ('department' in query.number && query.number.department) {
+      filter.department =
+        query.department && query.department !== query.number.department
+          ? mongoose.trusted({ $in: [] })
+          : query.number.department;
+    }
   }
   if (query.objectType) filter.objectType = query.objectType;
   if (query.objectCategory) filter.objectCategory = query.objectCategory;
@@ -66,7 +76,7 @@ export type ListSort =
   /** Sorted by a computed key (an enum's name, the author's name) after filtering. */
   | {
       kind: 'computed';
-      field: 'objectType' | 'objectCategory' | 'areaType' | 'createdBy';
+      field: 'department' | 'objectType' | 'objectCategory' | 'areaType' | 'createdBy';
       dir: 1 | -1;
     };
 
@@ -91,6 +101,7 @@ export function listSort(sort: ApplicationSort): ListSort {
 
 /** Enum codes in the alphabetical order of their names: the position is the sort key. */
 export const CODES_BY_NAME = {
+  department: codesByLabel(DEPARTMENT_NAMES),
   objectType: codesByLabel(OBJECT_TYPE_LABELS),
   objectCategory: codesByLabel(OBJECT_CATEGORY_LABELS),
   areaType: codesByLabel(AREA_TYPE_LABELS),

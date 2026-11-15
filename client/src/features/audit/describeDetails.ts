@@ -9,6 +9,7 @@ const LOGIN_FAILURE_REASONS: Record<string, string> = {
 
 const USER_FIELD_LABELS: Record<string, string> = {
   fullName: 'ПІБ',
+  department: 'управління',
   role: 'роль',
   canManageRegistration: 'уповноважений',
   isActive: 'активний',

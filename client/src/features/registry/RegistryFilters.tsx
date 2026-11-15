@@ -3,6 +3,7 @@ import {
   type ApplicationStatus,
   AREA_TYPES,
   type AreaType,
+  type Department,
   OBJECT_CATEGORIES,
   OBJECT_TYPES,
   type ObjectCategory,
@@ -11,7 +12,12 @@ import {
 } from '@tu-registry/shared';
 import clsx from 'clsx';
 import { useState } from 'react';
-import { AREA_TYPE_LABELS, OBJECT_CATEGORY_LABELS, OBJECT_TYPE_LABELS } from '@/shared/lib/labels';
+import {
+  AREA_TYPE_LABELS,
+  DEPARTMENT_OPTIONS,
+  OBJECT_CATEGORY_LABELS,
+  OBJECT_TYPE_LABELS,
+} from '@/shared/lib/labels';
 import { Button, SelectField, TextField } from '@/shared/ui';
 import styles from './registry.module.scss';
 import { isNumberSearchValid, isPeriodValid, type RegistryParams } from './registryParams';
@@ -21,6 +27,8 @@ const WIDE_SCREEN = '(min-width: 768px)';
 
 type Props = {
   params: RegistryParams;
+  /** Admins choose the department; users always work in their own. */
+  showDepartment: boolean;
   update: (patch: Partial<RegistryParams>, options?: { replace?: boolean }) => void;
   reset: () => void;
   activeFilterCount: number;
@@ -53,7 +61,19 @@ const STATUS_OPTIONS = [
   })),
 ];
 
-export function RegistryFilters({ params, update, reset, activeFilterCount, users }: Props) {
+const DEPARTMENT_FILTER_OPTIONS = [
+  { value: 'all', label: 'Усі управління' },
+  ...DEPARTMENT_OPTIONS,
+];
+
+export function RegistryFilters({
+  params,
+  showDepartment,
+  update,
+  reset,
+  activeFilterCount,
+  users,
+}: Props) {
   // Open on wide screens, collapsed on phones; either way the button folds it away.
   const [open, setOpen] = useState(() => window.matchMedia?.(WIDE_SCREEN).matches ?? true);
   // Typing creates no history entries; picking a value does.
@@ -86,6 +106,14 @@ export function RegistryFilters({ params, update, reset, activeFilterCount, user
         id="registry-filters"
         className={clsx(styles.filterPanel, open && styles.filterPanelOpen)}
       >
+        {showDepartment && (
+          <SelectField
+            label="Управління"
+            options={DEPARTMENT_FILTER_OPTIONS}
+            value={params.department}
+            onChange={(e) => update({ department: e.target.value as Department | 'all' })}
+          />
+        )}
         <SearchField label="Замовник" value={params.customer} onCommit={commitText('customer')} />
         <SearchField
           label="Населений пункт"
@@ -101,12 +129,12 @@ export function RegistryFilters({ params, update, reset, activeFilterCount, user
         <SearchField label="Коментар" value={params.comment} onCommit={commitText('comment')} />
         <SearchField
           label="Номер"
-          placeholder="15 або 15т/26"
+          placeholder="15 або 15т/26-8"
           value={params.number}
           onCommit={commitText('number')}
           error={
             params.number && !isNumberSearchValid(params.number)
-              ? 'Номер: 15 або 15т/26'
+              ? 'Номер: 15, 15т/26 або 15т/26-8'
               : undefined
           }
         />

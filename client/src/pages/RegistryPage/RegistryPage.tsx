@@ -25,7 +25,8 @@ export function RegistryPage() {
   const user = useCurrentUser();
   const notice = (useLocation().state as RegistryPageState)?.notice;
   const { params, update, reset, activeFilterCount } = useRegistryParams();
-  const list = useApplicationList(toApiQuery(params, user.id));
+  const list = useApplicationList(toApiQuery(params, user));
+  const isAdmin = user.role === 'ADMIN';
   const users = useUserOptions();
   const meta = list.data?.meta;
 
@@ -54,6 +55,7 @@ export function RegistryPage() {
       {/* Filters and the result bar (count, pages, page size) stay on screen while scrolling. */}
       <div className={styles.stickyBar}>
         <RegistryFilters
+          showDepartment={isAdmin}
           params={params}
           update={update}
           reset={reset}
@@ -123,6 +125,7 @@ export function RegistryPage() {
             aria-busy={list.isFetching}
           >
             <RegistryTable
+              showDepartment={isAdmin}
               rows={list.data.data}
               sort={params.sort}
               onSort={(sort) => update({ sort })}

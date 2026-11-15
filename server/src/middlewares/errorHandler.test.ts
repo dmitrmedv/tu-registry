@@ -41,7 +41,7 @@ describe('errorHandler with Mongoose errors', () => {
   });
 
   it('maps a duplicate key error to 409', async () => {
-    const user = { login: 'dup', fullName: 'Dup', passwordHash: 'x' };
+    const user = { login: 'dup', fullName: 'Dup', passwordHash: 'x', department: 'ODESA' as const };
     await User.create(user);
 
     const res = await request(appThatRuns(() => User.create(user))).get('/');

@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { type Department, DEPARTMENTS } from '../departments';
 import { ROLES, type Role } from '../enums';
 import { loginField } from './auth';
 
@@ -8,10 +9,13 @@ export const fullNameField = z
   .min(2, 'ПІБ: щонайменше 2 символи')
   .max(150, 'ПІБ: не більше 150 символів');
 
+export const departmentField = z.enum(DEPARTMENTS, { error: 'Оберіть управління' });
+
 export const createUserSchema = z
   .object({
     login: loginField,
     fullName: fullNameField,
+    department: departmentField,
     role: z.enum(ROLES).default('USER'),
     canManageRegistration: z.boolean().default(false),
   })
@@ -21,6 +25,7 @@ export const createUserSchema = z
 export const editUserFormSchema = z
   .object({
     fullName: fullNameField,
+    department: departmentField,
     role: z.enum(ROLES),
     canManageRegistration: z.boolean(),
     isActive: z.boolean(),
@@ -40,6 +45,8 @@ export type UserDto = {
   id: string;
   login: string;
   fullName: string;
+  /** Users see and work with their department's applications; admins see all. */
+  department: Department;
   role: Role;
   canManageRegistration: boolean;
   isActive: boolean;

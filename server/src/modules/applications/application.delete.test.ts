@@ -10,7 +10,7 @@ import {
 import { useTestDb } from '../../test/db';
 import { clock } from '../../utils/clock';
 import { AuditLog } from '../audit/auditLog.model';
-import { Counter } from '../numbering/counter.model';
+import { Counter, counterId } from '../numbering/counter.model';
 import { Application } from './application.model';
 import { ApplicationChange } from './applicationChange.model';
 
@@ -68,9 +68,9 @@ describe('DELETE /applications/:id', () => {
       .get(`${APPLICATIONS}/manual/check`)
       .query({ regDate: '2026-01-02', regSeq: 1 })
       .set(admin.auth);
-    expect(check.body).toMatchObject({ regNumber: '1т/26', available: true });
-    expect((await Counter.findById(2026).lean())!.lastSeq).toBe(2);
-    expect((await registerApplication(app, owner)).regNumber).toBe('3т/26');
+    expect(check.body).toMatchObject({ regNumber: '1т/26-8', available: true });
+    expect((await Counter.findById(counterId(2026, 'ODESA')).lean())!.lastSeq).toBe(2);
+    expect((await registerApplication(app, owner)).regNumber).toBe('3т/26-8');
   });
 
   it('is for administrators only, and the refusal changes nothing', async () => {

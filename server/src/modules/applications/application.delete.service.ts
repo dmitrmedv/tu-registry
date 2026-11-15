@@ -2,6 +2,7 @@ import { formatRegNumber } from '@tu-registry/shared';
 import { inTransaction } from '../../utils/db';
 import { toIsoDate } from '../../utils/kyivDate';
 import { type RequestContext, recordAudit } from '../audit/audit.service';
+import type { Actor } from './application.access';
 import { loadApplication, versionConflict } from './application.edit.service';
 import { Application } from './application.model';
 import { ApplicationChange } from './applicationChange.model';
@@ -14,10 +15,10 @@ import { ApplicationChange } from './applicationChange.model';
 export async function deleteApplication(
   id: string,
   version: number,
-  actorId: string,
+  actor: Actor,
   context: RequestContext,
 ) {
-  const current = await loadApplication(id);
+  const current = await loadApplication(id, actor);
   if (version !== current.version) throw versionConflict();
 
   await inTransaction(async (session) => {
@@ -30,11 +31,11 @@ export async function deleteApplication(
     await recordAudit(
       {
         action: 'APPLICATION_DELETED',
-        actor: actorId,
+        actor: actor.id,
         entityType: 'Application',
         entityId: current._id,
         details: {
-          regNumber: formatRegNumber(current.regYear, current.regSeq),
+          regNumber: formatRegNumber(current.regYear, current.regSeq, current.department),
           regDate: toIsoDate(current.regDate),
         },
       },

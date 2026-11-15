@@ -1,5 +1,6 @@
 import {
   APPLICATION_STATUSES,
+  DEPARTMENTS,
   AREA_TYPES,
   COMMENT_MAX,
   OBJECT_CATEGORIES,
@@ -32,6 +33,8 @@ const applicationSchema = new Schema(
     },
     // Calendar date in Europe/Kyiv, stored as midnight UTC of that date.
     regDate: { type: Date, required: true },
+    // The author's department at registration (stage 13); the number is unique within it.
+    department: { type: String, enum: DEPARTMENTS, required: true },
     customer: { type: String, required: true, trim: true, maxlength: 300 },
     customerRepresentative: { type: String, trim: true, maxlength: 300 },
     // Normalized by the shared phone helper before saving.
@@ -81,8 +84,11 @@ applicationSchema.pre('validate', function (this: HydratedDocument<ApplicationDa
   }
 });
 
-// The final guarantee against duplicate registration numbers within a year.
-applicationSchema.index({ regYear: 1, regSeq: 1 }, { unique: true });
+// The final guarantee against duplicate registration numbers within a year and department.
+applicationSchema.index({ department: 1, regYear: 1, regSeq: 1 }, { unique: true });
+// Sorting by number across departments (an admin's "all departments" view). Descending key:
+// the ascending one is the pre-stage-13 unique index's, which `db:migrate` drops.
+applicationSchema.index({ regYear: -1, regSeq: -1 });
 // Registry sorts by date with the number as a tie-breaker; the indexes carry the full sort
 // key so MongoDB reads rows already in order instead of sorting them in memory.
 const BY_DATE = { regDate: -1, regYear: -1, regSeq: -1 } as const;
@@ -94,7 +100,13 @@ applicationSchema.index({ objectCategory: 1, ...BY_DATE });
 // a query uses these only with the same collation (see application.query.ts).
 for (const field of ['customer', 'settlement', 'objectAddress', 'customerRepresentative']) {
   applicationSchema.index({ [field]: 1, regYear: 1, regSeq: 1 }, { collation: { locale: 'uk' } });
+  applicationSchema.index(
+    { department: 1, [field]: 1, regYear: 1, regSeq: 1 },
+    { collation: { locale: 'uk' } },
+  );
 }
+// A user's registry is always one department: the same sorts, scoped to it.
+applicationSchema.index({ department: 1, ...BY_DATE });
 
 export type ApplicationData = InferSchemaType<typeof applicationSchema>;
 export const Application = model('Application', applicationSchema);

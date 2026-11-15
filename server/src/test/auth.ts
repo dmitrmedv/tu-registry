@@ -1,4 +1,4 @@
-import type { Role } from '@tu-registry/shared';
+import type { Department, Role } from '@tu-registry/shared';
 import type { Express } from 'express';
 import request, { type Response } from 'supertest';
 import { SESSION_COOKIE } from '../modules/auth/auth.controller';
@@ -9,6 +9,7 @@ let sequence = 0;
 
 type TestUserOptions = {
   login?: string;
+  department?: Department;
   password?: string;
   role?: Role;
   canManageRegistration?: boolean;
@@ -22,6 +23,7 @@ export async function createTestUser(options: TestUserOptions = {}) {
   const user = await User.create({
     login: options.login ?? `user${++sequence}`,
     fullName: 'Тестовий Користувач',
+    department: options.department ?? 'ODESA',
     passwordHash: await hashPassword(password),
     role: options.role ?? 'USER',
     canManageRegistration: options.canManageRegistration ?? false,

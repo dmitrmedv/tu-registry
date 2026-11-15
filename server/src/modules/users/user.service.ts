@@ -1,6 +1,7 @@
 import type {
   CreateUserInput,
   UpdateUserInput,
+  UserDto,
   UserWithTemporaryPassword,
 } from '@tu-registry/shared';
 import mongoose from 'mongoose';
@@ -22,8 +23,14 @@ export async function listUsers() {
 }
 
 /** Everyone who ever registered applications, for the registry's "registered by" filter. */
-export async function listUserOptions() {
-  const users = await User.find().select('fullName isActive').sort({ fullName: 1 }).lean();
+/** Names for the registry's "registered by" filter: a user sees colleagues of their department. */
+export async function listUserOptions(actor: Pick<UserDto, 'role' | 'department'>) {
+  const scope = actor.role === 'ADMIN' ? {} : { department: actor.department };
+  const users = await User.find(scope)
+    .select('fullName isActive')
+    .collation({ locale: 'uk' })
+    .sort({ fullName: 1 })
+    .lean();
   return users.map((u) => ({ id: String(u._id), fullName: u.fullName, isActive: u.isActive }));
 }
 
@@ -53,6 +60,7 @@ export async function createUser(
       entityId: user._id,
       details: {
         login: user.login,
+        department: user.department,
         role: user.role,
         canManageRegistration: user.canManageRegistration,
       },

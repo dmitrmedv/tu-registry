@@ -10,10 +10,11 @@ const colleague = { id: 'bbbbbbbbbbbbbbbbbbbbbbbb', fullName: 'Іван Петр
 
 const row = (overrides: Partial<ApplicationListItemDto> = {}): ApplicationListItemDto => ({
   id: 'a1',
-  regNumber: '15т/26',
+  regNumber: '15т/26-8',
   regYear: 2026,
   regSeq: 15,
   regDate: '2026-03-12',
+  department: 'ODESA',
   customer: 'ТОВ «Приклад»',
   customerRepresentative: null,
   settlement: 'м. Київ',
@@ -60,7 +61,7 @@ describe('RegistryPage', () => {
       row(),
       row({
         id: 'a2',
-        regNumber: '14т/24',
+        regNumber: '14т/24-8',
         registrationMode: 'MANUAL',
         customerRepresentative: 'Петренко Іван',
         objectCategory: 'OTHER',
@@ -74,7 +75,7 @@ describe('RegistryPage', () => {
     const table = await screen.findByRole('table', { name: 'Реєстр заяв' });
     const rows = within(table).getAllByRole('row');
     expect(rows).toHaveLength(3); // header + 2
-    expect(within(rows[1]!).getByText('15т/26')).toBeInTheDocument();
+    expect(within(rows[1]!).getByText('15т/26-8')).toBeInTheDocument();
     expect(within(rows[1]!).getByText('12.03.2026')).toBeInTheDocument();
     expect(within(rows[1]!).getByText('—')).toBeInTheDocument(); // no representative
     expect(within(rows[1]!).getByText('Житловий будинок')).toBeInTheDocument();
@@ -90,6 +91,7 @@ describe('RegistryPage', () => {
     ).toEqual([
       '№↕',
       'Дата реєстрації▼',
+      'Управління↕', // the signed-in user is an admin
       'Замовник↕',
       'Населений пункт↕',
       'Місцевість↕',
@@ -184,7 +186,7 @@ describe('RegistryPage', () => {
 
     await user.type(screen.getByLabelText('Номер'), 'abc');
 
-    expect(await screen.findByText('Номер: 15 або 15т/26')).toBeInTheDocument();
+    expect(await screen.findByText('Номер: 15, 15т/26 або 15т/26-8')).toBeInTheDocument();
     expect(last().get('number')).toBeNull();
   });
 
@@ -218,12 +220,12 @@ describe('RegistryPage', () => {
 
 describe('RegistryPage — card links and status', () => {
   it('links numbers to the card, keeping the filters, and marks annulled rows', async () => {
-    serveRegistry([row(), row({ id: 'a2', regNumber: '16т/26', status: 'ANNULLED' })]);
+    serveRegistry([row(), row({ id: 'a2', regNumber: '16т/26-8', status: 'ANNULLED' })]);
     renderApp('/?customer=ТОВ');
 
-    const link = await screen.findByRole('link', { name: '15т/26' });
+    const link = await screen.findByRole('link', { name: '15т/26-8' });
     expect(link).toHaveAttribute('href', '/applications/a1');
-    const annulledRow = screen.getByRole('link', { name: '16т/26' }).closest('tr')!;
+    const annulledRow = screen.getByRole('link', { name: '16т/26-8' }).closest('tr')!;
     expect(within(annulledRow).getByText('Анульовано')).toBeInTheDocument();
   });
 
@@ -312,6 +314,29 @@ describe('RegistryPage — card links and status', () => {
     expect(toggle).toHaveAttribute('aria-expanded', 'true');
     await user.click(toggle);
     expect(toggle).toHaveAttribute('aria-expanded', 'false');
+  });
+
+  it('shows an admin Одеське by default and lets them pick all departments', async () => {
+    const { last } = serveRegistry();
+    const { user } = renderApp('/');
+    await screen.findByRole('table');
+
+    expect(last().get('department')).toBe('ODESA');
+    expect(screen.getByLabelText('Управління')).toHaveValue('ODESA');
+
+    await user.selectOptions(screen.getByLabelText('Управління'), 'Усі управління');
+    await waitFor(() => expect(last().get('department')).toBeNull());
+  });
+
+  it('gives a regular user neither the department filter nor the column', async () => {
+    const { last } = serveRegistry();
+    server.use(signedInAs({ ...me, role: 'USER' }));
+    renderApp('/');
+
+    const table = await screen.findByRole('table');
+    expect(screen.queryByLabelText('Управління')).not.toBeInTheDocument();
+    expect(within(table).queryByRole('columnheader', { name: /^Управління/ })).toBeNull();
+    expect(last().get('department')).toBeNull();
   });
 
   it('filters by category', async () => {

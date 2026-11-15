@@ -2,10 +2,13 @@ import { connectDb, disconnectDb } from '../config/db';
 import { env } from '../config/env';
 import { logger } from '../config/logger';
 import {
+  assignDefaultDepartment,
   backfillAreaType,
   backfillObjectCategory,
   backfillSettlement,
+  dropYearWideUniqueNumberIndex,
   moveCadastralNumberIntoAddress,
+  moveCountersToDefaultDepartment,
 } from '../modules/applications/application.migration';
 
 /** Data changes required by new schema rules. Safe to run repeatedly (and on every deploy). */
@@ -21,6 +24,12 @@ async function main() {
     // After the settlements: the area type is derived from them.
     const areas = await backfillAreaType();
     logger.info({ areas }, 'Area types derived from settlements');
+    const departments = await assignDefaultDepartment();
+    logger.info(departments, 'Users and applications without a department set to Одеське');
+    const counters = await moveCountersToDefaultDepartment();
+    logger.info({ counters }, 'Year counters moved to Одеське');
+    const droppedIndex = await dropYearWideUniqueNumberIndex();
+    logger.info({ droppedIndex }, 'Year-wide unique number index dropped');
   } finally {
     await disconnectDb();
   }

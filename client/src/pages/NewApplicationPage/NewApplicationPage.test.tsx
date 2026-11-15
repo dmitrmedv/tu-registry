@@ -17,10 +17,11 @@ const registrar = { ...employee, id: 'u3', login: 'olena', canManageRegistration
 
 const created: ApplicationDto = {
   id: 'a1',
-  regNumber: '15т/26',
+  regNumber: '15т/26-8',
   regYear: 2026,
   regSeq: 15,
   regDate: '2026-03-12',
+  department: 'ODESA',
   customer: 'ТОВ «Приклад»',
   customerRepresentative: 'Петренко Іван',
   phone: '+380671234567',
@@ -45,7 +46,12 @@ function openPage(user = employee) {
   server.use(
     signedInAs(user),
     mock.get('*/api/v1/applications/next-number', () =>
-      HttpResponse.json({ regNumber: '15т/26', regYear: 2026, regSeq: 15, regDate: '2026-03-12' }),
+      HttpResponse.json({
+        regNumber: '15т/26-8',
+        regYear: 2026,
+        regSeq: 15,
+        regDate: '2026-03-12',
+      }),
     ),
   );
   return renderApp('/applications/new');
@@ -67,7 +73,7 @@ describe('NewApplicationPage', () => {
     openPage();
 
     expect(await screen.findByText('12.03.2026')).toBeInTheDocument();
-    expect(screen.getByText('15т/26')).toBeInTheDocument();
+    expect(screen.getByText('15т/26-8')).toBeInTheDocument();
     expect(screen.getByText('Номер (орієнтовно)')).toBeInTheDocument();
   });
 
@@ -100,12 +106,12 @@ describe('NewApplicationPage', () => {
       }),
     );
 
-    await screen.findByText('15т/26');
+    await screen.findByText('15т/26-8');
     await fillRequiredFields(user);
     await user.click(screen.getByRole('button', { name: 'Зареєструвати заяву' }));
 
     expect(await screen.findByRole('status')).toHaveTextContent(
-      'Заяву зареєстровано: 15т/26 від 12.03.2026',
+      'Заяву зареєстровано: 15т/26-8 від 12.03.2026',
     );
     // Normalized on the client; no empty email, no date or number from the browser.
     expect(sentBody).toEqual({
@@ -131,7 +137,7 @@ describe('NewApplicationPage', () => {
       ),
     );
 
-    await screen.findByText('15т/26');
+    await screen.findByText('15т/26-8');
     await fillRequiredFields(user);
     await user.click(screen.getByRole('button', { name: 'Зареєструвати заяву' }));
 
@@ -155,7 +161,7 @@ describe('NewApplicationPage — object category and comment', () => {
   it('offers the categories as buttons and asks for wording only for "other"', async () => {
     const { user } = openPage();
     const sent = captureCreate();
-    await screen.findByText('15т/26');
+    await screen.findByText('15т/26-8');
     await fillRequiredFields(user);
 
     const categories = screen.getByRole('group', { name: 'Категорія обʼєкта' });
@@ -192,7 +198,7 @@ describe('NewApplicationPage — object category and comment', () => {
 
   it('moves the choice with arrow keys', async () => {
     const { user } = openPage();
-    await screen.findByText('15т/26');
+    await screen.findByText('15т/26-8');
 
     await user.click(screen.getByRole('radio', { name: 'Квартира' }));
     await user.keyboard('{ArrowRight}');
@@ -209,7 +215,9 @@ describe('NewApplicationPage — manual registration', () => {
     mock.get('*/api/v1/applications/manual/check', ({ request }) => {
       const url = new URL(request.url);
       const year = url.searchParams.get('regDate')!.slice(2, 4);
-      const regNumber = `${url.searchParams.get('regSeq')}т/${year}`;
+      // The registrar is in Одеське (code 8); the form sends the department along.
+      expect(url.searchParams.get('department')).toBe('ODESA');
+      const regNumber = `${url.searchParams.get('regSeq')}т/${year}-8`;
       return HttpResponse.json({ regNumber, available, takenOn });
     });
 
@@ -227,7 +235,7 @@ describe('NewApplicationPage — manual registration', () => {
   it('is not offered to regular users', async () => {
     openPage(employee);
 
-    await screen.findByText('15т/26');
+    await screen.findByText('15т/26-8');
     expect(screen.queryByRole('switch')).not.toBeInTheDocument();
   });
 
@@ -248,7 +256,7 @@ describe('NewApplicationPage — manual registration', () => {
 
     // The availability check runs after a short pause in typing.
     await waitFor(() =>
-      expect(screen.getByRole('status')).toHaveTextContent('Номер реєстрації: 14т/24 — вільний'),
+      expect(screen.getByRole('status')).toHaveTextContent('Номер реєстрації: 14т/24-8 — вільний'),
     );
   });
 
@@ -289,7 +297,7 @@ describe('NewApplicationPage — manual registration', () => {
     const submit = () => user.click(screen.getByRole('button', { name: 'Внести заяву' }));
 
     setDate('2024-05-20');
-    await user.type(screen.getByLabelText('Порядковий номер'), '14т/24');
+    await user.type(screen.getByLabelText('Порядковий номер'), '14т/24-8');
     await submit();
     expect(await screen.findByText('Вкажіть порядковий номер (лише цифри)')).toBeInTheDocument();
 
@@ -309,7 +317,7 @@ describe('NewApplicationPage — manual registration', () => {
         return HttpResponse.json(
           {
             ...created,
-            regNumber: '14т/24',
+            regNumber: '14т/24-8',
             regYear: 2024,
             regSeq: 14,
             regDate: '2024-05-20',
@@ -326,7 +334,7 @@ describe('NewApplicationPage — manual registration', () => {
     await user.click(screen.getByRole('button', { name: 'Внести заяву' }));
 
     expect(await screen.findByText(/Заяву внесено вручну/)).toHaveTextContent(
-      'Заяву внесено вручну: 14т/24 від 20.05.2024',
+      'Заяву внесено вручну: 14т/24-8 від 20.05.2024',
     );
     expect(sentBody).toMatchObject({ regDate: '2024-05-20', regSeq: 14 });
     expect(sentBody).not.toHaveProperty('manual');
@@ -342,7 +350,7 @@ describe('NewApplicationPage — manual registration', () => {
     const { user } = await openManual();
     server.use(
       mock.post('*/api/v1/applications/manual', () =>
-        apiError(409, 'REG_NUMBER_TAKEN', 'Номер 14т/24 уже зайнятий (заява від 02.02.2024)'),
+        apiError(409, 'REG_NUMBER_TAKEN', 'Номер 14т/24-8 уже зайнятий (заява від 02.02.2024)'),
       ),
     );
 
@@ -352,7 +360,7 @@ describe('NewApplicationPage — manual registration', () => {
     await user.click(screen.getByRole('button', { name: 'Внести заяву' }));
 
     expect(
-      await screen.findByText('Номер 14т/24 уже зайнятий (заява від 02.02.2024)'),
+      await screen.findByText('Номер 14т/24-8 уже зайнятий (заява від 02.02.2024)'),
     ).toBeInTheDocument();
     expect(screen.getByLabelText('Порядковий номер')).toHaveAttribute('aria-invalid', 'true');
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
@@ -386,7 +394,7 @@ describe('NewApplicationPage — unsaved draft', () => {
       mock.post('*/api/v1/applications', () => HttpResponse.json(created, { status: 201 })),
     );
 
-    await screen.findByText('15т/26');
+    await screen.findByText('15т/26-8');
     await fillRequiredFields(user);
     expect(localStorage.getItem(draftKey(employee.id))).not.toBeNull();
     await user.click(screen.getByRole('button', { name: 'Зареєструвати заяву' }));

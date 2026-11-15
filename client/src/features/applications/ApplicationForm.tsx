@@ -210,6 +210,7 @@ export function ApplicationForm({ onCreated }: Props) {
                 regDate={watch('regDate')}
                 regSeq={watch('regSeq')}
                 next={next.data}
+                department={user.department}
               />
             </>
           ) : (

@@ -6,12 +6,16 @@ import {
   type ApplicationSort,
   AREA_TYPES,
   type AreaType,
+  DEFAULT_DEPARTMENT,
+  type Department,
+  DEPARTMENTS,
   OBJECT_CATEGORIES,
   OBJECT_TYPES,
   type ObjectCategory,
   type ObjectType,
   PAGE_SIZES,
   regNumberSearchField,
+  type Role,
 } from '@tu-registry/shared';
 
 /** Registry state as it lives in the URL (?customer=…&type=…&page=2). */
@@ -31,6 +35,8 @@ export type RegistryParams = {
   status: ApplicationStatus | '';
   /** "all" (default), "mine", or a user id. */
   user: string;
+  /** Admins only (users always get their own): a department or "all"; Одеське by default. */
+  department: Department | 'all';
   from: string;
   to: string;
 };
@@ -50,6 +56,7 @@ export const DEFAULT_PARAMS: RegistryParams = {
   area: '',
   status: '',
   user: 'all',
+  department: DEFAULT_DEPARTMENT,
   from: '',
   to: '',
 };
@@ -82,6 +89,7 @@ export function readParams(search: URLSearchParams): RegistryParams {
   const area = search.get('area') as AreaType;
   const status = search.get('status') as ApplicationStatus;
   const user = text('user');
+  const department = text('department') as Department | 'all';
   const date = (key: string) => (ISO_DATE.test(text(key)) ? text(key) : '');
   return {
     page: Number.isInteger(page) && page >= 1 ? page : 1,
@@ -98,6 +106,10 @@ export function readParams(search: URLSearchParams): RegistryParams {
     area: AREA_TYPES.includes(area) ? area : '',
     status: APPLICATION_STATUSES.includes(status) ? status : '',
     user: user === 'mine' || OBJECT_ID.test(user) ? user : 'all',
+    department:
+      department === 'all' || DEPARTMENTS.includes(department as Department)
+        ? department
+        : DEFAULT_DEPARTMENT,
     from: date('from'),
     to: date('to'),
   };
@@ -113,7 +125,12 @@ export function writeParams(params: RegistryParams) {
 }
 
 export function countActiveFilters(params: RegistryParams) {
-  return FILTER_KEYS.filter((key) => params[key] !== '').length + (params.user !== 'all' ? 1 : 0);
+  const department = params.department !== DEFAULT_DEPARTMENT ? 1 : 0;
+  return (
+    FILTER_KEYS.filter((key) => params[key] !== '').length +
+    (params.user !== 'all' ? 1 : 0) +
+    department
+  );
 }
 
 export function isNumberSearchValid(value: string) {
@@ -126,7 +143,10 @@ export function isPeriodValid(params: RegistryParams) {
 }
 
 /** URL state → API query. Invalid inputs are left out instead of failing the request. */
-export function toApiQuery(params: RegistryParams, currentUserId: string): ApplicationListQuery {
+type Viewer = { id: string; role: Role };
+
+export function toApiQuery(params: RegistryParams, viewer: Viewer): ApplicationListQuery {
+  const currentUserId = viewer.id;
   return {
     page: params.page,
     limit: params.limit,
@@ -145,5 +165,8 @@ export function toApiQuery(params: RegistryParams, currentUserId: string): Appli
       params.user === 'mine' ? currentUserId : params.user === 'all' ? undefined : params.user,
     dateFrom: params.from || undefined,
     dateTo: params.to && isPeriodValid(params) ? params.to : undefined,
+    // A user's registry is always their department (the server enforces it): nothing to send.
+    department:
+      viewer.role === 'ADMIN' && params.department !== 'all' ? params.department : undefined,
   };
 }

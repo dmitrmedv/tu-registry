@@ -1,4 +1,9 @@
-import type { UpdateUserInput, UserDto, UserWithTemporaryPassword } from '@tu-registry/shared';
+import {
+  DEPARTMENT_NAMES,
+  type UpdateUserInput,
+  type UserDto,
+  type UserWithTemporaryPassword,
+} from '@tu-registry/shared';
 import { useMemo, useState } from 'react';
 import { useCurrentUser } from '@/features/auth';
 import {
@@ -38,7 +43,10 @@ export function UsersPage() {
     return (users ?? []).filter(
       (user) =>
         (showInactive || user.isActive) &&
-        (!query || user.fullName.toLowerCase().includes(query) || user.login.includes(query)),
+        (!query ||
+          user.fullName.toLowerCase().includes(query) ||
+          user.login.includes(query) ||
+          DEPARTMENT_NAMES[user.department].toLowerCase().includes(query)),
     );
   }, [users, search, showInactive]);
 
@@ -91,7 +99,7 @@ export function UsersPage() {
           className={styles.search}
           label="Пошук"
           type="search"
-          placeholder="ПІБ або логін"
+          placeholder="ПІБ, логін або управління"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
         />

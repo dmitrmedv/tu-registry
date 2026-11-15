@@ -56,6 +56,7 @@ describe('UsersPage', () => {
     const dialog = screen.getByRole('dialog', { name: 'Новий користувач' });
     await user.type(within(dialog).getByLabelText('Логін'), 'olena');
     await user.type(within(dialog).getByLabelText('ПІБ'), 'Олена Коваль');
+    await user.selectOptions(within(dialog).getByLabelText('Управління'), 'Ренійське');
     await user.click(within(dialog).getByLabelText('Уповноважений користувач'));
     await user.click(screen.getByRole('button', { name: 'Створити' }));
 
@@ -64,6 +65,7 @@ describe('UsersPage', () => {
     expect(sentBody).toEqual({
       login: 'olena',
       fullName: 'Олена Коваль',
+      department: 'RENI',
       role: 'USER',
       canManageRegistration: true,
     });
@@ -81,6 +83,7 @@ describe('UsersPage', () => {
     const dialog = screen.getByRole('dialog', { name: 'Новий користувач' });
     await user.type(within(dialog).getByLabelText('Логін'), 'ivan');
     await user.type(within(dialog).getByLabelText('ПІБ'), 'Іван Дубль');
+    await user.selectOptions(within(dialog).getByLabelText('Управління'), 'Одеське');
     await user.click(screen.getByRole('button', { name: 'Створити' }));
 
     expect(
@@ -118,5 +121,25 @@ describe('UsersPage', () => {
     await user.click(within(confirm).getByRole('button', { name: 'Деактивувати' }));
 
     await vi.waitFor(() => expect(sentBody).toEqual({ isActive: false }));
+  });
+
+  it('requires a department for a new user', async () => {
+    const created = vi.fn();
+    const { user } = openUsersPage();
+    server.use(
+      mock.post('*/api/v1/users', () => {
+        created();
+        return HttpResponse.json({}, { status: 201 });
+      }),
+    );
+
+    await user.click(await screen.findByRole('button', { name: 'Додати користувача' }));
+    const dialog = screen.getByRole('dialog', { name: 'Новий користувач' });
+    await user.type(within(dialog).getByLabelText('Логін'), 'olena');
+    await user.type(within(dialog).getByLabelText('ПІБ'), 'Олена Коваль');
+    await user.click(within(dialog).getByRole('button', { name: 'Створити' }));
+
+    expect(await within(dialog).findByText('Оберіть управління')).toBeInTheDocument();
+    expect(created).not.toHaveBeenCalled();
   });
 });

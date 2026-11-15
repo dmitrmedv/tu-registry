@@ -1,6 +1,8 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import {
   type ApplicationDto,
+  type Department,
+  DEPARTMENT_NAMES,
   formatPhone,
   formatRegNumber,
   kyivCalendarDate,
@@ -13,7 +15,8 @@ import { useState } from 'react';
 import { type FieldPath, FormProvider, useForm } from 'react-hook-form';
 import { toApiError } from '@/shared/api/apiError';
 import { formatCalendarDate } from '@/shared/lib/format';
-import { Alert, Button, ConfirmDialog, LinkButton, TextField } from '@/shared/ui';
+import { DEPARTMENT_OPTIONS } from '@/shared/lib/labels';
+import { Alert, Button, ConfirmDialog, LinkButton, SelectField, TextField } from '@/shared/ui';
 import { ApplicationContentFields } from './ApplicationContentFields';
 import styles from './ApplicationForm.module.scss';
 import { ManualNumberStatus } from './ManualNumberStatus';
@@ -76,6 +79,8 @@ function changedFields(
 type Props = {
   app: ApplicationDto;
   canEditRegistration: boolean;
+  /** Admins may move the application to another department (its number moves with it). */
+  canChangeDepartment: boolean;
   onSaved: () => void;
   /** Loads the latest version after a conflict; the form is then rebuilt from it. */
   onReload: () => void;
@@ -85,6 +90,7 @@ type Props = {
 export function EditApplicationForm({
   app,
   canEditRegistration,
+  canChangeDepartment,
   onSaved,
   onReload,
   cancelTo,
@@ -94,6 +100,8 @@ export function EditApplicationForm({
   const [conflict, setConflict] = useState(false);
   const [pending, setPending] = useState<UpdateApplicationInput | null>(null);
   const [nothingChanged, setNothingChanged] = useState(false);
+  // Outside the form schema (it describes the application's content); admins only.
+  const [department, setDepartment] = useState<Department>(app.department);
 
   const form = useForm<ManualApplicationInput, unknown, ManualApplicationData>({
     resolver: zodResolver(
@@ -136,17 +144,28 @@ export function EditApplicationForm({
 
   const onSubmit = handleSubmit(async (values) => {
     const changes = changedFields(app, values, canEditRegistration);
+    if (department !== app.department) changes.department = department;
     const changedKeys = Object.keys(changes).filter((key) => key !== 'version');
     setNothingChanged(changedKeys.length === 0);
     if (changedKeys.length === 0) return;
-    // Changing the registration date or number is confirmed separately.
-    if (changes.regDate !== undefined || changes.regSeq !== undefined) return setPending(changes);
+    // Changing the registration date, number or department is confirmed separately.
+    if (
+      changes.regDate !== undefined ||
+      changes.regSeq !== undefined ||
+      changes.department !== undefined
+    ) {
+      return setPending(changes);
+    }
     await save(changes);
   });
 
   const newDate = pending?.regDate ?? app.regDate;
   const newNumber = pending
-    ? formatRegNumber(Number(String(newDate).slice(0, 4)), Number(pending.regSeq ?? app.regSeq))
+    ? formatRegNumber(
+        Number(String(newDate).slice(0, 4)),
+        Number(pending.regSeq ?? app.regSeq),
+        pending.department ?? app.department,
+      )
     : null;
 
   return (
@@ -174,6 +193,15 @@ export function EditApplicationForm({
           <legend>Реєстрація</legend>
           {canEditRegistration ? (
             <>
+              {canChangeDepartment && (
+                <SelectField
+                  label="Управління"
+                  options={DEPARTMENT_OPTIONS}
+                  hint="Номер отримає код нового управління й має бути там вільним"
+                  value={department}
+                  onChange={(e) => setDepartment(e.target.value as Department)}
+                />
+              )}
               <div className={styles.grid}>
                 <TextField
                   label="Дата реєстрації"
@@ -195,6 +223,7 @@ export function EditApplicationForm({
                 regDate={watch('regDate')}
                 regSeq={String(watch('regSeq') ?? '')}
                 next={undefined}
+                department={department}
                 excludeId={app.id}
               />
             </>
@@ -212,7 +241,7 @@ export function EditApplicationForm({
             type="submit"
             variant="primary"
             loading={isSubmitting}
-            disabled={!isDirty || conflict}
+            disabled={(!isDirty && department === app.department) || conflict}
           >
             Зберегти
           </Button>
@@ -232,6 +261,13 @@ export function EditApplicationForm({
               <br />
               Дата реєстрації: {formatCalendarDate(app.regDate)} →{' '}
               {formatCalendarDate(String(newDate))}
+              {pending.department && (
+                <>
+                  <br />
+                  Управління: {DEPARTMENT_NAMES[app.department]} →{' '}
+                  {DEPARTMENT_NAMES[pending.department]}
+                </>
+              )}
             </p>
             <p>Зміну буде записано в історію заяви та журнал аудиту.</p>
           </ConfirmDialog>

@@ -35,11 +35,12 @@ test('sorts by any column in Ukrainian alphabetical order', async ({ page }) => 
 
   await page.goto(`/?customer=${encodeURIComponent(tag)}`);
   const table = page.getByRole('table', { name: 'Реєстр заяв' });
-  const firstCustomer = table.getByRole('row').nth(1).getByRole('cell').nth(2);
+  // Rows by position; the customer is found by text (columns differ for admins and users).
+  const row = (n: number) => table.getByRole('row').nth(n);
 
   await table.getByRole('button', { name: /^Замовник/ }).click();
-  await expect(firstCustomer).toHaveText(`Аргон ${tag}`);
+  await expect(row(1)).toContainText(`Аргон ${tag}`);
   await table.getByRole('button', { name: /^Замовник/ }).click();
-  await expect(firstCustomer).toHaveText(`Їжак ${tag}`);
-  await expect(table.getByRole('row').nth(2).getByRole('cell').nth(2)).toHaveText(`Ґудзик ${tag}`);
+  await expect(row(1)).toContainText(`Їжак ${tag}`);
+  await expect(row(2)).toContainText(`Ґудзик ${tag}`);
 });

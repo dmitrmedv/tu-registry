@@ -10,6 +10,7 @@ import {
 } from '@tu-registry/shared';
 import type { RequestHandler } from 'express';
 import { kyivToday } from '../../utils/kyivDate';
+import { departmentScope, isAdmin } from './application.access';
 import { idParamsSchema, parseRequest } from '../../utils/parseRequest';
 import { requestContext } from '../audit/audit.service';
 import { deleteApplication } from './application.delete.service';
@@ -19,7 +20,9 @@ import * as applicationService from './application.service';
 
 export const list: RequestHandler = async (req, res) => {
   const { query } = parseRequest(req, { query: applicationListQuerySchema });
-  res.json(await listApplications(query));
+  // A user's registry is always their own department, whatever the query asks for.
+  const department = departmentScope(req.user!) ?? query.department;
+  res.json(await listApplications({ ...query, department }));
 };
 
 export const create: RequestHandler = async (req, res) => {
@@ -46,17 +49,24 @@ export const createManual: RequestHandler = async (req, res) => {
 export const checkManualNumber: RequestHandler = async (req, res) => {
   const { query } = parseRequest(req, { query: manualNumberCheckSchema });
   res.json(
-    await applicationService.checkManualNumber(query.regDate, query.regSeq, query.excludeId),
+    await applicationService.checkManualNumber(
+      query.regDate,
+      query.regSeq,
+      // Users check their own department; an admin may check another one (moving an
+      // application there), otherwise their own.
+      (isAdmin(req.user!) && query.department) || req.user!.department,
+      query.excludeId,
+    ),
   );
 };
 
-export const nextNumber: RequestHandler = async (_req, res) => {
-  res.json(await applicationService.getNextNumber());
+export const nextNumber: RequestHandler = async (req, res) => {
+  res.json(await applicationService.getNextNumber(req.user!.department));
 };
 
 export const getOne: RequestHandler = async (req, res) => {
   const { params } = parseRequest(req, { params: idParamsSchema });
-  res.json(await editService.getApplication(params.id));
+  res.json(await editService.getApplication(params.id, req.user!));
 };
 
 export const update: RequestHandler = async (req, res) => {
@@ -90,11 +100,11 @@ export const remove: RequestHandler = async (req, res) => {
     params: idParamsSchema,
     query: deleteApplicationQuerySchema,
   });
-  await deleteApplication(params.id, query.version, req.user!.id, requestContext(req));
+  await deleteApplication(params.id, query.version, req.user!, requestContext(req));
   res.status(204).end();
 };
 
 export const history: RequestHandler = async (req, res) => {
   const { params } = parseRequest(req, { params: idParamsSchema });
-  res.json(await editService.getApplicationHistory(params.id));
+  res.json(await editService.getApplicationHistory(params.id, req.user!));
 };

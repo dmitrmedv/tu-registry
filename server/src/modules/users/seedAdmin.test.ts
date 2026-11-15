@@ -5,7 +5,12 @@ import { AuditLog } from '../audit/auditLog.model';
 import { seedAdmin } from './seedAdmin';
 import { User } from './user.model';
 
-const input = { login: 'admin', fullName: 'Адміністратор', password: 'correct-horse-battery' };
+const input = {
+  login: 'admin',
+  fullName: 'Адміністратор',
+  password: 'correct-horse-battery',
+  department: 'ODESA' as const,
+};
 
 describe('seedAdmin', () => {
   useTestDb();

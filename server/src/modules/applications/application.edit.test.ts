@@ -11,7 +11,7 @@ import {
 import { useTestDb } from '../../test/db';
 import { clock } from '../../utils/clock';
 import { AuditLog } from '../audit/auditLog.model';
-import { Counter } from '../numbering/counter.model';
+import { Counter, counterId } from '../numbering/counter.model';
 import { Application } from './application.model';
 import { ApplicationChange } from './applicationChange.model';
 
@@ -40,6 +40,7 @@ describe('application card, editing, annulment and history', () => {
   let owner: Session;
   let authorizedOwner: Session;
   let other: Session;
+  let elsewhere: Session;
   let admin: Session;
 
   beforeEach(async () => {
@@ -47,6 +48,7 @@ describe('application card, editing, annulment and history', () => {
     owner = await as({ login: 'owner' });
     authorizedOwner = await as({ login: 'authorized', canManageRegistration: true });
     other = await as({ login: 'other' });
+    elsewhere = await as({ login: 'elsewhere', department: 'RENI', canManageRegistration: true });
     admin = await as({ login: 'boss', role: 'ADMIN' });
   });
 
@@ -62,7 +64,7 @@ describe('application card, editing, annulment and history', () => {
 
       expect(res.status).toBe(200);
       expect(res.body).toMatchObject({
-        regNumber: '1т/26',
+        regNumber: '1т/26-8',
         phone: '+380671234567',
         email: 'office@example.ua',
         createdBy: { id: owner.user.id, fullName: owner.user.fullName },
@@ -96,7 +98,7 @@ describe('application card, editing, annulment and history', () => {
         customerRepresentative: null,
         email: null,
         version: 2,
-        regNumber: '1т/26',
+        regNumber: '1т/26-8',
       });
       const change = await ApplicationChange.findOne({ action: 'UPDATED' }).lean();
       expect(change?.changes).toEqual([
@@ -117,16 +119,25 @@ describe('application card, editing, annulment and history', () => {
       expect(await ApplicationChange.countDocuments({ action: 'UPDATED' })).toBe(0);
     });
 
-    it("forbids editing someone else's application and audits the attempt", async () => {
+    it('lets a colleague of the same department edit the application (stage 13)', async () => {
       const created = await register(owner);
 
-      const res = await patch(other, created.id, { customer: 'Чуже', version: 1 });
+      const res = await patch(other, created.id, { customer: 'Виправлено колегою', version: 1 });
 
-      expect(res.status).toBe(403);
+      expect(res.status).toBe(200);
+      expect(res.body.customer).toBe('Виправлено колегою');
+    });
+
+    it("hides another department's application: not found, nothing changes", async () => {
+      const created = await register(owner);
+
+      expect((await get(elsewhere, created.id)).status).toBe(404);
+      expect((await history(elsewhere, created.id)).status).toBe(404);
+      const res = await patch(elsewhere, created.id, { customer: 'Чуже', version: 1 });
+      expect(res.status).toBe(404);
+      expect(res.body.error.message).toBe('Заяву не знайдено');
+      expect((await annul(elsewhere, created.id, { reason: 'Чуже', version: 1 })).status).toBe(404);
       expect((await Application.findById(created.id))?.customer).toBe(fields.customer);
-      expect(
-        await AuditLog.exists({ action: 'ACCESS_DENIED', actor: other.user._id }),
-      ).toBeTruthy();
     });
 
     it('lets an administrator edit any application', async () => {
@@ -185,12 +196,13 @@ describe('application card, editing, annulment and history', () => {
       ).toBeTruthy();
     });
 
-    it("is not allowed on someone else's application even for authorized users", async () => {
+    it("is allowed to authorized users on colleagues' applications of the department", async () => {
       const created = await register(owner);
 
-      expect((await patch(authorizedOwner, created.id, { regSeq: '50', version: 1 })).status).toBe(
-        403,
-      );
+      const res = await patch(authorizedOwner, created.id, { regSeq: '50', version: 1 });
+
+      expect(res.status).toBe(200);
+      expect(res.body.regNumber).toBe('50т/26-8');
     });
 
     it('changes the number, audits it, and never touches the automatic counter', async () => {
@@ -199,12 +211,12 @@ describe('application card, editing, annulment and history', () => {
       const res = await patch(authorizedOwner, created.id, { regSeq: '50', version: 1 });
 
       expect(res.status).toBe(200);
-      expect(res.body.regNumber).toBe('50т/26');
-      expect((await Counter.findById(2026))?.lastSeq).toBe(1);
+      expect(res.body.regNumber).toBe('50т/26-8');
+      expect((await Counter.findById(counterId(2026, 'ODESA')))?.lastSeq).toBe(1);
       const audit = await AuditLog.findOne({ action: 'REG_NUMBER_CHANGED' });
-      expect(audit?.details).toEqual({ from: '1т/26', to: '50т/26' });
+      expect(audit?.details).toEqual({ from: '1т/26-8', to: '50т/26-8' });
       // The freed number is not handed out again by the automatic sequence.
-      expect((await register(authorizedOwner)).regNumber).toBe('2т/26');
+      expect((await register(authorizedOwner)).regNumber).toBe('2т/26-8');
     });
 
     it('moves the number to the year of a new date', async () => {
@@ -212,19 +224,19 @@ describe('application card, editing, annulment and history', () => {
 
       const res = await patch(authorizedOwner, created.id, { regDate: '2025-12-30', version: 1 });
 
-      expect(res.body).toMatchObject({ regDate: '2025-12-30', regNumber: '1т/25' });
+      expect(res.body).toMatchObject({ regDate: '2025-12-30', regNumber: '1т/25-8' });
       expect(await AuditLog.exists({ action: 'REG_DATE_CHANGED' })).toBeTruthy();
       expect(await AuditLog.exists({ action: 'REG_NUMBER_CHANGED' })).toBeTruthy();
       const change = await ApplicationChange.findOne({ action: 'UPDATED' }).lean();
       expect(change?.changes).toEqual([
         { field: 'regDate', oldValue: '2026-03-12', newValue: '2025-12-30' },
-        { field: 'regNumber', oldValue: '1т/26', newValue: '1т/25' },
+        { field: 'regNumber', oldValue: '1т/26-8', newValue: '1т/25-8' },
       ]);
     });
 
     it('rejects a number that is already taken and a future date', async () => {
       const first = await register(authorizedOwner);
-      await register(authorizedOwner); // 2т/26
+      await register(authorizedOwner); // 2т/26-8
 
       const taken = await patch(authorizedOwner, first.id, { regSeq: '2', version: 1 });
       const future = await patch(authorizedOwner, first.id, { regDate: '2026-03-13', version: 1 });
@@ -275,10 +287,11 @@ describe('application card, editing, annulment and history', () => {
       expect(sameNumber.status).toBe(409);
     });
 
-    it('checks ownership, reason, state and version', async () => {
+    it('checks reason, state and version; a colleague of the department may annul', async () => {
       const created = await register(owner);
+      const colleagues = await register(other);
 
-      expect((await annul(other, created.id, { reason: 'Чуже', version: 1 })).status).toBe(403);
+      expect((await annul(owner, colleagues.id, { reason: 'Дубль', version: 1 })).status).toBe(200);
       expect((await annul(owner, created.id, { reason: 'x', version: 1 })).status).toBe(400);
       expect((await annul(owner, created.id, { reason: 'Причина', version: 9 })).status).toBe(409);
       await annul(owner, created.id, { reason: 'Причина', version: 1 });
@@ -342,6 +355,6 @@ describe('application card, editing, annulment and history', () => {
       .query({ regDate: '2026-03-12', regSeq: '1', excludeId: created.id })
       .set(authorizedOwner.auth);
 
-    expect(res.body).toMatchObject({ regNumber: '1т/26', available: true });
+    expect(res.body).toMatchObject({ regNumber: '1т/26-8', available: true });
   });
 });

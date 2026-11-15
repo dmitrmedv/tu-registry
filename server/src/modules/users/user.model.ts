@@ -1,4 +1,4 @@
-import { ROLES } from '@tu-registry/shared';
+import { DEPARTMENTS, ROLES } from '@tu-registry/shared';
 import { type InferSchemaType, Schema, model } from 'mongoose';
 import { toJSONTransform } from '../../utils/toJSON';
 
@@ -16,6 +16,8 @@ const userSchema = new Schema(
     },
     passwordHash: { type: String, required: true, select: false },
     fullName: { type: String, required: true, trim: true, maxlength: 150 },
+    // Users see and work with their department's applications (stage 13).
+    department: { type: String, enum: DEPARTMENTS, required: true },
     role: { type: String, enum: ROLES, default: 'USER', required: true },
     // "Authorized" user: manual registration and changing date/number of own applications.
     canManageRegistration: { type: Boolean, default: false },

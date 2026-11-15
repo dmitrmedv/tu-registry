@@ -1,4 +1,4 @@
-import type { UserDto } from '@tu-registry/shared';
+import { DEPARTMENT_NAMES, type UserDto } from '@tu-registry/shared';
 import { formatDateTime } from '@/shared/lib/format';
 import { ROLE_LABELS } from '@/shared/lib/labels';
 import { Badge, Button, Table } from '@/shared/ui';
@@ -18,6 +18,7 @@ export function UsersTable({ users, currentUserId, onEdit, onResetPassword }: Pr
         <tr>
           <th scope="col">ПІБ</th>
           <th scope="col">Логін</th>
+          <th scope="col">Управління</th>
           <th scope="col">Роль</th>
           <th scope="col">Уповноважений</th>
           <th scope="col">Статус</th>
@@ -37,6 +38,7 @@ export function UsersTable({ users, currentUserId, onEdit, onResetPassword }: Pr
             <td>
               <code>{user.login}</code>
             </td>
+            <td className={styles.nowrap}>{DEPARTMENT_NAMES[user.department]}</td>
             <td>{ROLE_LABELS[user.role]}</td>
             <td>{user.canManageRegistration ? 'Так' : '—'}</td>
             <td>

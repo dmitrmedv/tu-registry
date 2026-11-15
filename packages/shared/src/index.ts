@@ -1,4 +1,5 @@
 export * from './dates';
+export * from './departments';
 export * from './enums';
 export * from './labels';
 export * from './phone';

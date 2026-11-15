@@ -21,7 +21,7 @@ test('registers an application under the next number and finds it in the registr
   const result = page.getByText('Заяву зареєстровано:');
   await expect(result).toBeVisible();
   const regNumber = (await result.locator('strong').textContent()) ?? '';
-  expect(regNumber).toMatch(/^\d+т\/\d{2}$/);
+  expect(regNumber).toMatch(/^\d+т\/\d{2}-8$/); // the admin is in Одеське (code 8)
 
   await page.getByRole('link', { name: 'Реєстр заяв на ТУ' }).click();
   await page.getByRole('searchbox', { name: 'Замовник', exact: true }).fill(customer);
@@ -56,8 +56,8 @@ test('enters a back-dated application under the number typed by hand', async ({ 
   await page.getByLabel('Порядковий номер').fill('14');
 
   // Only digits are typed: «т» and the year come from the date, availability is checked live.
-  await expect(page.getByText('Номер реєстрації: 14т/24 — вільний')).toBeVisible();
+  await expect(page.getByText('Номер реєстрації: 14т/24-8 — вільний')).toBeVisible();
   await page.getByRole('button', { name: 'Внести заяву' }).click();
 
-  await expect(page.getByText('Заяву внесено вручну: 14т/24 від 10.05.2024')).toBeVisible();
+  await expect(page.getByText('Заяву внесено вручну: 14т/24-8 від 10.05.2024')).toBeVisible();
 });

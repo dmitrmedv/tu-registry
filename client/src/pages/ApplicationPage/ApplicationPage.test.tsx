@@ -16,6 +16,12 @@ const stranger = makeUser({
   id: 'other000000000000000001',
   role: 'USER',
   canManageRegistration: false,
+  department: 'RENI',
+});
+const colleague = makeUser({
+  id: 'colleague000000000000001',
+  role: 'USER',
+  canManageRegistration: false,
 });
 const admin = makeUser({ id: 'admin000000000000000001', role: 'ADMIN' });
 
@@ -45,7 +51,7 @@ describe('ApplicationPage', () => {
   it('shows the card with formatted values and the history with readable fields', async () => {
     openCard();
 
-    expect(await screen.findByRole('heading', { name: 'Заява 14т/26' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Заява 14т/26-8' })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: '+380 67 123 45 67' })).toHaveAttribute(
       'href',
       'tel:+380671234567',
@@ -69,16 +75,25 @@ describe('ApplicationPage', () => {
   it('offers editing and annulment to the owner, but not restoring', async () => {
     openCard(owner);
 
-    await screen.findByRole('heading', { name: 'Заява 14т/26' });
+    await screen.findByRole('heading', { name: 'Заява 14т/26-8' });
     expect(screen.getByRole('link', { name: 'Редагувати' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Анулювати' })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Відновити' })).not.toBeInTheDocument();
   });
 
-  it("offers no actions on someone else's application", async () => {
+  it('offers editing and annulment to a colleague of the same department', async () => {
+    openCard(colleague);
+
+    await screen.findByRole('heading', { name: 'Заява 14т/26-8' });
+    expect(screen.getByRole('link', { name: 'Редагувати' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Анулювати' })).toBeInTheDocument();
+    expect(screen.getByText('Одеське')).toBeInTheDocument();
+  });
+
+  it("offers no actions on another department's application", async () => {
     openCard(stranger);
 
-    await screen.findByRole('heading', { name: 'Заява 14т/26' });
+    await screen.findByRole('heading', { name: 'Заява 14т/26-8' });
     expect(screen.queryByRole('link', { name: 'Редагувати' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Анулювати' })).not.toBeInTheDocument();
   });
@@ -94,7 +109,7 @@ describe('ApplicationPage', () => {
     );
 
     await user.click(await screen.findByRole('button', { name: 'Анулювати' }));
-    const dialog = screen.getByRole('dialog', { name: 'Анулювати заяву 14т/26?' });
+    const dialog = screen.getByRole('dialog', { name: 'Анулювати заяву 14т/26-8?' });
     await user.click(within(dialog).getByRole('button', { name: 'Анулювати' }));
     expect(within(dialog).getByText('Вкажіть причину анулювання')).toBeInTheDocument();
     expect(annul).not.toHaveBeenCalled();
@@ -131,9 +146,12 @@ describe('ApplicationPage', () => {
 
     await user.click(screen.getByRole('button', { name: 'Відновити' }));
     await user.click(
-      within(screen.getByRole('dialog', { name: 'Відновити заяву 14т/26?' })).getByRole('button', {
-        name: 'Відновити',
-      }),
+      within(screen.getByRole('dialog', { name: 'Відновити заяву 14т/26-8?' })).getByRole(
+        'button',
+        {
+          name: 'Відновити',
+        },
+      ),
     );
 
     await vi.waitFor(() => expect(restore).toHaveBeenCalledWith({ version: 3 }));
@@ -172,7 +190,7 @@ describe('ApplicationPage', () => {
 
   it('offers deleting to administrators only', async () => {
     openCard(owner);
-    await screen.findByRole('heading', { name: 'Заява 14т/26' });
+    await screen.findByRole('heading', { name: 'Заява 14т/26-8' });
     expect(screen.queryByRole('button', { name: 'Видалити' })).not.toBeInTheDocument();
   });
 
@@ -196,17 +214,17 @@ describe('ApplicationPage', () => {
     );
 
     await user.click(await screen.findByRole('button', { name: 'Видалити' }));
-    const dialog = screen.getByRole('dialog', { name: 'Видалити заяву 14т/26?' });
+    const dialog = screen.getByRole('dialog', { name: 'Видалити заяву 14т/26-8?' });
     const confirm = within(dialog).getByRole('button', { name: 'Видалити назавжди' });
     expect(confirm).toBeDisabled();
 
     await user.type(
-      within(dialog).getByLabelText('Введіть номер 14т/26 для підтвердження'),
-      '14т/26',
+      within(dialog).getByLabelText('Введіть номер 14т/26-8 для підтвердження'),
+      '14т/26-8',
     );
     await user.click(confirm);
 
-    expect(await screen.findByText('Заяву 14т/26 видалено')).toBeInTheDocument();
+    expect(await screen.findByText('Заяву 14т/26-8 видалено')).toBeInTheDocument();
     expect(deleted).toHaveBeenCalledWith('app00000000000000000001', '3');
     expect(router.state.location.pathname).toBe('/');
     // The deleted record is not requested again (no "not found" flash before navigating).

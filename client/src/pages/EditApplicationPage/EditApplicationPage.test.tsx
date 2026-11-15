@@ -25,7 +25,7 @@ function openEdit(user = owner, versions: ApplicationDto[] = [makeApplication()]
     ),
     mock.get(`*/api/v1/applications/${app.id}/history`, () => HttpResponse.json([makeChange()])),
     mock.get('*/api/v1/applications/manual/check', () =>
-      HttpResponse.json({ regNumber: '15т/26', available: true, takenOn: null }),
+      HttpResponse.json({ regNumber: '15т/26-8', available: true, takenOn: null }),
     ),
   );
   return renderApp(`/applications/${app.id}/edit`);
@@ -81,7 +81,7 @@ describe('EditApplicationPage', () => {
     await user.click(screen.getByRole('button', { name: 'Зберегти' }));
 
     const dialog = await screen.findByRole('dialog', { name: 'Змінити реєстраційні дані?' });
-    expect(dialog).toHaveTextContent('Номер: 14т/26 → 15т/26');
+    expect(dialog).toHaveTextContent('Номер: 14т/26-8 → 15т/26-8');
     expect(sent).toHaveLength(0);
     await user.click(within(dialog).getByRole('button', { name: 'Змінити' }));
 
@@ -90,7 +90,7 @@ describe('EditApplicationPage', () => {
   });
 
   it('shows a taken number next to the field', async () => {
-    captureUpdates(() => apiError(409, 'REG_NUMBER_TAKEN', 'Номер 15т/26 уже зайнятий'));
+    captureUpdates(() => apiError(409, 'REG_NUMBER_TAKEN', 'Номер 15т/26-8 уже зайнятий'));
     const { user } = openEdit(authorizedOwner);
 
     const seq = await screen.findByLabelText('Порядковий номер');
@@ -99,7 +99,7 @@ describe('EditApplicationPage', () => {
     await user.click(screen.getByRole('button', { name: 'Зберегти' }));
     await user.click(await screen.findByRole('button', { name: 'Змінити' }));
 
-    expect(await screen.findByText('Номер 15т/26 уже зайнятий')).toBeInTheDocument();
+    expect(await screen.findByText('Номер 15т/26-8 уже зайнятий')).toBeInTheDocument();
     expect(screen.getByLabelText('Порядковий номер')).toHaveAttribute('aria-invalid', 'true');
   });
 
@@ -189,5 +189,29 @@ describe('EditApplicationPage', () => {
     await user.click(screen.getByRole('button', { name: 'Зберегти' }));
     await screen.findByText('Зміни збережено');
     expect(sent).toEqual([{ phone: '+380501112233', areaType: 'URBAN', version: 3 }]);
+  });
+
+  it('lets an admin move the application to another department, confirming the new number', async () => {
+    const sent = captureUpdates();
+    const { user } = openEdit(makeUser({ id: 'admin000000000000000001', role: 'ADMIN' }));
+
+    const department = await screen.findByLabelText('Управління');
+    await user.selectOptions(department, 'Ренійське');
+    await user.click(screen.getByRole('button', { name: 'Зберегти' }));
+
+    const dialog = await screen.findByRole('dialog', { name: 'Змінити реєстраційні дані?' });
+    expect(dialog).toHaveTextContent('Номер: 14т/26-8 → 14т/26-11');
+    expect(dialog).toHaveTextContent('Управління: Одеське → Ренійське');
+    await user.click(within(dialog).getByRole('button', { name: 'Змінити' }));
+
+    await screen.findByText('Зміни збережено');
+    expect(sent).toEqual([{ department: 'RENI', version: 3 }]);
+  });
+
+  it('does not offer the department to regular users', async () => {
+    openEdit(authorizedOwner);
+
+    await screen.findByLabelText('Порядковий номер');
+    expect(screen.queryByLabelText('Управління')).not.toBeInTheDocument();
   });
 });

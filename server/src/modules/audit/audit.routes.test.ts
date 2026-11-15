@@ -34,6 +34,7 @@ describe('audit journal API', () => {
 
   it('lists newest first with actor names and readable objects', async () => {
     const application = await Application.create({
+      department: 'ODESA',
       regYear: 2026,
       regSeq: 7,
       regDate: new Date('2026-03-01T00:00:00Z'),
@@ -50,7 +51,7 @@ describe('audit journal API', () => {
       actor: adminId,
       entityType: 'Application',
       entityId: application._id,
-      details: { regNumber: '7т/26' },
+      details: { regNumber: '7т/26-8' },
       createdAt: new Date('2026-03-01T10:00:00Z'),
     });
     await AuditLog.create({
@@ -71,8 +72,8 @@ describe('audit journal API', () => {
     ]);
     expect(res.body.data[0]).toMatchObject({ entityLabel: 'boss', actor: { login: 'boss' } });
     expect(res.body.data[1]).toMatchObject({
-      entityLabel: '7т/26',
-      details: { regNumber: '7т/26' },
+      entityLabel: '7т/26-8',
+      details: { regNumber: '7т/26-8' },
     });
   });
 

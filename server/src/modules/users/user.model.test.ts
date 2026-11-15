@@ -5,7 +5,7 @@ import { User } from './user.model';
 describe('User model', () => {
   useTestDb();
 
-  const base = { fullName: 'Іван Петренко', passwordHash: 'hash' };
+  const base = { fullName: 'Іван Петренко', passwordHash: 'hash', department: 'ODESA' as const };
 
   it('normalizes login and applies safe defaults', async () => {
     const user = await User.create({ ...base, login: '  Ivan.Petrenko ' });

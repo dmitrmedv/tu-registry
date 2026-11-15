@@ -1,6 +1,7 @@
 import {
   type ApplicationListItemDto,
   type ApplicationListQueryData,
+  type Department,
   formatRegNumber,
   type Paginated,
 } from '@tu-registry/shared';
@@ -20,6 +21,7 @@ type ListedApplication = {
   regYear: number;
   regSeq: number;
   regDate: Date;
+  department: Department;
   customer: string;
   customerRepresentative?: string;
   settlement?: string;
@@ -37,6 +39,7 @@ const LIST_FIELDS = [
   'regYear',
   'regSeq',
   'regDate',
+  'department',
   'customer',
   'customerRepresentative',
   'settlement',
@@ -122,10 +125,11 @@ export async function listApplications(
   return {
     data: rows.map((row) => ({
       id: String(row._id),
-      regNumber: formatRegNumber(row.regYear, row.regSeq),
+      regNumber: formatRegNumber(row.regYear, row.regSeq, row.department),
       regYear: row.regYear,
       regSeq: row.regSeq,
       regDate: toIsoDate(row.regDate),
+      department: row.department,
       customer: row.customer,
       customerRepresentative: row.customerRepresentative ?? null,
       settlement: row.settlement ?? null,

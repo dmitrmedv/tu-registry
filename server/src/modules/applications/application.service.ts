@@ -1,6 +1,7 @@
 import {
   type AuditAction,
   type CreateApplicationData,
+  type Department,
   formatRegNumber,
   type ManualApplicationData,
   type RegistrationMode,
@@ -15,7 +16,8 @@ import { toApplicationDto } from './application.dto';
 import { Application } from './application.model';
 import { ApplicationChange } from './applicationChange.model';
 
-type Actor = { id: string; fullName: string };
+/** Registers into the author's own department. */
+type Actor = { id: string; fullName: string; department: Department };
 
 /**
  * A committed manual registration can take the very number the counter just issued
@@ -48,6 +50,7 @@ async function insertRegistration(
         ...rest,
         // The wording belongs to OTHER only; a leftover from a switched category is dropped.
         ...(fields.objectCategory === 'OTHER' && { objectCategoryOther }),
+        department: actor.department,
         regYear,
         regSeq,
         regDate,
@@ -70,7 +73,10 @@ async function insertRegistration(
       entityType: 'Application',
       entityId: created!._id,
       // Number and date only: customer data does not belong in the audit log.
-      details: { regNumber: formatRegNumber(regYear, regSeq), regDate: toIsoDate(regDate) },
+      details: {
+        regNumber: formatRegNumber(regYear, regSeq, actor.department),
+        regDate: toIsoDate(regDate),
+      },
     },
     context,
     session,
@@ -78,7 +84,7 @@ async function insertRegistration(
   return created!;
 }
 
-/** Registers an application with today's date (Kyiv) and the next number of the year. */
+/** Today's date (Kyiv) and the next number of the year in the author's department. */
 export async function createApplication(
   fields: CreateApplicationData,
   actor: Actor,
@@ -89,7 +95,7 @@ export async function createApplication(
       const { year, date } = kyivToday();
       // The counter increment is part of the same transaction: no burnt numbers on failure.
       const created = await inTransaction(async (session) => {
-        const regSeq = await issueNextNumber(year, session);
+        const regSeq = await issueNextNumber(year, actor.department, session);
         return insertRegistration(
           session,
           { fields, regYear: year, regSeq, regDate: date, mode: 'AUTO' },
@@ -125,11 +131,15 @@ export async function createManualApplication(
 ) {
   // The year is always the registration date's year: "14" on 2024-05-20 is "14т/24".
   const year = yearOf(regDate);
-  const formatted = formatRegNumber(year, seq);
+  const formatted = formatRegNumber(year, seq, actor.department);
   try {
     const created = await inTransaction(async (session) => {
       // Only for a helpful message; the unique index is what actually prevents duplicates.
-      const existing = await Application.findOne({ regYear: year, regSeq: seq })
+      const existing = await Application.findOne({
+        department: actor.department,
+        regYear: year,
+        regSeq: seq,
+      })
         .select('regDate')
         .session(session);
       if (existing) throw numberTaken(formatted, existing.regDate);
@@ -148,23 +158,34 @@ export async function createManualApplication(
   }
 }
 
-/** Lets the form show "14т/24 — free/taken" while the user types. Read-only. */
-export async function checkManualNumber(regDate: string, seq: number, excludeId?: string) {
+/** Lets the form show "14т/24-8 — free/taken" while the user types. Read-only. */
+export async function checkManualNumber(
+  regDate: string,
+  seq: number,
+  department: Department,
+  excludeId?: string,
+) {
   const year = yearOf(regDate);
   const existing = await Application.findOne({
+    department,
     regYear: year,
     regSeq: seq,
     ...(excludeId && { _id: mongoose.trusted({ $ne: excludeId }) }),
   }).select('regDate');
   return {
-    regNumber: formatRegNumber(year, seq),
+    regNumber: formatRegNumber(year, seq, department),
     available: !existing,
     takenOn: existing ? toIsoDate(existing.regDate) : null,
   };
 }
 
-export async function getNextNumber() {
+export async function getNextNumber(department: Department) {
   const { year, iso } = kyivToday();
-  const regSeq = await peekNextNumber(year);
-  return { regNumber: formatRegNumber(year, regSeq), regYear: year, regSeq, regDate: iso };
+  const regSeq = await peekNextNumber(year, department);
+  return {
+    regNumber: formatRegNumber(year, regSeq, department),
+    regYear: year,
+    regSeq,
+    regDate: iso,
+  };
 }

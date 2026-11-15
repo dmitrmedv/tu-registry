@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { DEFAULT_PARAMS, readParams, toApiQuery, writeParams } from './registryParams';
 
-const ME = 'aaaaaaaaaaaaaaaaaaaaaaaa';
+const ME = { id: 'aaaaaaaaaaaaaaaaaaaaaaaa', role: 'USER' as const };
+const ADMIN = { id: 'bbbbbbbbbbbbbbbbbbbbbbbb', role: 'ADMIN' as const };
 
 describe('registry URL params', () => {
   it('falls back to defaults for anything malformed', () => {
@@ -37,7 +38,15 @@ describe('registry URL params', () => {
       { ...DEFAULT_PARAMS, user: 'mine', number: 'abc', from: '2026-03-10', to: '2026-03-01' },
       ME,
     );
-    expect(query).toMatchObject({ createdBy: ME, number: undefined, dateFrom: '2026-03-10' });
+    expect(query).toMatchObject({ createdBy: ME.id, number: undefined, dateFrom: '2026-03-10' });
     expect(query.dateTo).toBeUndefined();
+  });
+
+  it("sends an admin's department (Одеське by default, none for «all»); never a user's", () => {
+    expect(toApiQuery(DEFAULT_PARAMS, ADMIN).department).toBe('ODESA');
+    expect(toApiQuery({ ...DEFAULT_PARAMS, department: 'all' }, ADMIN).department).toBeUndefined();
+    expect(toApiQuery({ ...DEFAULT_PARAMS, department: 'RENI' }, ME).department).toBeUndefined();
+    expect(readParams(new URLSearchParams('department=unknown')).department).toBe('ODESA');
+    expect(writeParams({ ...DEFAULT_PARAMS, department: 'all' }).toString()).toBe('department=all');
   });
 });

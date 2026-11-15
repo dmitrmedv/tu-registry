@@ -1,4 +1,7 @@
+import { DEFAULT_DEPARTMENT } from '@tu-registry/shared';
 import mongoose from 'mongoose';
+import { Counter } from '../numbering/counter.model';
+import { User } from '../users/user.model';
 import { Application } from './application.model';
 
 /**
@@ -114,4 +117,49 @@ export async function backfillAreaType() {
   if (updates.length === 0) return 0;
   const { modifiedCount } = await Application.bulkWrite(updates);
   return modifiedCount;
+}
+
+/**
+ * Departments arrived in stage 13 (agreed 2026-11-16): existing users and applications were
+ * all Одеське. An admin then moves the users who belong elsewhere. Idempotent.
+ */
+export async function assignDefaultDepartment() {
+  const missing = { department: mongoose.trusted({ $exists: false }) };
+  const set = { $set: { department: DEFAULT_DEPARTMENT } };
+  const users = (await User.updateMany(missing, set)).modifiedCount;
+  const applications = (await Application.updateMany(missing, set)).modifiedCount;
+  return { users, applications };
+}
+
+/**
+ * Counters were per year ({ _id: 2026 }); now per year and department ("2026:ODESA"). The
+ * old ones continue as Одеське's, so its numbering goes on without a gap. Idempotent.
+ */
+export async function moveCountersToDefaultDepartment() {
+  // Old ids are bare years (numbers); new ones are strings.
+  const legacy = await Counter.collection.find({ _id: { $not: { $type: 'string' } } }).toArray();
+  for (const counter of legacy) {
+    await Counter.collection.updateOne(
+      { _id: `${String(counter._id)}:${DEFAULT_DEPARTMENT}` } as never,
+      { $max: { lastSeq: counter.lastSeq as number }, $setOnInsert: { createdAt: new Date() } },
+      { upsert: true },
+    );
+    await Counter.collection.deleteOne({ _id: counter._id });
+  }
+  return legacy.length;
+}
+
+/**
+ * Before stage 13 a number was unique within the year across everything; now within the year
+ * and department. The old unique index would forbid the same number in two departments.
+ */
+export async function dropYearWideUniqueNumberIndex() {
+  const indexes = await Application.collection.indexes();
+  const legacy = indexes.find(
+    (index) =>
+      index.unique && JSON.stringify(index.key) === JSON.stringify({ regYear: 1, regSeq: 1 }),
+  );
+  if (!legacy?.name) return false;
+  await Application.collection.dropIndex(legacy.name);
+  return true;
 }

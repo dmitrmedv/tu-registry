@@ -8,8 +8,8 @@ export const list: RequestHandler = async (_req, res) => {
   res.json(await userService.listUsers());
 };
 
-export const options: RequestHandler = async (_req, res) => {
-  res.json(await userService.listUserOptions());
+export const options: RequestHandler = async (req, res) => {
+  res.json(await userService.listUserOptions(req.user!));
 };
 
 export const create: RequestHandler = async (req, res) => {

@@ -15,8 +15,8 @@ const entries: AuditLogDto[] = [
     actor: { id: admin.id, fullName: admin.fullName, login: admin.login },
     entityType: 'Application',
     entityId: 'app00000000000000000001',
-    entityLabel: '50т/26',
-    details: { from: '1т/26', to: '50т/26' },
+    entityLabel: '50т/26-8',
+    details: { from: '1т/26-8', to: '50т/26-8' },
     ip: '127.0.0.1',
   },
   {
@@ -26,8 +26,8 @@ const entries: AuditLogDto[] = [
     actor: { id: admin.id, fullName: admin.fullName, login: admin.login },
     entityType: 'Application',
     entityId: 'app00000000000000000002',
-    entityLabel: '7т/26',
-    details: { regNumber: '7т/26', regDate: '2026-02-01' },
+    entityLabel: '7т/26-8',
+    details: { regNumber: '7т/26-8', regDate: '2026-02-01' },
     ip: '127.0.0.1',
   },
   {
@@ -65,14 +65,14 @@ describe('AuditPage', () => {
     const table = await screen.findByRole('table', { name: 'Журнал аудиту' });
     const [, first, deleted, second] = within(table).getAllByRole('row');
     expect(first).toHaveTextContent('Змінено номер заяви');
-    expect(within(first!).getByRole('link', { name: 'Заява 50т/26' })).toHaveAttribute(
+    expect(within(first!).getByRole('link', { name: 'Заява 50т/26-8' })).toHaveAttribute(
       'href',
       '/applications/app00000000000000000001',
     );
-    expect(first).toHaveTextContent('1т/26 → 50т/26');
+    expect(first).toHaveTextContent('1т/26-8 → 50т/26-8');
     // A deleted application keeps its number but has no card to link to.
     expect(deleted).toHaveTextContent('Видалено заяву');
-    expect(deleted).toHaveTextContent('Заява 7т/26');
+    expect(deleted).toHaveTextContent('Заява 7т/26-8');
     expect(deleted).toHaveTextContent('заява від 01.02.2026');
     expect(within(deleted!).queryByRole('link')).not.toBeInTheDocument();
     expect(second).toHaveTextContent('Невдалий вхід');

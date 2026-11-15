@@ -10,7 +10,9 @@ import {
   type ObjectType,
   type RegistrationMode,
 } from '../enums';
+import type { Department } from '../departments';
 import { normalizePhone } from '../phone';
+import { departmentField } from './user';
 
 const requiredText = (label: string, max: number) =>
   z
@@ -151,6 +153,8 @@ export const manualNumberCheckSchema = z.object({
   regDate: regDateField,
   regSeq: regSeqField,
   excludeId: z.preprocess((v) => (v === '' ? undefined : v), objectIdField.optional()),
+  /** Admins only (moving an application to another department); users check their own. */
+  department: z.preprocess((v) => (v === '' ? undefined : v), departmentField.optional()),
 });
 
 /** Is "14т/24" free? `takenOn` is the registration date of the application holding it. */
@@ -167,6 +171,8 @@ export type ApplicationDto = {
   regYear: number;
   regSeq: number;
   regDate: string;
+  /** The author's department at registration; only an admin can change it. */
+  department: Department;
   customer: string;
   customerRepresentative: string | null;
   phone: string;
@@ -238,6 +244,8 @@ export function updateApplicationSchema(today: string) {
         .refine((date) => date <= today, 'Дата реєстрації не може бути пізнішою за сьогодні')
         .optional(),
       regSeq: regSeqField.optional(),
+      // Admins only: moves the application (and its number) to another department.
+      department: departmentField.optional(),
       version: versionField,
     })
     .strict()

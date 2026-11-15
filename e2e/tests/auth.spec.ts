@@ -17,6 +17,7 @@ test('an administrator creates a user, who must replace the temporary password',
   const login = `e2e.${Date.now().toString(36)}`;
   await form.getByLabel('Логін').fill(login);
   await form.getByLabel('ПІБ').fill('Олена Коваль');
+  await form.getByLabel('Управління').selectOption({ label: 'Одеське' });
   await form.getByRole('button', { name: 'Створити' }).click();
 
   const created = page.getByRole('dialog', { name: 'Користувача створено' });

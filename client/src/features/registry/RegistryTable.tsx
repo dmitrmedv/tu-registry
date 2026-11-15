@@ -1,4 +1,9 @@
-import type { ApplicationListItemDto, ApplicationSort, SortField } from '@tu-registry/shared';
+import {
+  type ApplicationListItemDto,
+  type ApplicationSort,
+  DEPARTMENT_NAMES,
+  type SortField,
+} from '@tu-registry/shared';
 import clsx from 'clsx';
 import type { MouseEvent } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router';
@@ -9,6 +14,8 @@ import styles from './registry.module.scss';
 
 type Props = {
   rows: ApplicationListItemDto[];
+  /** Admins see every department, so the column tells them apart. */
+  showDepartment: boolean;
   sort: ApplicationSort;
   onSort: (sort: ApplicationSort) => void;
 };
@@ -67,7 +74,7 @@ function useRowOpener(registrySearch: string) {
   };
 }
 
-export function RegistryTable({ rows, sort, onSort }: Props) {
+export function RegistryTable({ rows, showDepartment, sort, onSort }: Props) {
   // The card's "back to registry" link returns to exactly these filters.
   const { search } = useLocation();
   const openRow = useRowOpener(search);
@@ -77,6 +84,9 @@ export function RegistryTable({ rows, sort, onSort }: Props) {
         <tr>
           <SortableHeader field="regNumber" label="№" sort={sort} onSort={onSort} />
           <SortableHeader field="regDate" label="Дата реєстрації" sort={sort} onSort={onSort} />
+          {showDepartment && (
+            <SortableHeader field="department" label="Управління" sort={sort} onSort={onSort} />
+          )}
           {COLUMNS.map(([field, label]) => (
             <SortableHeader key={field} field={field} label={label} sort={sort} onSort={onSort} />
           ))}
@@ -112,6 +122,9 @@ export function RegistryTable({ rows, sort, onSort }: Props) {
               )}
             </td>
             <td className={styles.nowrap}>{formatCalendarDate(row.regDate)}</td>
+            {showDepartment && (
+              <td className={styles.nowrap}>{DEPARTMENT_NAMES[row.department]}</td>
+            )}
             <td className={styles.wrap}>{row.customer}</td>
             <td className={styles.nowrap}>{row.settlement ?? '—'}</td>
             <td className={styles.nowrap}>{row.areaType ? AREA_TYPE_LABELS[row.areaType] : '—'}</td>

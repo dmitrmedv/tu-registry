@@ -3,6 +3,7 @@ import type {
   ApplicationChangeDto,
   ApplicationDto,
   CreateApplicationData,
+  Department,
   ManualApplicationInput,
   ManualNumberCheckDto,
   NextNumberDto,
@@ -10,7 +11,13 @@ import type {
 } from '@tu-registry/shared';
 import { http } from '@/shared/api/http';
 
-export type ManualNumberCheckParams = { regDate: string; regSeq: number; excludeId?: string };
+export type ManualNumberCheckParams = {
+  regDate: string;
+  regSeq: number;
+  /** Used by the server for admins only; users always check their own department. */
+  department: Department;
+  excludeId?: string;
+};
 
 export const applicationsApi = {
   create: (data: CreateApplicationData) =>

@@ -5,18 +5,17 @@ import {
   OBJECT_CATEGORY_OTHER_REQUIRED,
   type UpdateApplicationData,
 } from '@tu-registry/shared';
-import type { AuthUser } from '../../types/express';
 import { ApiError } from '../../utils/ApiError';
 import { inTransaction, isDuplicateKey } from '../../utils/db';
 import { fromIsoDate, toIsoDate } from '../../utils/kyivDate';
 import { type RequestContext, recordAccessDenied, recordAudit } from '../audit/audit.service';
 import { findUserSummaries } from '../users/user.service';
+import { type Actor, applicationNotFound, canAccess, isAdmin } from './application.access';
 import { type ApplicationDocument, toApplicationDto } from './application.dto';
 import { Application } from './application.model';
 import { numberTaken, yearOf } from './application.service';
 import { ApplicationChange } from './applicationChange.model';
 
-type Actor = Pick<AuthUser, 'id' | 'role' | 'canManageRegistration'>;
 type FieldChange = { field: string; oldValue: unknown; newValue: unknown };
 
 const CONTENT_FIELDS = [
@@ -33,7 +32,6 @@ const CONTENT_FIELDS = [
   'comment',
 ] as const;
 
-const notFound = () => ApiError.notFound('Заяву не знайдено');
 export const versionConflict = () =>
   new ApiError(
     409,
@@ -41,14 +39,12 @@ export const versionConflict = () =>
     'Заяву щойно змінив інший користувач. Завантажте актуальні дані й повторіть зміни.',
   );
 
-export async function loadApplication(id: string) {
+/** The application, if it exists and the actor's department may see it. */
+export async function loadApplication(id: string, actor: Actor) {
   const app = await Application.findById(id);
-  if (!app) throw notFound();
+  if (!app || !canAccess(app, actor)) throw applicationNotFound();
   return app;
 }
-
-const isOwner = (app: ApplicationDocument, actor: Actor) => app.createdBy.equals(actor.id);
-const isAdmin = (actor: Actor) => actor.role === 'ADMIN';
 
 /** Audits the refusal (outside any transaction, so it is kept) and returns the 403. */
 async function deny(
@@ -70,8 +66,8 @@ async function toDto(app: ApplicationDocument) {
   return toApplicationDto(app, name(authorId), annulledById ? name(annulledById) : null);
 }
 
-export async function getApplication(id: string) {
-  return toDto(await loadApplication(id));
+export async function getApplication(id: string, actor: Actor) {
+  return toDto(await loadApplication(id, actor));
 }
 
 /**
@@ -97,9 +93,10 @@ function withCategoryWording(input: UpdateApplicationData, current: ApplicationD
 }
 
 /**
- * Applies only the fields that actually changed. Content fields: owner or admin.
- * Date/number: admin, or the owner with the "authorized" flag. The number's year always
- * follows the registration date; the automatic counter is never touched.
+ * Applies only the fields that actually changed. Content fields: anyone in the application's
+ * department, or an admin. Date/number: an admin, or an "authorized" user of the department.
+ * Department: admins only; the number then moves to it and must be free there. The number's
+ * year always follows the registration date; the automatic counter is never touched.
  */
 export async function updateApplication(
   id: string,
@@ -107,7 +104,7 @@ export async function updateApplication(
   actor: Actor,
   context: RequestContext,
 ) {
-  const current = await loadApplication(id);
+  const current = await loadApplication(id, actor);
   if (current.status === 'ANNULLED') {
     throw new ApiError(
       409,
@@ -116,23 +113,19 @@ export async function updateApplication(
     );
   }
 
-  const touchesContent = CONTENT_FIELDS.some((field) => input[field] !== undefined);
   const touchesRegistration = input.regDate !== undefined || input.regSeq !== undefined;
-  if (touchesContent && !isOwner(current, actor) && !isAdmin(actor)) {
-    throw await deny(actor, current, 'owner', 'Редагувати можна лише власні заяви', context);
-  }
-  if (
-    touchesRegistration &&
-    !isAdmin(actor) &&
-    !(isOwner(current, actor) && actor.canManageRegistration)
-  ) {
+  if (touchesRegistration && !isAdmin(actor) && !actor.canManageRegistration) {
     throw await deny(
       actor,
       current,
       'canManageRegistration',
-      'Дату й номер можуть змінювати лише уповноважені користувачі у власних заявах',
+      'Дату й номер можуть змінювати лише уповноважені користувачі',
       context,
     );
+  }
+  const newDepartment = input.department ?? current.department;
+  if (newDepartment !== current.department && !isAdmin(actor)) {
+    throw await deny(actor, current, 'ADMIN', 'Управління заяви змінює адміністратор', context);
   }
   if (input.version !== current.version) throw versionConflict();
 
@@ -152,10 +145,14 @@ export async function updateApplication(
 
   const oldDate = toIsoDate(current.regDate);
   const newDate = input.regDate ?? oldDate;
-  const oldNumber = formatRegNumber(current.regYear, current.regSeq);
+  const oldNumber = formatRegNumber(current.regYear, current.regSeq, current.department);
   const newYear = yearOf(newDate);
   const newSeq = input.regSeq ?? current.regSeq;
-  const newNumber = formatRegNumber(newYear, newSeq);
+  const newNumber = formatRegNumber(newYear, newSeq, newDepartment);
+  if (newDepartment !== current.department) {
+    changes.push({ field: 'department', oldValue: current.department, newValue: newDepartment });
+    set.department = newDepartment;
+  }
   if (newDate !== oldDate) {
     changes.push({ field: 'regDate', oldValue: oldDate, newValue: newDate });
     set.regDate = fromIsoDate(newDate);
@@ -170,7 +167,11 @@ export async function updateApplication(
   try {
     await inTransaction(async (session) => {
       if (newNumber !== oldNumber) {
-        const holder = await Application.findOne({ regYear: newYear, regSeq: newSeq })
+        const holder = await Application.findOne({
+          department: newDepartment,
+          regYear: newYear,
+          regSeq: newSeq,
+        })
           .select('regDate')
           .session(session);
         if (holder) throw numberTaken(newNumber, holder.regDate);
@@ -215,20 +216,17 @@ export async function updateApplication(
     if (isDuplicateKey(error)) throw numberTaken(newNumber);
     throw error;
   }
-  return getApplication(id);
+  return getApplication(id, actor);
 }
 
-/** Owner or admin. The number stays taken; the record keeps all its data. */
+/** Anyone in the application's department, or an admin. The number stays taken. */
 export async function annulApplication(
   id: string,
   { reason, version }: AnnulApplicationInput,
   actor: Actor,
   context: RequestContext,
 ) {
-  const current = await loadApplication(id);
-  if (!isOwner(current, actor) && !isAdmin(actor)) {
-    throw await deny(actor, current, 'owner', 'Анулювати можна лише власні заяви', context);
-  }
+  const current = await loadApplication(id, actor);
   if (current.status === 'ANNULLED') {
     throw new ApiError(409, 'ALREADY_ANNULLED', 'Заяву вже анульовано');
   }
@@ -268,13 +266,15 @@ export async function annulApplication(
         actor: actor.id,
         entityType: 'Application',
         entityId: current._id,
-        details: { regNumber: formatRegNumber(current.regYear, current.regSeq) },
+        details: {
+          regNumber: formatRegNumber(current.regYear, current.regSeq, current.department),
+        },
       },
       context,
       session,
     );
   });
-  return getApplication(id);
+  return getApplication(id, actor);
 }
 
 /** Admin only (enforced by the route). */
@@ -284,7 +284,7 @@ export async function restoreApplication(
   actor: Actor,
   context: RequestContext,
 ) {
-  const current = await loadApplication(id);
+  const current = await loadApplication(id, actor);
   if (current.status !== 'ANNULLED') {
     throw new ApiError(409, 'NOT_ANNULLED', 'Заява не анульована');
   }
@@ -318,18 +318,23 @@ export async function restoreApplication(
         actor: actor.id,
         entityType: 'Application',
         entityId: current._id,
-        details: { regNumber: formatRegNumber(current.regYear, current.regSeq) },
+        details: {
+          regNumber: formatRegNumber(current.regYear, current.regSeq, current.department),
+        },
       },
       context,
       session,
     );
   });
-  return getApplication(id);
+  return getApplication(id, actor);
 }
 
 /** Every saved change, newest first, with the author's name. */
-export async function getApplicationHistory(id: string): Promise<ApplicationChangeDto[]> {
-  if (!(await Application.exists({ _id: id }))) throw notFound();
+export async function getApplicationHistory(
+  id: string,
+  actor: Actor,
+): Promise<ApplicationChangeDto[]> {
+  await loadApplication(id, actor);
   const rows = await ApplicationChange.find({ applicationId: id })
     .sort({ changedAt: -1, _id: -1 })
     .lean();

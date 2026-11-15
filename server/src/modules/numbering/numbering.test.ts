@@ -6,9 +6,13 @@ import { Application } from '../applications/application.model';
 import { createApplication, getNextNumber } from '../applications/application.service';
 import { ApplicationChange } from '../applications/applicationChange.model';
 import { AuditLog } from '../audit/auditLog.model';
-import { Counter } from './counter.model';
+import { Counter, counterId } from './counter.model';
 
-const actor = { id: new Types.ObjectId().toString(), fullName: 'Тестовий Реєстратор' };
+const actor = {
+  id: new Types.ObjectId().toString(),
+  fullName: 'Тестовий Реєстратор',
+  department: 'ODESA' as const,
+};
 
 const input = {
   customer: 'ТОВ «Приклад»',
@@ -44,7 +48,7 @@ describe('automatic numbering', () => {
     expect(seqs).toEqual(Array.from({ length: 50 }, (_, i) => i + 1));
     expect(new Set(results.map((r) => r.regNumber)).size).toBe(50);
     expect(results.every((r) => r.regYear === 2026 && r.regDate === '2026-03-12')).toBe(true);
-    expect((await Counter.findById(2026))?.lastSeq).toBe(50);
+    expect((await Counter.findById(counterId(2026, 'ODESA')))?.lastSeq).toBe(50);
     expect(await Application.countDocuments()).toBe(50);
   });
 
@@ -54,23 +58,23 @@ describe('automatic numbering', () => {
     const first = await register();
     const second = await register();
 
-    expect([first.regNumber, second.regNumber]).toEqual(['1т/26', '2т/26']);
+    expect([first.regNumber, second.regNumber]).toEqual(['1т/26-8', '2т/26-8']);
     expect(first).toMatchObject({ registrationMode: 'AUTO', status: 'ACTIVE', createdBy: actor });
     expect(await ApplicationChange.countDocuments({ action: 'CREATED' })).toBe(2);
     const audit = await AuditLog.findOne({ action: 'APPLICATION_CREATED', entityId: first.id });
-    expect(audit?.details).toEqual({ regNumber: '1т/26', regDate: '2026-03-12' });
+    expect(audit?.details).toEqual({ regNumber: '1т/26-8', regDate: '2026-03-12' });
   });
 
-  it('uses the Kyiv calendar for the year: restarts at 1т/27 just after midnight on 1 January', async () => {
+  it('uses the Kyiv calendar for the year: restarts at 1т/27-8 just after midnight on 1 January', async () => {
     setNow('2026-12-31T21:59:00Z'); // 23:59 in Kyiv
     const lastOfYear = [await register(), await register()];
 
     setNow('2026-12-31T22:01:00Z'); // 00:01 on 1 January in Kyiv, still 31 Dec in UTC
     const firstOfYear = await register();
 
-    expect(lastOfYear.map((r) => r.regNumber)).toEqual(['1т/26', '2т/26']);
+    expect(lastOfYear.map((r) => r.regNumber)).toEqual(['1т/26-8', '2т/26-8']);
     expect(lastOfYear[1]!.regDate).toBe('2026-12-31');
-    expect(firstOfYear.regNumber).toBe('1т/27');
+    expect(firstOfYear.regNumber).toBe('1т/27-8');
     expect(firstOfYear.regDate).toBe('2027-01-01');
   });
 
@@ -78,6 +82,7 @@ describe('automatic numbering', () => {
     setNow('2026-03-12T09:00:00Z');
     await Application.create({
       ...input,
+      department: 'ODESA',
       regYear: 2026,
       regSeq: 2,
       regDate: new Date('2026-02-01T00:00:00Z'),
@@ -98,20 +103,20 @@ describe('automatic numbering', () => {
 
     expect(await Application.countDocuments()).toBe(0);
     expect(await ApplicationChange.countDocuments()).toBe(0);
-    expect((await Counter.findById(2026))?.lastSeq ?? 0).toBe(0);
+    expect((await Counter.findById(counterId(2026, 'ODESA')))?.lastSeq ?? 0).toBe(0);
     // The number was not burnt.
-    expect((await register()).regNumber).toBe('1т/26');
+    expect((await register()).regNumber).toBe('1т/26-8');
   });
 
   it('shows the next number without reserving it', async () => {
     setNow('2026-03-12T09:00:00Z');
     await register();
 
-    const hint = await getNextNumber();
-    const again = await getNextNumber();
+    const hint = await getNextNumber('ODESA');
+    const again = await getNextNumber('ODESA');
 
-    expect(hint).toEqual({ regNumber: '2т/26', regYear: 2026, regSeq: 2, regDate: '2026-03-12' });
+    expect(hint).toEqual({ regNumber: '2т/26-8', regYear: 2026, regSeq: 2, regDate: '2026-03-12' });
     expect(again.regSeq).toBe(2);
-    expect((await Counter.findById(2026))?.lastSeq).toBe(1);
+    expect((await Counter.findById(counterId(2026, 'ODESA')))?.lastSeq).toBe(1);
   });
 });

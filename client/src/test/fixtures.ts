@@ -4,10 +4,11 @@ import type { ApplicationChangeDto, ApplicationDto } from '@tu-registry/shared';
 export function makeApplication(overrides: Partial<ApplicationDto> = {}): ApplicationDto {
   return {
     id: 'app00000000000000000001',
-    regNumber: '14т/26',
+    regNumber: '14т/26-8',
     regYear: 2026,
     regSeq: 14,
     regDate: '2026-03-12',
+    department: 'ODESA',
     customer: 'ТОВ «Приклад»',
     customerRepresentative: 'Петренко Іван',
     phone: '+380671234567',

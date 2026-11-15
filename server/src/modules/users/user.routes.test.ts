@@ -55,14 +55,17 @@ describe('users API', () => {
     it('creates a user with a one-time temporary password that must be changed', async () => {
       const { auth, user: actor } = await admin();
 
-      const res = await request(app)
-        .post(USERS)
-        .set(auth)
-        .send({ login: 'Olena.K', fullName: 'Олена Коваль', canManageRegistration: true });
+      const res = await request(app).post(USERS).set(auth).send({
+        login: 'Olena.K',
+        fullName: 'Олена Коваль',
+        department: 'RENI',
+        canManageRegistration: true,
+      });
 
       expect(res.status).toBe(201);
       expect(res.body.user).toMatchObject({
         login: 'olena.k',
+        department: 'RENI',
         role: 'USER',
         canManageRegistration: true,
         mustChangePassword: true,
@@ -82,7 +85,7 @@ describe('users API', () => {
       const res = await request(app)
         .post(USERS)
         .set(auth)
-        .send({ login: 'ADMIN', fullName: 'Дубль' });
+        .send({ login: 'ADMIN', fullName: 'Дубль', department: 'ODESA' });
 
       expect(res.status).toBe(409);
     });

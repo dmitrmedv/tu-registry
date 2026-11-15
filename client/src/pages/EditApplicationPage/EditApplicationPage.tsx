@@ -1,6 +1,7 @@
 import { useLocation, useNavigate, useParams } from 'react-router';
 import {
   canEdit,
+  canChangeDepartment,
   canEditRegistration,
   EditApplicationForm,
   useApplication,
@@ -51,6 +52,7 @@ export function EditApplicationPage() {
         key={app.version}
         app={app}
         canEditRegistration={canEditRegistration(app, user)}
+        canChangeDepartment={canChangeDepartment(app, user)}
         cancelTo={cardPath}
         onReload={() => application.refetch()}
         onSaved={() =>

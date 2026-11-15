@@ -7,7 +7,8 @@ import {
 } from '@tu-registry/shared';
 import { useForm } from 'react-hook-form';
 import { Alert, Button, CheckboxField, Dialog, SelectField, TextField } from '@/shared/ui';
-import { MANAGE_REGISTRATION_HINT, ROLE_OPTIONS } from './roleOptions';
+import { DEPARTMENT_OPTIONS } from '@/shared/lib/labels';
+import { DEPARTMENT_HINT, MANAGE_REGISTRATION_HINT, ROLE_OPTIONS } from './roleOptions';
 import styles from './users.module.scss';
 
 const FORM_ID = 'edit-user-form';
@@ -30,6 +31,7 @@ export function EditUserDialog({ user, isSelf, onClose, onSubmit, error }: Props
     resolver: zodResolver(editUserFormSchema),
     defaultValues: {
       fullName: user.fullName,
+      department: user.department,
       role: user.role,
       canManageRegistration: user.canManageRegistration,
       isActive: user.isActive,
@@ -65,6 +67,13 @@ export function EditUserDialog({ user, isSelf, onClose, onSubmit, error }: Props
       <form id={FORM_ID} onSubmit={submit} noValidate className={styles.formContents}>
         {error && <Alert variant="error">{error}</Alert>}
         <TextField label="ПІБ" error={errors.fullName?.message} {...register('fullName')} />
+        <SelectField
+          label="Управління"
+          options={DEPARTMENT_OPTIONS}
+          hint={`${DEPARTMENT_HINT}. Уже зареєстровані ним заяви лишаються у своєму управлінні.`}
+          error={errors.department?.message}
+          {...register('department')}
+        />
         <SelectField
           label="Роль"
           options={ROLE_OPTIONS}

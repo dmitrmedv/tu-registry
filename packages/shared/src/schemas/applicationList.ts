@@ -1,12 +1,14 @@
 import { z } from 'zod';
 import { APPLICATION_STATUSES, AREA_TYPES, OBJECT_CATEGORIES, OBJECT_TYPES } from '../enums';
 import { parseRegNumber } from '../regNumber';
+import { departmentField } from './user';
 import type { ApplicationDto } from './application';
 
 /** Every registry column can be sorted; "-field" is descending. */
 export const SORT_FIELDS = [
   'regNumber',
   'regDate',
+  'department',
   'customer',
   'settlement',
   'areaType',
@@ -31,7 +33,8 @@ const searchText = z.preprocess(
 );
 
 /**
- * Number search: "15т/26" finds that exact number, "15" finds number 15 in any year.
+ * Number search: "15т/26-8" finds that exact number, "15т/26" — number 15 of 2026 in any
+ * department, "15" — number 15 in any year.
  * Shared so the browser can flag a bad value before asking the server.
  */
 export const regNumberSearchField = z.preprocess(
@@ -44,7 +47,7 @@ export const regNumberSearchField = z.preprocess(
       if (/^\d+$/.test(value) && Number(value) > 0) return { seq: Number(value) };
       const parsed = parseRegNumber(value);
       if (!parsed) {
-        ctx.addIssue({ code: 'custom', message: 'Номер: 15 або 15т/26' });
+        ctx.addIssue({ code: 'custom', message: 'Номер: 15, 15т/26 або 15т/26-8' });
         return z.NEVER;
       }
       return parsed;
@@ -63,6 +66,8 @@ export const applicationListQuerySchema = z
     customerRepresentative: searchText,
     comment: searchText,
     number: regNumberSearchField,
+    /** Admins choose; for users the server always uses their own department. */
+    department: z.preprocess(emptyToUndefined, departmentField.optional()),
     objectType: z.preprocess(emptyToUndefined, z.enum(OBJECT_TYPES).optional()),
     objectCategory: z.preprocess(emptyToUndefined, z.enum(OBJECT_CATEGORIES).optional()),
     areaType: z.preprocess(emptyToUndefined, z.enum(AREA_TYPES).optional()),
@@ -93,6 +98,7 @@ export type ApplicationListItemDto = Pick<
   | 'regYear'
   | 'regSeq'
   | 'regDate'
+  | 'department'
   | 'customer'
   | 'customerRepresentative'
   | 'settlement'

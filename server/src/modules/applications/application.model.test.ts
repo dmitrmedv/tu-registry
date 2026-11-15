@@ -8,6 +8,7 @@ type ApplicationInput = Parameters<typeof Application.create>[0];
 
 function validApplication(overrides: Record<string, unknown> = {}): ApplicationInput {
   return {
+    department: 'ODESA',
     regYear: 2026,
     regSeq: 1,
     regDate: new Date('2026-03-12T00:00:00Z'),

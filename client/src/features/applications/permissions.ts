@@ -1,25 +1,27 @@
 import type { ApplicationDto, UserDto } from '@tu-registry/shared';
 
 /**
- * What the UI offers to whom. Mirrors the server rules (the server always decides):
- * content — owner or admin; date/number — admin or owner with the "authorized" flag;
- * annul — owner or admin; restore and delete — admin. Annulled applications cannot be edited.
+ * What the UI offers to whom. Mirrors the server rules (the server always decides): a user
+ * works with their department's applications — content and annulment for anyone there,
+ * date/number for "authorized" users there; an admin everywhere, plus moving an application
+ * to another department, restoring and deleting. Annulled applications cannot be edited.
  */
-type User = Pick<UserDto, 'id' | 'role' | 'canManageRegistration'>;
-type Application = Pick<ApplicationDto, 'createdBy' | 'status'>;
+type User = Pick<UserDto, 'role' | 'department' | 'canManageRegistration'>;
+type Application = Pick<ApplicationDto, 'department' | 'status'>;
 
-const isOwner = (app: Application, user: User) => app.createdBy.id === user.id;
 const isAdmin = (user: User) => user.role === 'ADMIN';
 const isActive = (app: Application) => app.status === 'ACTIVE';
+const worksWith = (app: Application, user: User) =>
+  isAdmin(user) || app.department === user.department;
 
-export const canEdit = (app: Application, user: User) =>
-  isActive(app) && (isOwner(app, user) || isAdmin(user));
+export const canEdit = (app: Application, user: User) => isActive(app) && worksWith(app, user);
 
 export const canEditRegistration = (app: Application, user: User) =>
-  isActive(app) && (isAdmin(user) || (isOwner(app, user) && user.canManageRegistration));
+  canEdit(app, user) && (isAdmin(user) || user.canManageRegistration);
 
-export const canAnnul = (app: Application, user: User) =>
-  isActive(app) && (isOwner(app, user) || isAdmin(user));
+export const canChangeDepartment = (app: Application, user: User) => isActive(app) && isAdmin(user);
+
+export const canAnnul = (app: Application, user: User) => isActive(app) && worksWith(app, user);
 
 export const canRestore = (app: Application, user: User) => !isActive(app) && isAdmin(user);
 

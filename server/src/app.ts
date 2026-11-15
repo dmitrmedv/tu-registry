@@ -1,5 +1,6 @@
 import express from 'express';
 import helmet from 'helmet';
+import { isDbConnected } from './config/db';
 import { errorHandler } from './middlewares/errorHandler';
 import { notFound } from './middlewares/notFound';
 
@@ -15,7 +16,10 @@ export function createApp() {
   app.use(express.json({ limit: '100kb' }));
 
   app.get('/api/health', (_req, res) => {
-    res.json({ status: 'ok' });
+    const dbUp = isDbConnected();
+    res
+      .status(dbUp ? 200 : 503)
+      .json({ status: dbUp ? 'ok' : 'degraded', db: dbUp ? 'up' : 'down' });
   });
 
   app.use(notFound);

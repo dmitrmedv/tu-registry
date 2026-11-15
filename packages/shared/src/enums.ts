@@ -12,3 +12,25 @@ export type RegistrationMode = (typeof REGISTRATION_MODES)[number];
 
 export const APPLICATION_STATUSES = ['ACTIVE', 'ANNULLED'] as const;
 export type ApplicationStatus = (typeof APPLICATION_STATUSES)[number];
+
+export const APPLICATION_CHANGE_ACTIONS = ['CREATED', 'UPDATED', 'ANNULLED', 'RESTORED'] as const;
+export type ApplicationChangeAction = (typeof APPLICATION_CHANGE_ACTIONS)[number];
+
+export const AUDIT_ACTIONS = [
+  'LOGIN_SUCCESS',
+  'LOGIN_FAILED',
+  'LOGOUT',
+  'PASSWORD_CHANGED',
+  'USER_CREATED',
+  'USER_UPDATED',
+  'USER_DEACTIVATED',
+  'PASSWORD_RESET',
+  'APPLICATION_CREATED',
+  'APPLICATION_MANUAL_CREATED',
+  'REG_NUMBER_CHANGED',
+  'REG_DATE_CHANGED',
+  'APPLICATION_ANNULLED',
+  'APPLICATION_RESTORED',
+  'ACCESS_DENIED',
+] as const;
+export type AuditAction = (typeof AUDIT_ACTIONS)[number];

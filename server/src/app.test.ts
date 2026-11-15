@@ -2,14 +2,15 @@ import request from 'supertest';
 import { describe, expect, it } from 'vitest';
 import { createApp } from './app';
 
+// No database connection in this file: covers HTTP basics and the "db down" state.
 const app = createApp();
 
 describe('app', () => {
-  it('GET /api/health returns ok', async () => {
+  it('GET /api/health reports 503 when the database is not connected', async () => {
     const res = await request(app).get('/api/health');
 
-    expect(res.status).toBe(200);
-    expect(res.body).toEqual({ status: 'ok' });
+    expect(res.status).toBe(503);
+    expect(res.body).toEqual({ status: 'degraded', db: 'down' });
   });
 
   it('returns 404 in the unified error format for unknown routes', async () => {

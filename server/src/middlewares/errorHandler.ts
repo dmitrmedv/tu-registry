@@ -1,4 +1,5 @@
 import type { ErrorRequestHandler } from 'express';
+import mongoose from 'mongoose';
 import { logger } from '../config/logger';
 import { ApiError } from '../utils/ApiError';
 
@@ -9,6 +10,11 @@ function isHttpClientError(err: unknown): err is HttpClientError {
   if (typeof err !== 'object' || err === null || !('status' in err)) return false;
   const { status } = err as { status: unknown };
   return typeof status === 'number' && status >= 400 && status < 500;
+}
+
+/** MongoDB unique index violation (E11000). */
+function isDuplicateKeyError(err: unknown): err is { keyPattern?: Record<string, unknown> } {
+  return typeof err === 'object' && err !== null && (err as { code?: unknown }).code === 11000;
 }
 
 const CLIENT_ERROR_CODES: Record<string, { code: string; message: string }> = {
@@ -23,6 +29,47 @@ export const errorHandler: ErrorRequestHandler = (err, req, res, _next) => {
         code: err.code,
         message: err.message,
         ...(err.details !== undefined && { details: err.details }),
+      },
+    });
+    return;
+  }
+
+  // Mongoose errors are a second line of defense behind Zod validation in services.
+  // Only field names and messages are returned, never the submitted values.
+  if (err instanceof mongoose.Error.ValidationError) {
+    // Built-in Mongoose messages may embed the rejected value ("is invalid (value)"),
+    // so only the error kind is returned; our own validator messages are value-free.
+    const details = Object.fromEntries(
+      Object.entries(err.errors).map(([path, fieldError]) => [
+        path,
+        'kind' in fieldError && fieldError.kind !== 'user defined'
+          ? fieldError.kind
+          : fieldError.message,
+      ]),
+    );
+    res
+      .status(400)
+      .json({ error: { code: 'VALIDATION_ERROR', message: 'Некоректні дані', details } });
+    return;
+  }
+
+  if (err instanceof mongoose.Error.CastError) {
+    res.status(400).json({
+      error: {
+        code: 'INVALID_VALUE',
+        message: 'Некоректне значення',
+        details: { field: err.path },
+      },
+    });
+    return;
+  }
+
+  if (isDuplicateKeyError(err)) {
+    res.status(409).json({
+      error: {
+        code: 'DUPLICATE',
+        message: 'Запис з такими даними вже існує',
+        details: { fields: Object.keys(err.keyPattern ?? {}) },
       },
     });
     return;

@@ -26,6 +26,11 @@ export default defineConfig(
     languageOptions: { globals: globals.node },
   },
   {
+    // CLI scripts report to the terminal.
+    files: ['server/src/scripts/**/*.ts'],
+    rules: { 'no-console': 'off' },
+  },
+  {
     files: ['client/src/**/*.{ts,tsx}'],
     languageOptions: { globals: globals.browser },
     plugins: { 'react-hooks': reactHooks, 'react-refresh': reactRefresh },

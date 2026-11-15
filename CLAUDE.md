@@ -203,7 +203,10 @@ npm run build         # перед завершенням етапу
 - **Пакети:** `@tu-registry/client`, `@tu-registry/server`, `@tu-registry/shared`. Zod-схеми, enum-и, формат номера і нормалізація телефону — **лише** в `packages/shared`. Пакет підключається як вихідний TS (`exports → src/index.ts`); `tsup` вбудовує його в збірку сервера.
 - **Express 5:** помилки з `async`-обробників передаються в `errorHandler` автоматично — `asyncHandler` не потрібен.
 - **Автентифікація:** вхід за **логіном** (не email), відкритої реєстрації немає, акаунти створює адміністратор. Права (`role`, `canManageRegistration`, `isActive`) читаються з БД на кожному запиті, а не з JWT.
-- **MongoDB:** обов'язково replica set (транзакції). Локально — Homebrew `mongodb-community@8` з `--replSet rs0`; у тестах — `MongoMemoryReplSet`.
+- **MongoDB:** обов'язково replica set (транзакції). Локально — `npm run db:start -w server` (нативний mongod без Homebrew, дані в `~/.local/share/tu-registry/mongo`); у тестах — `MongoMemoryReplSet`. Версія MongoDB — лише в `server/src/config/mongodbVersion.ts`.
+- **Mongoose 9 + `sanitizeFilter`:** увімкнено глобально, тому оператори у фільтрах, написані в нашому коді (`$gte`, `$in`, `$ne`…), обгортаються в `mongoose.trusted({...})`, інакше запит впаде з `CastError`. Ніколи не передавати `req.query`/`req.body` у фільтр напряму.
+- **Помилки Mongoose:** `errorHandler` перетворює `ValidationError` → 400 (лише тип помилки, без введених значень), `CastError` → 400, E11000 → 409.
+- **Тести з БД:** `useTestDb()` з `src/test/db.ts` — окрема база на файл у спільному `MongoMemoryReplSet` (та сама версія, що й локальна БД).
 - **Нумерація:** номер `Nт/РР` видає **тільки** модуль `server/src/modules/numbering`. Ніде більше номер не обчислюється.
 - **Дати:** «сьогодні» і рік рахуються в `Europe/Kyiv`. `regDate` зберігається як опівніч UTC відповідної календарної дати.
 - **Порти (dev):** client 5173, server 4000 (`API_PORT`, не `PORT` — загальну назву перехоплюють інші інструменти). Vite проксує `/api` → 4000, тому CORS не налаштовується.

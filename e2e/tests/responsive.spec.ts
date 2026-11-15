@@ -17,7 +17,9 @@ test('every page fits a 375 px phone screen', async ({ page }, testInfo) => {
   const { id } = await createApplication(page.request, headers, {
     customer: uniqueName('ТОВ «Дуже довга назва замовника для перевірки переносу»'),
     email: 'very.long.email.address.for.wrapping@example.com.ua',
-    objectAddress: 'Київська обл., Броварський р-н, с. Велика Димерка, вул. Центральна, 125',
+    settlement: 'с. Велика Димерка Броварського району Київської області',
+    objectAddress: 'вул. Центральна, 125',
+    cadastralNumber: '3220481301:01:007:0012',
     objectCategory: 'OTHER',
     objectCategoryOther: 'Модульна котельня багатоквартирного житлового комплексу',
     comment: 'Довгий коментар без пробілів: ' + 'ДокументиПоданоНеповністю'.repeat(4),

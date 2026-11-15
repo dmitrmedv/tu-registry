@@ -10,7 +10,9 @@ test('registers an application under the next number and finds it in the registr
 
   await page.getByLabel('Замовник', { exact: true }).fill(customer);
   await page.getByLabel('Телефон').fill('067 123 45 67');
-  await page.getByLabel('Адреса обʼєкта').fill('м. Київ, вул. Тестова, 1');
+  await page.getByLabel('Населений пункт').fill('м. Київ');
+  await page.getByLabel('Адреса обʼєкта').fill('вул. Тестова, 1');
+  await page.getByLabel('Кад. № (необовʼязково)').fill('3220481301:01:007:0012');
   await page.getByRole('radio', { name: 'Побутовий', exact: true }).check();
   await page.getByRole('radio', { name: 'Житловий будинок' }).check();
   await page.getByLabel('Коментар (необовʼязково)').fill('Подано особисто');
@@ -28,6 +30,16 @@ test('registers an application under the next number and finds it in the registr
   await expect(table.getByRole('row')).toHaveCount(2); // header + the new application
   await expect(table.getByRole('link', { name: regNumber })).toBeVisible();
   await expect(table.getByRole('cell', { name: 'Житловий будинок' })).toBeVisible();
+  await expect(
+    table.getByRole('cell', { name: 'вул. Тестова, 1; кад. № 3220481301:01:007:0012' }),
+  ).toBeVisible();
+
+  // The address search also finds the cadastral number; a click anywhere on the row opens it.
+  await page.getByRole('searchbox', { name: 'Замовник' }).fill('');
+  await page.getByRole('searchbox', { name: 'Адреса' }).fill('3220481301:01:007');
+  await expect(table.getByRole('row')).toHaveCount(2);
+  await table.getByRole('cell', { name: customer }).click();
+  await expect(page.getByRole('heading', { name: `Заява ${regNumber}` })).toBeVisible();
 });
 
 test('enters a back-dated application under the number typed by hand', async ({ page }) => {
@@ -35,7 +47,8 @@ test('enters a back-dated application under the number typed by hand', async ({ 
 
   await page.getByLabel('Замовник', { exact: true }).fill(uniqueName('ТОВ Архів'));
   await page.getByLabel('Телефон').fill('+380 50 111 22 33');
-  await page.getByLabel('Адреса обʼєкта').fill('м. Одеса, вул. Архівна, 7');
+  await page.getByLabel('Населений пункт').fill('м. Одеса');
+  await page.getByLabel('Адреса обʼєкта').fill('вул. Архівна, 7');
   await page.getByRole('radio', { name: 'Непобутовий' }).check();
   await page.getByRole('radio', { name: 'Інше' }).check();
   await page.getByLabel('Уточніть категорію').fill('Котельня');

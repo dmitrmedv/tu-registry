@@ -33,6 +33,11 @@ export function formatObjectCategory(category: ObjectCategory, other: string | n
   return category === 'OTHER' && other ? `Інше: ${other}` : OBJECT_CATEGORY_LABELS[category];
 }
 
+/** The registry's address column: "вул. Шевченка, 1; кад. № 3220481301:01:007:0012". */
+export function formatObjectAddress(address: string, cadastralNumber: string | null) {
+  return cadastralNumber ? `${address}; кад. № ${cadastralNumber}` : address;
+}
+
 export const STATUS_LABELS: Record<ApplicationStatus, string> = {
   ACTIVE: 'Активна',
   ANNULLED: 'Анульовано',
@@ -71,7 +76,9 @@ export const APPLICATION_FIELD_LABELS: Record<string, string> = {
   customerRepresentative: 'Представник замовника',
   phone: 'Телефон',
   email: 'Email',
+  settlement: 'Населений пункт',
   objectAddress: 'Адреса обʼєкта',
+  cadastralNumber: 'Кадастровий номер',
   objectType: 'Тип обʼєкта',
   objectCategory: 'Категорія обʼєкта',
   objectCategoryOther: 'Категорія (уточнення)',

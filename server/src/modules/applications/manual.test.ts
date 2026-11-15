@@ -17,7 +17,8 @@ const fields = {
   customer: 'ТОВ «Архів»',
   customerRepresentative: 'Коваль Олена',
   phone: '0441234567',
-  objectAddress: 'м. Київ, вул. Архівна, 5',
+  settlement: 'м. Київ',
+  objectAddress: 'вул. Архівна, 5',
   objectType: 'DOMESTIC',
   objectCategory: 'APARTMENT',
 };

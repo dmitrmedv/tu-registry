@@ -63,12 +63,29 @@ export function ApplicationContentFields() {
       <fieldset className={styles.section}>
         <legend>Обʼєкт</legend>
         <div className={styles.grid}>
-          <TextField
-            className={styles.wide}
-            label="Адреса обʼєкта"
-            error={errors.objectAddress?.message}
-            {...register('objectAddress')}
-          />
+          {/* Where the object is: one compact row on wide screens. */}
+          <div className={styles.location}>
+            <TextField
+              label="Населений пункт"
+              placeholder="м. Київ"
+              error={errors.settlement?.message}
+              {...register('settlement')}
+            />
+            <TextField
+              label="Адреса обʼєкта"
+              placeholder="вул. Шевченка, 1"
+              error={errors.objectAddress?.message}
+              {...register('objectAddress')}
+            />
+            <TextField
+              label="Кад. № (необовʼязково)"
+              placeholder="3220481301:01:007:0012"
+              inputMode="numeric"
+              autoComplete="off"
+              error={errors.cadastralNumber?.message}
+              {...register('cadastralNumber')}
+            />
+          </div>
           <ChoiceField
             className={styles.wide}
             legend="Тип обʼєкта"

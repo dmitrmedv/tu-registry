@@ -52,6 +52,8 @@ describe('ApplicationPage', () => {
     );
     expect(screen.getByText('12.03.2026')).toBeInTheDocument();
     expect(screen.getByText('Побутовий')).toBeInTheDocument();
+    expect(screen.getByText('м. Київ')).toBeInTheDocument();
+    expect(screen.getByText('вул. Прикладна, 1')).toBeInTheDocument();
 
     const history = await screen.findByRole('list', { name: 'Історія змін' });
     const entries = within(history)

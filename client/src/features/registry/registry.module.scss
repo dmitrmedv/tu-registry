@@ -151,14 +151,21 @@
   gap: var(--space-2);
 }
 
-.numberLink {
+// The whole row opens the card (RegistryTable's row click); the number stays the real link.
+.row {
+  cursor: pointer;
+}
+
+.rowLink {
+  color: inherit;
   font-weight: 600;
+  text-decoration: none;
 }
 
 .annulledRow td {
   color: var(--color-text-muted);
 }
 
-.annulledRow .numberLink {
+.annulledRow .rowLink {
   text-decoration: line-through;
 }

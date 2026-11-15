@@ -47,7 +47,7 @@ const STATUS_OPTIONS = [
 export function RegistryFilters({ params, update, reset, activeFilterCount, users }: Props) {
   const [open, setOpen] = useState(false);
   // Typing creates no history entries; picking a value does.
-  const commitText = (key: 'customer' | 'address' | 'number') => (value: string) =>
+  const commitText = (key: 'customer' | 'settlement' | 'address' | 'number') => (value: string) =>
     update({ [key]: value }, { replace: true });
 
   const userOptions = [
@@ -75,7 +75,17 @@ export function RegistryFilters({ params, update, reset, activeFilterCount, user
         className={clsx(styles.filterPanel, open && styles.filterPanelOpen)}
       >
         <SearchField label="Замовник" value={params.customer} onCommit={commitText('customer')} />
-        <SearchField label="Адреса" value={params.address} onCommit={commitText('address')} />
+        <SearchField
+          label="Населений пункт"
+          value={params.settlement}
+          onCommit={commitText('settlement')}
+        />
+        <SearchField
+          label="Адреса"
+          placeholder="вулиця або кад. №"
+          value={params.address}
+          onCommit={commitText('address')}
+        />
         <SearchField
           label="Номер"
           placeholder="15 або 15т/26"

@@ -26,6 +26,7 @@ const demoFilter = () => ({
 
 const CUSTOMERS = ['ТОВ «Тепломережа»', 'ФОП Коваленко О.', 'ПП «Будпроект»', 'ОСББ «Затишок»'];
 const STREETS = ['вул. Шевченка', 'просп. Перемоги', 'вул. Садова', 'пров. Тихий'];
+const SETTLEMENTS = ['м. Київ', 'м. Бровари', 'с. Велика Димерка', 'смт Гостомель'];
 
 async function add() {
   if (await Application.exists(demoFilter())) {
@@ -48,7 +49,9 @@ async function add() {
       customer: `${DEMO_PREFIX}${CUSTOMERS[i % CUSTOMERS.length]} №${i + 1}`,
       customerRepresentative: i % 3 === 0 ? undefined : `Представник ${i + 1}`,
       phone: `+38067${String(1000000 + i).padStart(7, '0')}`,
-      objectAddress: `м. Київ, ${STREETS[i % STREETS.length]}, ${i + 1}`,
+      settlement: SETTLEMENTS[i % SETTLEMENTS.length],
+      objectAddress: `${STREETS[i % STREETS.length]}, ${i + 1}`,
+      cadastralNumber: i % 3 === 0 ? `3220481301:01:${String(i).padStart(3, '0')}:0012` : undefined,
       objectType: i % 4 === 0 ? 'NON_DOMESTIC' : 'DOMESTIC',
       objectCategory: OBJECT_CATEGORIES[i % OBJECT_CATEGORIES.length],
       objectCategoryOther:

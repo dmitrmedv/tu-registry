@@ -14,7 +14,8 @@ const body = {
   customerRepresentative: 'Петренко Іван',
   phone: '(067) 123-45-67',
   email: 'Office@Example.UA',
-  objectAddress: 'м. Київ, вул. Прикладна, 1',
+  settlement: 'м. Київ',
+  objectAddress: 'вул. Прикладна, 1',
   objectType: 'NON_DOMESTIC',
   objectCategory: 'NON_RESIDENTIAL',
 };

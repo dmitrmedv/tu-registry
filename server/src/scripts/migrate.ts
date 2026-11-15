@@ -1,7 +1,10 @@
 import { connectDb, disconnectDb } from '../config/db';
 import { env } from '../config/env';
 import { logger } from '../config/logger';
-import { backfillObjectCategory } from '../modules/applications/application.migration';
+import {
+  backfillObjectCategory,
+  backfillSettlement,
+} from '../modules/applications/application.migration';
 
 /** Data changes required by new schema rules. Safe to run repeatedly (and on every deploy). */
 async function main() {
@@ -9,6 +12,8 @@ async function main() {
   try {
     const categorized = await backfillObjectCategory();
     logger.info({ categorized }, 'Applications without a category set to OTHER');
+    const settled = await backfillSettlement();
+    logger.info({ settled }, 'Settlements moved out of addresses');
   } finally {
     await disconnectDb();
   }

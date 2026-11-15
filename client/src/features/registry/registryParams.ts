@@ -18,6 +18,8 @@ export type RegistryParams = {
   limit: number;
   sort: ApplicationSort;
   customer: string;
+  settlement: string;
+  /** Street address or cadastral number. */
   address: string;
   number: string;
   type: ObjectType | '';
@@ -34,6 +36,7 @@ export const DEFAULT_PARAMS: RegistryParams = {
   limit: 20,
   sort: '-regDate',
   customer: '',
+  settlement: '',
   address: '',
   number: '',
   type: '',
@@ -46,6 +49,7 @@ export const DEFAULT_PARAMS: RegistryParams = {
 
 const FILTER_KEYS = [
   'customer',
+  'settlement',
   'address',
   'number',
   'type',
@@ -73,6 +77,7 @@ export function readParams(search: URLSearchParams): RegistryParams {
     limit: (PAGE_SIZES as readonly number[]).includes(limit) ? limit : DEFAULT_PARAMS.limit,
     sort: APPLICATION_SORTS.includes(sort) ? sort : DEFAULT_PARAMS.sort,
     customer: text('customer'),
+    settlement: text('settlement'),
     address: text('address'),
     number: text('number'),
     type: OBJECT_TYPES.includes(type) ? type : '',
@@ -113,6 +118,7 @@ export function toApiQuery(params: RegistryParams, currentUserId: string): Appli
     limit: params.limit,
     sort: params.sort,
     customer: params.customer || undefined,
+    settlement: params.settlement || undefined,
     address: params.address || undefined,
     number: params.number && isNumberSearchValid(params.number) ? params.number : undefined,
     objectType: params.type || undefined,

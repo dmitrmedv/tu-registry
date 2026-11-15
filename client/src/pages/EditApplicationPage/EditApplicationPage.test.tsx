@@ -159,4 +159,20 @@ describe('EditApplicationPage', () => {
     await screen.findByText('Зміни збережено');
     expect(sent).toEqual([{ phone: '+380501112233', version: 3 }]);
   });
+
+  it('sends the settlement and clears the cadastral number with ""', async () => {
+    const sent = captureUpdates();
+    const { user } = openEdit(owner, [
+      makeApplication({ cadastralNumber: '3220481301:01:007:0012' }),
+    ]);
+
+    const settlement = await screen.findByLabelText('Населений пункт');
+    await user.clear(settlement);
+    await user.type(settlement, 'м. Ірпінь');
+    await user.clear(screen.getByLabelText('Кад. № (необовʼязково)'));
+    await user.click(screen.getByRole('button', { name: 'Зберегти' }));
+
+    await screen.findByText('Зміни збережено');
+    expect(sent).toEqual([{ settlement: 'м. Ірпінь', cadastralNumber: '', version: 3 }]);
+  });
 });

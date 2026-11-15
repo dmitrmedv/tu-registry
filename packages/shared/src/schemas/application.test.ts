@@ -11,7 +11,8 @@ const valid = {
   customerRepresentative: 'Петренко Іван',
   phone: '067 123 45 67',
   email: ' Info@Example.UA ',
-  objectAddress: 'м. Київ, вул. Прикладна, 1',
+  settlement: 'м. Київ',
+  objectAddress: 'вул. Прикладна, 1',
   objectType: 'DOMESTIC',
   objectCategory: 'RESIDENTIAL_HOUSE',
 };
@@ -41,7 +42,7 @@ describe('createApplicationSchema', () => {
     expect(createApplicationSchema.safeParse(withoutRepresentative).success).toBe(true);
   });
 
-  it.each(['customer', 'phone', 'objectAddress', 'objectType', 'objectCategory'])(
+  it.each(['customer', 'phone', 'settlement', 'objectAddress', 'objectType', 'objectCategory'])(
     'requires %s',
     (field) => {
       const result = createApplicationSchema.safeParse({ ...valid, [field]: '' });
@@ -167,5 +168,23 @@ describe('deleteApplicationQuerySchema', () => {
     expect(deleteApplicationQuerySchema.parse({ version: '3' })).toEqual({ version: 3 });
     expect(deleteApplicationQuerySchema.safeParse({}).success).toBe(false);
     expect(deleteApplicationQuerySchema.safeParse({ version: '0' }).success).toBe(false);
+  });
+});
+
+describe('settlement and cadastral number', () => {
+  it('accepts a cadastral number in the State Land Cadastre format only', () => {
+    const parse = (cadastralNumber: string) =>
+      createApplicationSchema.safeParse({ ...valid, cadastralNumber });
+    expect(parse(' 3220481301:01:007:0012 ').data?.cadastralNumber).toBe('3220481301:01:007:0012');
+    expect(parse('').data?.cadastralNumber).toBeUndefined();
+    for (const bad of ['3220481301:01:007', '322048130:01:007:0012', '3220481301-01-007-0012']) {
+      expect(parse(bad).success).toBe(false);
+    }
+  });
+
+  it('in an update, "" clears the cadastral number but not the settlement', () => {
+    const schema = updateApplicationSchema('2026-03-12');
+    expect(schema.parse({ cadastralNumber: '', version: 2 }).cadastralNumber).toBeNull();
+    expect(schema.safeParse({ settlement: ' ', version: 2 }).success).toBe(false);
   });
 });

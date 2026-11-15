@@ -14,7 +14,8 @@ const input = {
   customer: 'ТОВ «Приклад»',
   customerRepresentative: 'Петренко Іван',
   phone: '+380671234567',
-  objectAddress: 'м. Київ, вул. Прикладна, 1',
+  settlement: 'м. Київ',
+  objectAddress: 'вул. Прикладна, 1',
   objectType: 'DOMESTIC' as const,
   objectCategory: 'RESIDENTIAL_HOUSE' as const,
 };

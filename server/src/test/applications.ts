@@ -11,7 +11,8 @@ export const applicationFields = {
   customerRepresentative: 'Петренко Іван',
   phone: '0671234567',
   email: 'office@example.ua',
-  objectAddress: 'м. Київ, вул. Прикладна, 1',
+  settlement: 'м. Київ',
+  objectAddress: 'вул. Прикладна, 1',
   objectType: 'DOMESTIC',
   objectCategory: 'RESIDENTIAL_HOUSE',
 };

@@ -6,7 +6,7 @@ test('a dialog is usable from the keyboard and returns focus when closed', async
   const headers = await apiLogin(page.request, ADMIN);
   const app = await createApplication(page.request, headers, {
     customer: uniqueName('ТОВ Клавіатура'),
-    objectAddress: 'м. Київ, вул. Тестова, 3',
+    objectAddress: 'вул. Тестова, 3',
   });
 
   await page.goto(`/applications/${app.id}`);

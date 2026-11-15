@@ -44,6 +44,8 @@ export const applicationListQuerySchema = z
     limit: z.coerce.number().int().min(10).max(100).default(20),
     sort: z.preprocess(emptyToUndefined, z.enum(APPLICATION_SORTS).default('-regDate')),
     customer: searchText,
+    settlement: searchText,
+    /** Matches the street address or the cadastral number. */
     address: searchText,
     number: regNumberSearchField,
     objectType: z.preprocess(emptyToUndefined, z.enum(OBJECT_TYPES).optional()),
@@ -77,7 +79,9 @@ export type ApplicationListItemDto = Pick<
   | 'regDate'
   | 'customer'
   | 'customerRepresentative'
+  | 'settlement'
   | 'objectAddress'
+  | 'cadastralNumber'
   | 'objectType'
   | 'objectCategory'
   | 'objectCategoryOther'

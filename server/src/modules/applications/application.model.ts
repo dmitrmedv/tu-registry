@@ -1,10 +1,12 @@
 import {
   APPLICATION_STATUSES,
+  CADASTRAL_NUMBER_PATTERN,
   COMMENT_MAX,
   OBJECT_CATEGORIES,
   OBJECT_CATEGORY_OTHER_MAX,
   OBJECT_TYPES,
   REGISTRATION_MODES,
+  SETTLEMENT_MAX,
 } from '@tu-registry/shared';
 import { type HydratedDocument, type InferSchemaType, Schema, model } from 'mongoose';
 import { toJSONTransform } from '../../utils/toJSON';
@@ -35,7 +37,11 @@ const applicationSchema = new Schema(
     // Normalized by the shared phone helper before saving.
     phone: { type: String, required: true, match: /^\+380\d{9}$/ },
     email: { type: String, trim: true, lowercase: true, maxlength: 254 },
+    // Required for new records; older ones got it from their address via `npm run db:migrate`
+    // where the address started with it ("м. Київ, ...") and stay without it otherwise.
+    settlement: { type: String, trim: true, maxlength: SETTLEMENT_MAX },
     objectAddress: { type: String, required: true, trim: true, maxlength: 500 },
+    cadastralNumber: { type: String, trim: true, match: CADASTRAL_NUMBER_PATTERN },
     objectType: { type: String, enum: OBJECT_TYPES, required: true },
     // Records created before the field existed got OTHER via `npm run db:migrate`.
     objectCategory: { type: String, enum: OBJECT_CATEGORIES, required: true },

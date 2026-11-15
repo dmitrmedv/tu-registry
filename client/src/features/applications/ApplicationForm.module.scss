@@ -34,6 +34,17 @@
   }
 }
 
+.location {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--space-4);
+
+  @include up(md) {
+    grid-column: 1 / -1;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.6fr) minmax(220px, 1fr);
+  }
+}
+
 .wide {
   @include up(md) {
     grid-column: 1 / -1;

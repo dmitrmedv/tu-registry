@@ -16,7 +16,14 @@ function contains(text: string) {
 export function buildListFilter(query: ApplicationListQueryData) {
   const filter: Record<string, unknown> = {};
   if (query.customer) filter.customer = contains(query.customer);
-  if (query.address) filter.objectAddress = contains(query.address);
+  if (query.settlement) filter.settlement = contains(query.settlement);
+  // One field for the street address and the cadastral number.
+  if (query.address) {
+    filter.$or = mongoose.trusted([
+      { objectAddress: contains(query.address) },
+      { cadastralNumber: contains(query.address) },
+    ]);
+  }
   if (query.number) {
     filter.regSeq = query.number.seq;
     if ('year' in query.number) filter.regYear = query.number.year;

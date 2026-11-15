@@ -1,7 +1,7 @@
 import type { ApplicationListItemDto } from '@tu-registry/shared';
 import { screen, waitFor, within } from '@testing-library/react';
 import { http as mock, HttpResponse } from 'msw';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { renderApp } from '@/test/renderApp';
 import { makeUser, server, signedInAs } from '@/test/server';
 
@@ -16,7 +16,9 @@ const row = (overrides: Partial<ApplicationListItemDto> = {}): ApplicationListIt
   regDate: '2026-03-12',
   customer: 'ТОВ «Приклад»',
   customerRepresentative: null,
-  objectAddress: 'м. Київ, вул. Прикладна, 1',
+  settlement: 'м. Київ',
+  objectAddress: 'вул. Прикладна, 1',
+  cadastralNumber: null,
   objectType: 'DOMESTIC',
   objectCategory: 'RESIDENTIAL_HOUSE',
   objectCategoryOther: null,
@@ -63,6 +65,7 @@ describe('RegistryPage', () => {
         customerRepresentative: 'Петренко Іван',
         objectCategory: 'OTHER',
         objectCategoryOther: 'Котельня',
+        cadastralNumber: '3220481301:01:007:0012',
       }),
     ]);
 
@@ -80,6 +83,24 @@ describe('RegistryPage', () => {
     expect(last().get('createdBy')).toBeNull();
     expect(last().get('sort')).toBe('-regDate');
     expect(screen.getByRole('status')).toHaveTextContent('Знайдено: 2');
+    expect(
+      within(table)
+        .getAllByRole('columnheader')
+        .map((th) => th.textContent),
+    ).toEqual([
+      '№↕',
+      'Дата реєстрації▼',
+      'Замовник',
+      'Населений пункт',
+      'Адреса',
+      'Тип обʼєкта',
+      'Категорія',
+      'Представник замовника',
+      'Зареєстрував',
+    ]);
+    expect(
+      within(rows[2]!).getByText('вул. Прикладна, 1; кад. № 3220481301:01:007:0012'),
+    ).toBeInTheDocument();
     // One way back to the registry (the header title) and one "Нова заява" (on the page).
     expect(screen.getAllByRole('link', { name: /^Реєстр/ })).toHaveLength(1);
     expect(screen.getAllByRole('link', { name: 'Нова заява' })).toHaveLength(1);
@@ -204,6 +225,48 @@ describe('RegistryPage — card links and status', () => {
     expect(link).toHaveAttribute('href', '/applications/a1');
     const annulledRow = screen.getByRole('link', { name: '16т/26' }).closest('tr')!;
     expect(within(annulledRow).getByText('Анульовано')).toBeInTheDocument();
+  });
+
+  it('opens the card from anywhere in the row; Ctrl+click opens a new tab', async () => {
+    serveRegistry();
+    const open = vi.spyOn(window, 'open').mockReturnValue(null);
+    const { user, router } = renderApp('/?customer=ТОВ');
+    const customerCell = await screen.findByRole('cell', { name: 'ТОВ «Приклад»' });
+
+    await user.keyboard('{Control>}');
+    await user.click(customerCell);
+    await user.keyboard('{/Control}');
+    expect(open).toHaveBeenCalledWith('/applications/a1', '_blank', 'noopener');
+    expect(router.state.location.pathname).toBe('/');
+
+    await user.click(customerCell);
+    expect(router.state.location.pathname).toBe('/applications/a1');
+    expect(router.state.location.state).toEqual({ registrySearch: '?customer=ТОВ' });
+    open.mockRestore();
+  });
+
+  it('does not open the card when the click ends a text selection', async () => {
+    serveRegistry();
+    const { user, router } = renderApp('/');
+    const customerCell = await screen.findByRole('cell', { name: 'ТОВ «Приклад»' });
+    const selection = vi.spyOn(window, 'getSelection').mockReturnValue({
+      toString: () => 'Приклад',
+    } as Selection);
+
+    await user.click(customerCell);
+
+    expect(router.state.location.pathname).toBe('/');
+    selection.mockRestore();
+  });
+
+  it('searches by settlement, and by street or cadastral number in "Адреса"', async () => {
+    const { last } = serveRegistry();
+    const { user } = renderApp('/');
+    await screen.findByRole('table');
+
+    await user.type(screen.getByLabelText('Населений пункт'), 'Бровари');
+    await waitFor(() => expect(last().get('settlement')).toBe('Бровари'));
+    expect(screen.getByLabelText('Адреса')).toHaveAttribute('placeholder', 'вулиця або кад. №');
   });
 
   it('filters by category', async () => {

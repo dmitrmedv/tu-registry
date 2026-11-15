@@ -46,7 +46,8 @@ export async function createApplication(
     data: {
       customer: uniqueName('ТОВ E2E'),
       phone: '+380671234567',
-      objectAddress: 'м. Київ, вул. Тестова, 1',
+      settlement: 'м. Київ',
+      objectAddress: 'вул. Тестова, 1',
       objectType: 'DOMESTIC',
       objectCategory: 'RESIDENTIAL_HOUSE',
       ...overrides,

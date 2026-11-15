@@ -27,7 +27,9 @@ function formValues(app: ApplicationDto): ManualApplicationInput {
     customerRepresentative: app.customerRepresentative ?? '',
     phone: formatPhone(app.phone),
     email: app.email ?? '',
+    settlement: app.settlement ?? '',
     objectAddress: app.objectAddress,
+    cadastralNumber: app.cadastralNumber ?? '',
     objectType: app.objectType,
     objectCategory: app.objectCategory,
     objectCategoryOther: app.objectCategoryOther ?? '',
@@ -50,7 +52,11 @@ function changedFields(
   }
   if (values.phone !== app.phone) changes.phone = values.phone;
   if ((values.email ?? null) !== app.email) changes.email = values.email ?? '';
+  if (values.settlement !== app.settlement) changes.settlement = values.settlement;
   if (values.objectAddress !== app.objectAddress) changes.objectAddress = values.objectAddress;
+  if ((values.cadastralNumber ?? null) !== app.cadastralNumber) {
+    changes.cadastralNumber = values.cadastralNumber ?? '';
+  }
   if (values.objectType !== app.objectType) changes.objectType = values.objectType;
   if (values.objectCategory !== app.objectCategory) changes.objectCategory = values.objectCategory;
   // The wording matters only for OTHER; for any other category the server clears it.

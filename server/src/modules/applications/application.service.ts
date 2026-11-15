@@ -180,7 +180,9 @@ type ListedApplication = {
   regDate: Date;
   customer: string;
   customerRepresentative?: string;
+  settlement?: string;
   objectAddress: string;
+  cadastralNumber?: string;
   objectType: ApplicationListItemDto['objectType'];
   objectCategory: ApplicationListItemDto['objectCategory'];
   objectCategoryOther?: string;
@@ -200,7 +202,7 @@ export async function listApplications(
       .skip((query.page - 1) * query.limit)
       .limit(query.limit)
       .select(
-        'regYear regSeq regDate customer customerRepresentative objectAddress objectType objectCategory objectCategoryOther registrationMode status createdBy',
+        'regYear regSeq regDate customer customerRepresentative settlement objectAddress cadastralNumber objectType objectCategory objectCategoryOther registrationMode status createdBy',
       )
       .populate('createdBy', 'fullName')
       .lean<ListedApplication[]>(),
@@ -216,7 +218,9 @@ export async function listApplications(
       regDate: toIsoDate(row.regDate),
       customer: row.customer,
       customerRepresentative: row.customerRepresentative ?? null,
+      settlement: row.settlement ?? null,
       objectAddress: row.objectAddress,
+      cadastralNumber: row.cadastralNumber ?? null,
       objectType: row.objectType,
       objectCategory: row.objectCategory,
       objectCategoryOther: row.objectCategoryOther ?? null,

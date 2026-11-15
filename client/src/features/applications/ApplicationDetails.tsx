@@ -57,7 +57,9 @@ export function ApplicationDetails({ app }: { app: ApplicationDto }) {
       <section className={styles.section} aria-labelledby="object">
         <h2 id="object">Обʼєкт</h2>
         <dl>
+          <Field label="Населений пункт">{app.settlement}</Field>
           <Field label="Адреса">{app.objectAddress}</Field>
+          <Field label="Кадастровий номер">{app.cadastralNumber}</Field>
           <Field label="Тип обʼєкта">{OBJECT_TYPE_LABELS[app.objectType]}</Field>
           <Field label="Категорія">
             {formatObjectCategory(app.objectCategory, app.objectCategoryOther)}

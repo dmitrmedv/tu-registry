@@ -7,7 +7,8 @@ test('edits, annuls and restores an application; the journal records it', async 
   const headers = await apiLogin(page.request, ADMIN);
   const app = await createApplication(page.request, headers, {
     customer: uniqueName('ТОВ Життєвий цикл'),
-    objectAddress: 'м. Львів, вул. Тестова, 2',
+    settlement: 'м. Львів',
+    objectAddress: 'вул. Тестова, 2',
     objectType: 'NON_DOMESTIC',
   });
 

@@ -25,6 +25,12 @@ export async function listUsers() {
   return users.map(toUserDto);
 }
 
+/** Everyone who ever registered applications, for the registry's "registered by" filter. */
+export async function listUserOptions() {
+  const users = await User.find().select('fullName isActive').sort({ fullName: 1 }).lean();
+  return users.map((u) => ({ id: String(u._id), fullName: u.fullName, isActive: u.isActive }));
+}
+
 export async function createUser(
   input: CreateUserInput,
   actor: Actor,

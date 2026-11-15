@@ -3,5 +3,6 @@ export * from './Badge';
 export * from './Button';
 export * from './Dialog';
 export * from './fields';
+export * from './Pagination';
 export * from './Spinner';
 export * from './Table';

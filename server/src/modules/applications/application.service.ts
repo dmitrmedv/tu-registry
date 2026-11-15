@@ -1,8 +1,11 @@
 import {
+  type ApplicationListItemDto,
+  type ApplicationListQueryData,
   type AuditAction,
   type CreateApplicationData,
   formatRegNumber,
   type ManualApplicationData,
+  type Paginated,
   type RegistrationMode,
 } from '@tu-registry/shared';
 import mongoose, { type ClientSession } from 'mongoose';
@@ -11,6 +14,7 @@ import { fromIsoDate, kyivToday, toIsoDate } from '../../utils/kyivDate';
 import { type RequestContext, recordAudit } from '../audit/audit.service';
 import { issueNextNumber, peekNextNumber } from '../numbering/numbering.service';
 import { toApplicationDto } from './application.dto';
+import { buildListFilter, LIST_SORTS } from './application.query';
 import { Application } from './application.model';
 import { ApplicationChange } from './applicationChange.model';
 
@@ -169,4 +173,62 @@ export async function getNextNumber() {
   const { year, iso } = kyivToday();
   const regSeq = await peekNextNumber(year);
   return { regNumber: formatRegNumber(year, regSeq), regYear: year, regSeq, regDate: iso };
+}
+
+type ListedApplication = {
+  _id: mongoose.Types.ObjectId;
+  regYear: number;
+  regSeq: number;
+  regDate: Date;
+  customer: string;
+  customerRepresentative?: string;
+  objectAddress: string;
+  objectType: ApplicationListItemDto['objectType'];
+  registrationMode: ApplicationListItemDto['registrationMode'];
+  status: ApplicationListItemDto['status'];
+  createdBy: { _id: mongoose.Types.ObjectId; fullName: string } | null;
+};
+
+/** One page of the registry. Filtering, sorting and paging happen in the database. */
+export async function listApplications(
+  query: ApplicationListQueryData,
+): Promise<Paginated<ApplicationListItemDto>> {
+  const filter = buildListFilter(query);
+  const [rows, total] = await Promise.all([
+    Application.find(filter)
+      .sort(LIST_SORTS[query.sort])
+      .skip((query.page - 1) * query.limit)
+      .limit(query.limit)
+      .select(
+        'regYear regSeq regDate customer customerRepresentative objectAddress objectType registrationMode status createdBy',
+      )
+      .populate('createdBy', 'fullName')
+      .lean<ListedApplication[]>(),
+    Application.countDocuments(filter),
+  ]);
+
+  return {
+    data: rows.map((row) => ({
+      id: String(row._id),
+      regNumber: formatRegNumber(row.regYear, row.regSeq),
+      regYear: row.regYear,
+      regSeq: row.regSeq,
+      regDate: toIsoDate(row.regDate),
+      customer: row.customer,
+      customerRepresentative: row.customerRepresentative ?? null,
+      objectAddress: row.objectAddress,
+      objectType: row.objectType,
+      registrationMode: row.registrationMode,
+      status: row.status,
+      createdBy: row.createdBy
+        ? { id: String(row.createdBy._id), fullName: row.createdBy.fullName }
+        : { id: '', fullName: '—' },
+    })),
+    meta: {
+      page: query.page,
+      limit: query.limit,
+      total,
+      totalPages: Math.max(1, Math.ceil(total / query.limit)),
+    },
+  };
 }

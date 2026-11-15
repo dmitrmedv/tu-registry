@@ -2,8 +2,16 @@ import type { UserDto } from '@tu-registry/shared';
 import { http, HttpResponse } from 'msw';
 import { setupServer } from 'msw/node';
 
-/** Network-level mock: tests talk to the real axios client and interceptors. */
-export const server = setupServer();
+/**
+ * Network-level mock: tests talk to the real axios client and interceptors.
+ * Defaults (restored after each test): an empty registry and no users.
+ */
+export const server = setupServer(
+  http.get('*/api/v1/applications', () =>
+    HttpResponse.json({ data: [], meta: { page: 1, limit: 20, total: 0, totalPages: 1 } }),
+  ),
+  http.get('*/api/v1/users/options', () => HttpResponse.json([])),
+);
 
 export function apiError(status: number, code: string, message = code) {
   return HttpResponse.json({ error: { code, message } }, { status });

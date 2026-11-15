@@ -1,4 +1,5 @@
 import {
+  applicationListQuerySchema,
   createApplicationSchema,
   manualApplicationSchema,
   manualNumberCheckSchema,
@@ -8,6 +9,11 @@ import { kyivToday } from '../../utils/kyivDate';
 import { parseRequest } from '../../utils/parseRequest';
 import { requestContext } from '../audit/audit.service';
 import * as applicationService from './application.service';
+
+export const list: RequestHandler = async (req, res) => {
+  const { query } = parseRequest(req, { query: applicationListQuerySchema });
+  res.json(await applicationService.listApplications(query));
+};
 
 export const create: RequestHandler = async (req, res) => {
   const { body } = parseRequest(req, { body: createApplicationSchema });

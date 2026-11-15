@@ -1,0 +1,120 @@
+@use '@/styles/mixins' as *;
+
+.filters {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.filtersToggle {
+  align-self: flex-start;
+
+  @include up(md) {
+    display: none;
+  }
+}
+
+// Mobile: collapsed until toggled. Desktop: always visible, in a grid.
+.filterPanel {
+  display: none;
+  grid-template-columns: 1fr;
+  gap: var(--space-3) var(--space-4);
+  padding: var(--space-4);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+
+  @include up(sm) {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  @include up(md) {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+  }
+
+  @include up(xl) {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+
+.filterPanelOpen {
+  display: grid;
+}
+
+.resetCell {
+  display: flex;
+  align-items: flex-end;
+}
+
+.summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  color: var(--color-text-muted);
+  font-size: var(--text-sm);
+}
+
+.loadingTable {
+  opacity: 0.6;
+  transition: opacity 0.15s ease;
+}
+
+.sortButton {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: 0;
+  background: none;
+  border: 0;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.sortIcon {
+  font-size: 0.7em;
+}
+
+.nowrap {
+  white-space: nowrap;
+}
+
+.wrap {
+  min-width: 180px;
+}
+
+.footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.pageSize {
+  width: 120px;
+}
+
+.empty {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-3);
+  padding: var(--space-6);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+
+  p {
+    margin: 0;
+  }
+}
+
+.emptyActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}

@@ -64,9 +64,12 @@ applicationSchema.pre('validate', function (this: HydratedDocument<ApplicationDa
 
 // The final guarantee against duplicate registration numbers within a year.
 applicationSchema.index({ regYear: 1, regSeq: 1 }, { unique: true });
-applicationSchema.index({ regDate: -1 });
-applicationSchema.index({ createdBy: 1, regDate: -1 });
-applicationSchema.index({ objectType: 1, regDate: -1 });
+// Registry sorts by date with the number as a tie-breaker; the indexes carry the full sort
+// key so MongoDB reads rows already in order instead of sorting them in memory.
+const BY_DATE = { regDate: -1, regYear: -1, regSeq: -1 } as const;
+applicationSchema.index(BY_DATE);
+applicationSchema.index({ createdBy: 1, ...BY_DATE });
+applicationSchema.index({ objectType: 1, ...BY_DATE });
 
 export type ApplicationData = InferSchemaType<typeof applicationSchema>;
 export const Application = model('Application', applicationSchema);

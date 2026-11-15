@@ -6,6 +6,7 @@ export const applicationRouter = Router();
 
 applicationRouter.use(requireAuth);
 
+applicationRouter.get('/', controller.list);
 applicationRouter.get('/next-number', controller.nextNumber);
 applicationRouter.post('/', controller.create);
 applicationRouter.get('/manual/check', requireRegistrationRights, controller.checkManualNumber);

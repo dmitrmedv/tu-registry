@@ -8,6 +8,10 @@ export const list: RequestHandler = async (_req, res) => {
   res.json(await userService.listUsers());
 };
 
+export const options: RequestHandler = async (_req, res) => {
+  res.json(await userService.listUserOptions());
+};
+
 export const create: RequestHandler = async (req, res) => {
   const { body } = parseRequest(req, { body: createUserSchema });
   res.status(201).json(await userService.createUser(body, req.user!, requestContext(req)));

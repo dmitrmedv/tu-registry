@@ -1,0 +1,117 @@
+import { PAGE_SIZES } from '@tu-registry/shared';
+import clsx from 'clsx';
+import { useEffect } from 'react';
+import { useCurrentUser } from '@/features/auth';
+import {
+  RegistryFilters,
+  RegistryTable,
+  toApiQuery,
+  useApplicationList,
+  useRegistryParams,
+  useUserOptions,
+} from '@/features/registry';
+import styles from '@/features/registry/registry.module.scss';
+import { toApiError } from '@/shared/api/apiError';
+import { Alert, Button, LinkButton, Pagination, SelectField, Spinner } from '@/shared/ui';
+import pageStyles from '../page.module.scss';
+
+const PAGE_SIZE_OPTIONS = PAGE_SIZES.map((size) => ({ value: String(size), label: `по ${size}` }));
+
+export function RegistryPage() {
+  const user = useCurrentUser();
+  const { params, update, reset, activeFilterCount } = useRegistryParams();
+  const list = useApplicationList(toApiQuery(params, user.id));
+  const users = useUserOptions();
+  const meta = list.data?.meta;
+
+  // A page number beyond the end (e.g. after narrowing filters) jumps to the last page.
+  useEffect(() => {
+    if (meta && params.page > meta.totalPages) update({ page: meta.totalPages }, { replace: true });
+  }, [meta, params.page, update]);
+
+  return (
+    <section className={pageStyles.wide}>
+      <div className={pageStyles.header}>
+        <h1>Реєстр заяв</h1>
+        <LinkButton to="/applications/new" variant="primary">
+          Нова заява
+        </LinkButton>
+      </div>
+
+      <RegistryFilters
+        params={params}
+        update={update}
+        reset={reset}
+        activeFilterCount={activeFilterCount}
+        users={users.data}
+      />
+
+      {list.isPending ? (
+        <Spinner label="Завантаження заяв…" />
+      ) : list.isError ? (
+        <Alert variant="error">
+          {toApiError(list.error).message}{' '}
+          <Button size="sm" onClick={() => list.refetch()}>
+            Повторити
+          </Button>
+        </Alert>
+      ) : meta!.total === 0 ? (
+        <div className={styles.empty}>
+          {activeFilterCount > 0 ? (
+            <>
+              <p>Нічого не знайдено за вказаними умовами.</p>
+              <Button onClick={reset}>Скинути фільтри</Button>
+            </>
+          ) : params.user === 'mine' ? (
+            <>
+              <p>Ви ще не зареєстрували жодної заяви.</p>
+              <div className={styles.emptyActions}>
+                <LinkButton to="/applications/new" variant="primary">
+                  Нова заява
+                </LinkButton>
+                <Button onClick={() => update({ user: 'all' })}>Показати всі заяви</Button>
+              </div>
+            </>
+          ) : (
+            <>
+              <p>Заяв ще немає.</p>
+              <LinkButton to="/applications/new" variant="primary">
+                Нова заява
+              </LinkButton>
+            </>
+          )}
+        </div>
+      ) : (
+        <>
+          <div className={styles.summary}>
+            <span role="status">Знайдено: {meta!.total}</span>
+          </div>
+          <div
+            className={clsx(list.isPlaceholderData && styles.loadingTable)}
+            aria-busy={list.isFetching}
+          >
+            <RegistryTable
+              rows={list.data.data}
+              sort={params.sort}
+              onSort={(sort) => update({ sort })}
+            />
+          </div>
+          <div className={styles.footer}>
+            <Pagination
+              page={meta!.page}
+              totalPages={meta!.totalPages}
+              onChange={(page) => update({ page })}
+            />
+            <SelectField
+              className={styles.pageSize}
+              label="Рядків на сторінці"
+              options={PAGE_SIZE_OPTIONS}
+              value={String(params.limit)}
+              onChange={(e) => update({ limit: Number(e.target.value) })}
+            />
+          </div>
+        </>
+      )}
+    </section>
+  );
+}

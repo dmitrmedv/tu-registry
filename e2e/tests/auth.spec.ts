@@ -1,5 +1,6 @@
 import { expect, test } from '@playwright/test';
 import { ADMIN } from '../support/accounts';
+import { chooseSetting } from '../support/api';
 
 test('an administrator creates a user, who must replace the temporary password', async ({
   page,
@@ -11,7 +12,7 @@ test('an administrator creates a user, who must replace the temporary password',
   await page.getByRole('button', { name: 'Увійти' }).click();
   await expect(page.getByRole('heading', { name: 'Реєстр заяв' })).toBeVisible();
 
-  await page.getByRole('link', { name: 'Користувачі' }).click();
+  await chooseSetting(page, 'Користувачі');
   await page.getByRole('button', { name: 'Додати користувача' }).click();
   const form = page.getByRole('dialog', { name: 'Новий користувач' });
   const login = `e2e.${Date.now().toString(36)}`;
@@ -24,7 +25,7 @@ test('an administrator creates a user, who must replace the temporary password',
   const temporaryPassword = (await created.getByLabel('Тимчасовий пароль').textContent())?.trim();
   expect(temporaryPassword).toBeTruthy();
   await created.getByRole('button', { name: 'Готово' }).click();
-  await page.getByRole('button', { name: 'Вийти' }).click();
+  await chooseSetting(page, 'Вийти');
 
   await page.getByLabel('Логін').fill(login);
   await page.getByLabel('Пароль', { exact: true }).fill(temporaryPassword!);

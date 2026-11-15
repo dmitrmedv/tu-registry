@@ -6,3 +6,4 @@ export * from './fields';
 export * from './Pagination';
 export * from './Spinner';
 export * from './Table';
+export * from './MenuButton';

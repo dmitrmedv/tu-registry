@@ -30,21 +30,23 @@ test('a dialog is usable from the keyboard and returns focus when closed', async
   await expect(annulButton).toBeFocused();
 });
 
-test('the phone menu opens from the keyboard and announces its state', async ({ page }) => {
+test('the settings menu works from the keyboard on a phone', async ({ page }) => {
   await page.setViewportSize({ width: 375, height: 812 });
   await apiLogin(page.request, ADMIN);
   await page.goto('/');
 
-  const toggle = page.getByRole('button', { name: 'Меню' });
-  const journal = page.getByRole('link', { name: 'Журнал' });
-  await expect(toggle).toHaveAttribute('aria-expanded', 'false');
-  await expect(journal).toBeHidden();
+  const settings = page.getByRole('button', { name: /^Налаштування/ });
+  await expect(settings).toHaveAttribute('aria-expanded', 'false');
+  await expect(page.getByRole('menu')).toHaveCount(0);
 
-  await toggle.focus();
+  await settings.focus();
   await page.keyboard.press('Enter');
-  await expect(toggle).toHaveAttribute('aria-expanded', 'true');
-  await journal.click();
+  await expect(settings).toHaveAttribute('aria-expanded', 'true');
+  await expect(page.getByRole('menuitem', { name: 'Користувачі' })).toBeFocused();
+  await page.keyboard.press('ArrowDown');
+  await expect(page.getByRole('menuitem', { name: 'Журнал' })).toBeFocused();
+  await page.keyboard.press('Enter');
 
   await expect(page.getByRole('heading', { name: 'Журнал аудиту' })).toBeVisible();
-  await expect(journal).toBeHidden(); // the menu closes after navigation
+  await expect(page.getByRole('menu')).toHaveCount(0); // the menu closes after navigation
 });

@@ -1,7 +1,7 @@
 import { screen } from '@testing-library/react';
 import { http as mock, HttpResponse } from 'msw';
 import { describe, expect, it } from 'vitest';
-import { renderApp } from '@/test/renderApp';
+import { chooseSetting, renderApp } from '@/test/renderApp';
 import { apiError, makeUser, server, signedInAs, signedOut } from '@/test/server';
 
 const admin = makeUser();
@@ -98,7 +98,7 @@ describe('authentication flow', () => {
     );
     const { user } = renderApp('/');
 
-    await user.click(await screen.findByRole('button', { name: 'Вийти' }));
+    await chooseSetting(user, 'Вийти');
 
     expect(await screen.findByRole('heading', { name: 'Вхід до системи' })).toBeInTheDocument();
   });
@@ -124,7 +124,7 @@ describe('authentication flow', () => {
     const { user, router } = renderApp('/applications/new');
     await screen.findByRole('heading', { name: 'Нова заява' });
 
-    await user.click(screen.getByRole('button', { name: 'Вийти' }));
+    await chooseSetting(user, 'Вийти');
     await user.type(await screen.findByLabelText('Логін'), 'admin');
     await user.type(screen.getByLabelText('Пароль'), 'correct-password');
     await user.click(screen.getByRole('button', { name: 'Увійти' }));

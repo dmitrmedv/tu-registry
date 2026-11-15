@@ -3,7 +3,7 @@ import { kyivCalendarDate } from '@tu-registry/shared';
 import { cleanup, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { http as mock, HttpResponse } from 'msw';
 import { describe, expect, it } from 'vitest';
-import { renderApp } from '@/test/renderApp';
+import { chooseSetting, renderApp } from '@/test/renderApp';
 import { apiError, makeUser, server, signedInAs } from '@/test/server';
 
 const employee = makeUser({
@@ -408,7 +408,7 @@ describe('NewApplicationPage — unsaved draft', () => {
     server.use(mock.post('*/api/v1/auth/logout', () => new HttpResponse(null, { status: 204 })));
 
     await user.type(await screen.findByLabelText('Замовник'), 'ТОВ «Чернетка»');
-    await user.click(screen.getByRole('button', { name: 'Вийти' }));
+    await chooseSetting(user, 'Вийти');
 
     await screen.findByRole('heading', { name: 'Вхід до системи' });
     expect(localStorage.getItem(draftKey(employee.id))).toBeNull();

@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 import { ADMIN } from '../support/accounts';
-import { apiLogin, createApplication, uniqueName } from '../support/api';
+import { apiLogin, chooseSetting, createApplication, uniqueName } from '../support/api';
 
 test('edits, annuls and restores an application; the journal records it', async ({ page }) => {
   // Prepared through the API (registration has its own test); the page shares the session.
@@ -37,7 +37,7 @@ test('edits, annuls and restores an application; the journal records it', async 
     .click();
   await expect(page.getByRole('link', { name: 'Редагувати' })).toBeVisible();
 
-  await page.getByRole('link', { name: 'Журнал' }).click();
+  await chooseSetting(page, 'Журнал');
   const entries = page
     .getByRole('table', { name: 'Журнал аудиту' })
     .getByRole('row')

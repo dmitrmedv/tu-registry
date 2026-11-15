@@ -57,3 +57,9 @@ export async function createApplication(
   expect(response.ok(), await response.text()).toBe(true);
   return (await response.json()) as { id: string; regNumber: string };
 }
+
+/** Opens the header's "Налаштування" menu and picks an item. */
+export async function chooseSetting(page: Page, item: string) {
+  await page.getByRole('button', { name: /^Налаштування/ }).click();
+  await page.getByRole('menuitem', { name: item }).click();
+}

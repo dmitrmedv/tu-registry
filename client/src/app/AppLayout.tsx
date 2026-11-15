@@ -1,9 +1,10 @@
 import clsx from 'clsx';
-import { useEffect, useRef, useState } from 'react';
-import { Link, NavLink, Outlet } from 'react-router';
+import { DEPARTMENT_NAMES } from '@tu-registry/shared';
+import { useEffect, useRef } from 'react';
+import { NavLink, Outlet } from 'react-router';
 import { CHANGE_PASSWORD_PATH, useAuth, useCurrentUser } from '@/features/auth';
 import { ROLE_LABELS } from '@/shared/lib/labels';
-import { Badge, Button } from '@/shared/ui';
+import { type MenuItem, MenuButton } from '@/shared/ui';
 import styles from './AppLayout.module.scss';
 
 const navClass = ({ isActive }: { isActive: boolean }) =>
@@ -34,60 +35,44 @@ function useHeaderHeightVariable() {
 export function AppLayout() {
   const user = useCurrentUser();
   const { logout } = useAuth();
-  const [menuOpen, setMenuOpen] = useState(false);
-  const [loggingOut, setLoggingOut] = useState(false);
   // Until the temporary password is replaced, only the password page is reachable.
   const restricted = user.mustChangePassword;
-  const closeMenu = () => setMenuOpen(false);
   const headerRef = useHeaderHeightVariable();
 
-  const handleLogout = async () => {
-    setLoggingOut(true);
-    await logout().catch(() => undefined);
-  };
+  const settings: MenuItem[] = [
+    ...(!restricted && user.role === 'ADMIN'
+      ? [
+          { label: 'Користувачі', to: '/users' },
+          { label: 'Журнал', to: '/audit' },
+        ]
+      : []),
+    ...(!restricted ? [{ label: 'Змінити пароль', to: CHANGE_PASSWORD_PATH }] : []),
+    {
+      label: 'Вийти',
+      // The route guard then sends the visitor to the login page.
+      onSelect: () => void logout().catch(() => undefined),
+    },
+  ];
 
   return (
     <div className={styles.shell}>
       <header ref={headerRef} className={styles.header}>
-        <div className={styles.bar}>
-          <Link to="/" className={styles.brand} onClick={closeMenu}>
-            Реєстр заяв на ТУ
-          </Link>
-          <button
-            type="button"
-            className={styles.menuToggle}
-            aria-expanded={menuOpen}
-            aria-controls="main-menu"
-            onClick={() => setMenuOpen((open) => !open)}
-          >
-            Меню
-          </button>
-          <div id="main-menu" className={clsx(styles.menu, menuOpen && styles.menuOpen)}>
-            {/* "Нова заява" lives on the registry page; the header keeps admin sections only. */}
-            {!restricted && user.role === 'ADMIN' && (
-              <nav aria-label="Основна навігація" className={styles.nav}>
-                <NavLink to="/users" className={navClass} onClick={closeMenu}>
-                  Користувачі
-                </NavLink>
-                <NavLink to="/audit" className={navClass} onClick={closeMenu}>
-                  Журнал
+        <div className={styles.inner}>
+          <div className={styles.identity}>
+            <p className={styles.userLine}>
+              <span className={styles.userName}>{user.fullName}</span> — {ROLE_LABELS[user.role]}
+            </p>
+            <p className={styles.department}>{DEPARTMENT_NAMES[user.department]} управління</p>
+          </div>
+          <div className={styles.navRow}>
+            {!restricted && (
+              <nav aria-label="Основна навігація">
+                <NavLink to="/" end className={navClass}>
+                  Реєстр заяв на ТУ
                 </NavLink>
               </nav>
             )}
-            <div className={styles.account}>
-              <span className={styles.userName}>{user.fullName}</span>
-              <Badge tone={user.role === 'ADMIN' ? 'info' : 'neutral'}>
-                {ROLE_LABELS[user.role]}
-              </Badge>
-              {!restricted && (
-                <NavLink to={CHANGE_PASSWORD_PATH} className={navClass} onClick={closeMenu}>
-                  Змінити пароль
-                </NavLink>
-              )}
-              <Button variant="ghost" size="sm" onClick={handleLogout} loading={loggingOut}>
-                Вийти
-              </Button>
-            </div>
+            <MenuButton label="Налаштування" items={settings} />
           </div>
         </div>
       </header>

@@ -1,5 +1,5 @@
 import { QueryClient } from '@tanstack/react-query';
-import { render } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { createMemoryRouter, RouterProvider } from 'react-router';
 import { Providers } from '@/app/providers';
@@ -18,4 +18,10 @@ export function renderApp(path = '/') {
     </Providers>,
   );
   return { user, router };
+}
+
+/** Opens the header's "Налаштування" menu and picks an item ("Вийти", "Журнал", …). */
+export async function chooseSetting(user: ReturnType<typeof userEvent.setup>, item: string) {
+  await user.click(await screen.findByRole('button', { name: /^Налаштування/ }));
+  await user.click(screen.getByRole('menuitem', { name: item }));
 }

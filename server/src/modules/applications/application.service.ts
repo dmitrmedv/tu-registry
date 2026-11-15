@@ -1,9 +1,16 @@
-import { type CreateApplicationData, formatRegNumber } from '@tu-registry/shared';
-import mongoose from 'mongoose';
-import { kyivToday, toIsoDate } from '../../utils/kyivDate';
+import {
+  type AuditAction,
+  type CreateApplicationData,
+  formatRegNumber,
+  type ManualApplicationData,
+  type RegistrationMode,
+} from '@tu-registry/shared';
+import mongoose, { type ClientSession } from 'mongoose';
+import { ApiError } from '../../utils/ApiError';
+import { fromIsoDate, kyivToday, toIsoDate } from '../../utils/kyivDate';
 import { type RequestContext, recordAudit } from '../audit/audit.service';
 import { issueNextNumber, peekNextNumber } from '../numbering/numbering.service';
-import { type ApplicationDocument, toApplicationDto } from './application.dto';
+import { toApplicationDto } from './application.dto';
 import { Application } from './application.model';
 import { ApplicationChange } from './applicationChange.model';
 
@@ -13,7 +20,7 @@ type Actor = { id: string; fullName: string };
  * A committed manual registration can take the very number the counter just issued
  * (unique index → E11000). Re-running the whole registration picks the next free one.
  */
-const MAX_ATTEMPTS = 3;
+const MAX_AUTO_ATTEMPTS = 3;
 
 function isDuplicateKey(error: unknown) {
   return (
@@ -21,77 +28,145 @@ function isDuplicateKey(error: unknown) {
   );
 }
 
-/** Registers an application with today's date (Kyiv) and the next number of the year. */
-export async function createApplication(
-  input: CreateApplicationData,
+type Registration = {
+  fields: CreateApplicationData;
+  regYear: number;
+  regSeq: number;
+  regDate: Date;
+  mode: RegistrationMode;
+};
+
+/**
+ * The common part of every registration, inside the caller's transaction: the application,
+ * its CREATED history entry and the audit entry are committed together or not at all.
+ */
+async function insertRegistration(
+  session: ClientSession,
+  { fields, regYear, regSeq, regDate, mode }: Registration,
   actor: Actor,
   context: RequestContext,
 ) {
-  for (let attempt = 1; ; attempt++) {
-    try {
-      return await registerAutomatically(input, actor, context);
-    } catch (error) {
-      if (isDuplicateKey(error) && attempt < MAX_ATTEMPTS) continue;
-      throw error;
-    }
-  }
+  const [created] = await Application.create(
+    [{ ...fields, regYear, regSeq, regDate, registrationMode: mode, createdBy: actor.id }],
+    { session },
+  );
+  await ApplicationChange.create(
+    [{ applicationId: created!._id, changedBy: actor.id, action: 'CREATED' }],
+    { session },
+  );
+  const action: AuditAction =
+    mode === 'MANUAL' ? 'APPLICATION_MANUAL_CREATED' : 'APPLICATION_CREATED';
+  await recordAudit(
+    {
+      action,
+      actor: actor.id,
+      entityType: 'Application',
+      entityId: created!._id,
+      // Number and date only: customer data does not belong in the audit log.
+      details: { regNumber: formatRegNumber(regYear, regSeq), regDate: toIsoDate(regDate) },
+    },
+    context,
+    session,
+  );
+  return created!;
 }
 
-async function registerAutomatically(
-  input: CreateApplicationData,
-  actor: Actor,
-  context: RequestContext,
-) {
-  const { year, date } = kyivToday();
+async function inTransaction<T>(work: (session: ClientSession) => Promise<T>) {
   const session = await mongoose.startSession();
   try {
-    let created: ApplicationDocument | undefined;
-    // Everything below commits together or not at all, including the counter increment.
+    let result: T | undefined;
     await session.withTransaction(async () => {
-      const regSeq = await issueNextNumber(year, session);
-      [created] = await Application.create(
-        [
-          {
-            ...input,
-            regYear: year,
-            regSeq,
-            regDate: date,
-            registrationMode: 'AUTO',
-            createdBy: actor.id,
-          },
-        ],
-        { session },
-      );
-      await ApplicationChange.create(
-        [{ applicationId: created!._id, changedBy: actor.id, action: 'CREATED' }],
-        { session },
-      );
-      await recordAudit(
-        {
-          action: 'APPLICATION_CREATED',
-          actor: actor.id,
-          entityType: 'Application',
-          entityId: created!._id,
-          // Only the number: customer data does not belong in the audit log.
-          details: { regNumber: formatRegNumber(year, regSeq) },
-        },
-        context,
-        session,
-      );
+      result = await work(session);
     });
-    return toApplicationDto(created!, { id: actor.id, fullName: actor.fullName });
+    return result as T;
   } finally {
     await session.endSession();
   }
 }
 
-export async function getNextNumber() {
-  const { year, date } = kyivToday();
-  const regSeq = await peekNextNumber(year);
+/** Registers an application with today's date (Kyiv) and the next number of the year. */
+export async function createApplication(
+  fields: CreateApplicationData,
+  actor: Actor,
+  context: RequestContext,
+) {
+  for (let attempt = 1; ; attempt++) {
+    try {
+      const { year, date } = kyivToday();
+      // The counter increment is part of the same transaction: no burnt numbers on failure.
+      const created = await inTransaction(async (session) => {
+        const regSeq = await issueNextNumber(year, session);
+        return insertRegistration(
+          session,
+          { fields, regYear: year, regSeq, regDate: date, mode: 'AUTO' },
+          actor,
+          context,
+        );
+      });
+      return toApplicationDto(created, actor);
+    } catch (error) {
+      if (isDuplicateKey(error) && attempt < MAX_AUTO_ATTEMPTS) continue;
+      throw error;
+    }
+  }
+}
+
+const yearOf = (isoDate: string) => Number(isoDate.slice(0, 4));
+
+function numberTaken(regNumber: string, takenOn?: Date) {
+  const by = takenOn ? ` (заява від ${toIsoDate(takenOn).split('-').reverse().join('.')})` : '';
+  return new ApiError(409, 'REG_NUMBER_TAKEN', `Номер ${regNumber} уже зайнятий${by}`, {
+    field: 'regNumber',
+  });
+}
+
+/**
+ * Back-dated registration with a user-supplied date and number. The automatic counter is
+ * never touched: the automatic sequence simply skips numbers taken here.
+ */
+export async function createManualApplication(
+  { regDate, regSeq: seq, ...fields }: ManualApplicationData,
+  actor: Actor,
+  context: RequestContext,
+) {
+  // The year is always the registration date's year: "14" on 2024-05-20 is "14т/24".
+  const year = yearOf(regDate);
+  const formatted = formatRegNumber(year, seq);
+  try {
+    const created = await inTransaction(async (session) => {
+      // Only for a helpful message; the unique index is what actually prevents duplicates.
+      const existing = await Application.findOne({ regYear: year, regSeq: seq })
+        .select('regDate')
+        .session(session);
+      if (existing) throw numberTaken(formatted, existing.regDate);
+      return insertRegistration(
+        session,
+        { fields, regYear: year, regSeq: seq, regDate: fromIsoDate(regDate), mode: 'MANUAL' },
+        actor,
+        context,
+      );
+    });
+    return toApplicationDto(created, actor);
+  } catch (error) {
+    // A concurrent registration took the number between the check and the insert.
+    if (isDuplicateKey(error)) throw numberTaken(formatted);
+    throw error;
+  }
+}
+
+/** Lets the form show "14т/24 — free/taken" while the user types. Read-only. */
+export async function checkManualNumber(regDate: string, seq: number) {
+  const year = yearOf(regDate);
+  const existing = await Application.findOne({ regYear: year, regSeq: seq }).select('regDate');
   return {
-    regNumber: formatRegNumber(year, regSeq),
-    regYear: year,
-    regSeq,
-    regDate: toIsoDate(date),
+    regNumber: formatRegNumber(year, seq),
+    available: !existing,
+    takenOn: existing ? toIsoDate(existing.regDate) : null,
   };
+}
+
+export async function getNextNumber() {
+  const { year, iso } = kyivToday();
+  const regSeq = await peekNextNumber(year);
+  return { regNumber: formatRegNumber(year, regSeq), regYear: year, regSeq, regDate: iso };
 }

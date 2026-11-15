@@ -51,6 +51,18 @@ describe('applications API', () => {
     expect(JSON.stringify(audit?.details)).not.toMatch(/Приклад|Петренко|380|example/);
   });
 
+  it('stores a missing representative as null', async () => {
+    const { auth } = await employee();
+
+    const res = await request(app)
+      .post(APPLICATIONS)
+      .set(auth)
+      .send({ ...body, customerRepresentative: '' });
+
+    expect(res.status).toBe(201);
+    expect(res.body.customerRepresentative).toBeNull();
+  });
+
   it('stores a missing email as null', async () => {
     const { auth } = await employee();
     const { email: _email, ...withoutEmail } = body;

@@ -1,11 +1,19 @@
 import type { ApplicationDto } from '@tu-registry/shared';
-import { screen } from '@testing-library/react';
+import { kyivCalendarDate } from '@tu-registry/shared';
+import { fireEvent, screen, waitFor } from '@testing-library/react';
 import { http as mock, HttpResponse } from 'msw';
 import { describe, expect, it } from 'vitest';
 import { renderApp } from '@/test/renderApp';
 import { apiError, makeUser, server, signedInAs } from '@/test/server';
 
-const employee = makeUser({ id: 'u2', login: 'ivan', fullName: 'Іван Петренко', role: 'USER' });
+const employee = makeUser({
+  id: 'u2',
+  login: 'ivan',
+  fullName: 'Іван Петренко',
+  role: 'USER',
+  canManageRegistration: false,
+});
+const registrar = { ...employee, id: 'u3', login: 'olena', canManageRegistration: true };
 
 const created: ApplicationDto = {
   id: 'a1',
@@ -27,9 +35,9 @@ const created: ApplicationDto = {
   version: 1,
 };
 
-function openPage() {
+function openPage(user = employee) {
   server.use(
-    signedInAs(employee),
+    signedInAs(user),
     mock.get('*/api/v1/applications/next-number', () =>
       HttpResponse.json({ regNumber: '15т/26', regYear: 2026, regSeq: 15, regDate: '2026-03-12' }),
     ),
@@ -39,7 +47,7 @@ function openPage() {
 
 async function fillRequiredFields(user: ReturnType<typeof openPage>['user']) {
   await user.type(screen.getByLabelText('Замовник'), 'ТОВ «Приклад»');
-  await user.type(screen.getByLabelText('Представник замовника'), 'Петренко Іван');
+  await user.type(screen.getByLabelText('Представник замовника (необовʼязково)'), 'Петренко Іван');
   await user.type(screen.getByLabelText('Телефон'), '(067) 123-45-67');
   await user.type(screen.getByLabelText('Адреса обʼєкта'), 'м. Київ, вул. Прикладна, 1');
   await user.selectOptions(screen.getByLabelText('Тип обʼєкта'), 'Побутовий');
@@ -112,5 +120,163 @@ describe('NewApplicationPage', () => {
 
     expect(await screen.findByRole('alert')).toHaveTextContent('Внутрішня помилка сервера');
     expect(screen.getByLabelText('Замовник')).toHaveValue('ТОВ «Приклад»');
+  });
+});
+
+describe('NewApplicationPage — manual registration', () => {
+  const switchName = 'Ручне встановлення дати та номера реєстрації';
+
+  /** The check endpoint answers "free" unless a test says otherwise. */
+  const numberCheck = (available = true, takenOn: string | null = null) =>
+    mock.get('*/api/v1/applications/manual/check', ({ request }) => {
+      const url = new URL(request.url);
+      const year = url.searchParams.get('regDate')!.slice(2, 4);
+      const regNumber = `${url.searchParams.get('regSeq')}т/${year}`;
+      return HttpResponse.json({ regNumber, available, takenOn });
+    });
+
+  async function openManual() {
+    const result = openPage(registrar);
+    server.use(numberCheck());
+    await result.user.click(await screen.findByRole('switch', { name: switchName }));
+    return result;
+  }
+
+  function setDate(value: string) {
+    fireEvent.change(screen.getByLabelText('Дата реєстрації'), { target: { value } });
+  }
+
+  it('is not offered to regular users', async () => {
+    openPage(employee);
+
+    await screen.findByText('15т/26');
+    expect(screen.queryByRole('switch')).not.toBeInTheDocument();
+  });
+
+  it('replaces the automatic preview with a date and a sequence number field', async () => {
+    await openManual();
+
+    expect(screen.getByLabelText('Дата реєстрації')).toHaveAttribute('max', kyivCalendarDate());
+    expect(screen.getByLabelText('Порядковий номер')).toBeInTheDocument();
+    expect(screen.getByText('Рік номера визначається за датою реєстрації.')).toBeInTheDocument();
+    expect(screen.queryByText('Номер (орієнтовно)')).not.toBeInTheDocument();
+  });
+
+  it('builds the full number from the digits and the date, and says whether it is free', async () => {
+    const { user } = await openManual();
+
+    setDate('2024-05-20');
+    await user.type(screen.getByLabelText('Порядковий номер'), '14');
+
+    // The availability check runs after a short pause in typing.
+    await waitFor(() =>
+      expect(screen.getByRole('status')).toHaveTextContent('Номер реєстрації: 14т/24 — вільний'),
+    );
+  });
+
+  it('warns when the number is already taken in that year', async () => {
+    const { user } = await openManual();
+    server.use(numberCheck(false, '2024-02-02'));
+
+    setDate('2024-05-20');
+    await user.type(screen.getByLabelText('Порядковий номер'), '14');
+
+    expect(await screen.findByText(/уже зайнятий \(заява від 02\.02\.2024\)/)).toBeInTheDocument();
+  });
+
+  it('explains that a number ahead of the automatic sequence will be skipped', async () => {
+    const today = kyivCalendarDate();
+    const year = Number(today.slice(0, 4));
+    const { user } = await openManual();
+    server.use(
+      mock.get('*/api/v1/applications/next-number', () =>
+        HttpResponse.json({
+          regNumber: `15т/${today.slice(2, 4)}`,
+          regYear: year,
+          regSeq: 15,
+          regDate: today,
+        }),
+      ),
+    );
+
+    setDate(today);
+    await user.type(screen.getByLabelText('Порядковий номер'), '20');
+
+    expect(await screen.findByText(/автоматична нумерація пропустить його/)).toBeInTheDocument();
+  });
+
+  it('accepts digits only and no future dates', async () => {
+    const { user } = await openManual();
+    await fillRequiredFields(user);
+    const submit = () => user.click(screen.getByRole('button', { name: 'Внести заяву' }));
+
+    setDate('2024-05-20');
+    await user.type(screen.getByLabelText('Порядковий номер'), '14т/24');
+    await submit();
+    expect(await screen.findByText('Вкажіть порядковий номер (лише цифри)')).toBeInTheDocument();
+
+    setDate(kyivCalendarDate(new Date(Date.now() + 36 * 60 * 60 * 1000)));
+    await user.clear(screen.getByLabelText('Порядковий номер'));
+    await user.type(screen.getByLabelText('Порядковий номер'), '1');
+    await submit();
+    expect(await screen.findByText(/не може бути пізнішою за сьогодні/)).toBeInTheDocument();
+  });
+
+  it('sends date and digits, and keeps mode and date for the next entry', async () => {
+    let sentBody: unknown;
+    const { user } = await openManual();
+    server.use(
+      mock.post('*/api/v1/applications/manual', async ({ request }) => {
+        sentBody = await request.json();
+        return HttpResponse.json(
+          {
+            ...created,
+            regNumber: '14т/24',
+            regYear: 2024,
+            regSeq: 14,
+            regDate: '2024-05-20',
+            registrationMode: 'MANUAL',
+          },
+          { status: 201 },
+        );
+      }),
+    );
+
+    await fillRequiredFields(user);
+    setDate('2024-05-20');
+    await user.type(screen.getByLabelText('Порядковий номер'), '14');
+    await user.click(screen.getByRole('button', { name: 'Внести заяву' }));
+
+    expect(await screen.findByText(/Заяву внесено вручну/)).toHaveTextContent(
+      'Заяву внесено вручну: 14т/24 від 20.05.2024',
+    );
+    expect(sentBody).toMatchObject({ regDate: '2024-05-20', regSeq: 14 });
+    expect(sentBody).not.toHaveProperty('manual');
+
+    await user.click(screen.getByRole('button', { name: 'Зареєструвати ще' }));
+    expect(screen.getByRole('switch', { name: switchName })).toBeChecked();
+    expect(screen.getByLabelText('Дата реєстрації')).toHaveValue('2024-05-20');
+    expect(screen.getByLabelText('Порядковий номер')).toHaveValue('');
+    expect(screen.getByLabelText('Замовник')).toHaveValue('');
+  });
+
+  it('shows a number taken at save time next to the number field', async () => {
+    const { user } = await openManual();
+    server.use(
+      mock.post('*/api/v1/applications/manual', () =>
+        apiError(409, 'REG_NUMBER_TAKEN', 'Номер 14т/24 уже зайнятий (заява від 02.02.2024)'),
+      ),
+    );
+
+    await fillRequiredFields(user);
+    setDate('2024-05-20');
+    await user.type(screen.getByLabelText('Порядковий номер'), '14');
+    await user.click(screen.getByRole('button', { name: 'Внести заяву' }));
+
+    expect(
+      await screen.findByText('Номер 14т/24 уже зайнятий (заява від 02.02.2024)'),
+    ).toBeInTheDocument();
+    expect(screen.getByLabelText('Порядковий номер')).toHaveAttribute('aria-invalid', 'true');
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
   });
 });

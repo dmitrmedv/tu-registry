@@ -1,3 +1,4 @@
+export * from './dates';
 export * from './enums';
 export * from './phone';
 export * from './regNumber';

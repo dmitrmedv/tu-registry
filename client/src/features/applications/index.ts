@@ -1,1 +1,1 @@
-export { ApplicationForm } from './ApplicationForm';
+export { ApplicationForm, type ManualDefaults } from './ApplicationForm';

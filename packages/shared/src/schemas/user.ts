@@ -50,3 +50,8 @@ export type UserDto = {
 
 export type AuthResponse = { user: UserDto; accessToken: string };
 export type UserWithTemporaryPassword = { user: UserDto; temporaryPassword: string };
+
+/** Manual registration and changing date/number of own applications. */
+export function hasRegistrationRights(user: Pick<UserDto, 'role' | 'canManageRegistration'>) {
+  return user.role === 'ADMIN' || user.canManageRegistration;
+}

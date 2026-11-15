@@ -15,10 +15,24 @@ export function useNextNumber() {
   });
 }
 
-export function useCreateApplication() {
+/** Is a manual number free? Runs only for a complete, valid date + number. */
+export function useManualNumberCheck(params: { regDate: string; regSeq: number } | null) {
+  return useQuery({
+    queryKey: [...applicationKeys.all, 'manual-check', params] as const,
+    queryFn: () => applicationsApi.checkManualNumber(params!),
+    enabled: params !== null,
+    staleTime: 0,
+  });
+}
+
+function useApplicationsMutation<TVariables, TResult>(fn: (v: TVariables) => Promise<TResult>) {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: applicationsApi.create,
+    mutationFn: fn,
     onSuccess: () => queryClient.invalidateQueries({ queryKey: applicationKeys.all }),
   });
 }
+
+export const useCreateApplication = () => useApplicationsMutation(applicationsApi.create);
+export const useCreateManualApplication = () =>
+  useApplicationsMutation(applicationsApi.createManual);

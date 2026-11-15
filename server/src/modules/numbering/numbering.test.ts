@@ -55,7 +55,7 @@ describe('automatic numbering', () => {
     expect(first).toMatchObject({ registrationMode: 'AUTO', status: 'ACTIVE', createdBy: actor });
     expect(await ApplicationChange.countDocuments({ action: 'CREATED' })).toBe(2);
     const audit = await AuditLog.findOne({ action: 'APPLICATION_CREATED', entityId: first.id });
-    expect(audit?.details).toEqual({ regNumber: '1т/26' });
+    expect(audit?.details).toEqual({ regNumber: '1т/26', regDate: '2026-03-12' });
   });
 
   it('uses the Kyiv calendar for the year: restarts at 1т/27 just after midnight on 1 January', async () => {

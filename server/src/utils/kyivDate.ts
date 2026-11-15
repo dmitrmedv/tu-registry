@@ -1,24 +1,18 @@
+import { kyivCalendarDate } from '@tu-registry/shared';
 import { clock } from './clock';
 
-const kyivDateParts = new Intl.DateTimeFormat('en-CA', {
-  timeZone: 'Europe/Kyiv',
-  year: 'numeric',
-  month: '2-digit',
-  day: '2-digit',
-});
-
-/**
- * Today's calendar date in Kyiv, whatever the server's time zone. `date` is midnight UTC of
- * that calendar date — the storage convention for registration dates.
- */
-export function kyivToday(now: Date = clock.now()) {
-  const parts = Object.fromEntries(kyivDateParts.formatToParts(now).map((p) => [p.type, p.value]));
-  const year = Number(parts.year);
-  const date = new Date(Date.UTC(year, Number(parts.month) - 1, Number(parts.day)));
-  return { year, date };
+/** "YYYY-MM-DD" → Date at midnight UTC: the storage convention for registration dates. */
+export function fromIsoDate(isoDate: string) {
+  return new Date(`${isoDate}T00:00:00.000Z`);
 }
 
 /** Midnight-UTC date → "YYYY-MM-DD". */
 export function toIsoDate(date: Date) {
   return date.toISOString().slice(0, 10);
+}
+
+/** Today's calendar date in Kyiv, whatever the server's time zone. */
+export function kyivToday(now: Date = clock.now()) {
+  const iso = kyivCalendarDate(now);
+  return { iso, year: Number(iso.slice(0, 4)), date: fromIsoDate(iso) };
 }

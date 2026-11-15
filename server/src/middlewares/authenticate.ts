@@ -1,5 +1,5 @@
-import type { Role } from '@tu-registry/shared';
-import type { RequestHandler } from 'express';
+import { hasRegistrationRights, type Role } from '@tu-registry/shared';
+import type { Request, RequestHandler } from 'express';
 import { recordAudit, requestContext } from '../modules/audit/audit.service';
 import { RefreshSession } from '../modules/auth/refreshSession.model';
 import { verifyAccessToken } from '../modules/auth/tokens';
@@ -47,22 +47,39 @@ export const requirePasswordChanged: RequestHandler = (req, _res, next) => {
   next();
 };
 
+/** Records the refusal in the audit log and returns the 403 to throw. */
+async function denyAccess(req: Request, required: Record<string, unknown>, message?: string) {
+  await recordAudit(
+    {
+      action: 'ACCESS_DENIED',
+      actor: req.user?.id ?? null,
+      details: { method: req.method, path: req.originalUrl, ...required },
+    },
+    requestContext(req),
+  );
+  return ApiError.forbidden(message);
+}
+
 export function requireRole(...roles: Role[]): RequestHandler {
   return async (req, _res, next) => {
     if (!req.user || !roles.includes(req.user.role)) {
-      await recordAudit(
-        {
-          action: 'ACCESS_DENIED',
-          actor: req.user?.id ?? null,
-          details: { method: req.method, path: req.originalUrl, requiredRoles: roles },
-        },
-        requestContext(req),
-      );
-      throw ApiError.forbidden();
+      throw await denyAccess(req, { requiredRoles: roles });
     }
     next();
   };
 }
+
+/** Administrators and users with the "authorized" flag (manual registration). */
+export const requireRegistrationRights: RequestHandler = async (req, _res, next) => {
+  if (!req.user || !hasRegistrationRights(req.user)) {
+    throw await denyAccess(
+      req,
+      { required: 'canManageRegistration' },
+      'Ця дія доступна лише уповноваженим користувачам',
+    );
+  }
+  next();
+};
 
 /** Standard chain for private endpoints. */
 export const requireAuth = [authenticate, requirePasswordChanged];

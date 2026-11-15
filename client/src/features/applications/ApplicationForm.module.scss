@@ -67,3 +67,29 @@
   display: flex;
   justify-content: flex-end;
 }
+
+.numberStatus {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.numberLine {
+  margin: 0;
+
+  strong {
+    font-size: var(--text-lg);
+  }
+}
+
+.badge {
+  font-weight: 500;
+}
+
+.free {
+  color: var(--color-success);
+}
+
+.taken {
+  color: var(--color-danger);
+}

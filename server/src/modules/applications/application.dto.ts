@@ -14,7 +14,7 @@ export function toApplicationDto(app: ApplicationDocument, author: Author): Appl
     regSeq: app.regSeq,
     regDate: toIsoDate(app.regDate),
     customer: app.customer,
-    customerRepresentative: app.customerRepresentative,
+    customerRepresentative: app.customerRepresentative ?? null,
     phone: app.phone,
     email: app.email ?? null,
     objectAddress: app.objectAddress,

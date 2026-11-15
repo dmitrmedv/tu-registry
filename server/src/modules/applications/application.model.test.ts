@@ -62,7 +62,12 @@ describe('Application model', () => {
     ).rejects.toThrow(/calendar date/);
   });
 
-  it.each([['customer'], ['customerRepresentative'], ['phone'], ['objectAddress'], ['objectType']])(
+  it('does not require a customer representative', async () => {
+    const app = await Application.create(validApplication({ customerRepresentative: undefined }));
+    expect(app.customerRepresentative).toBeUndefined();
+  });
+
+  it.each([['customer'], ['phone'], ['objectAddress'], ['objectType']])(
     'requires %s',
     async (field) => {
       await expect(Application.create(validApplication({ [field]: undefined }))).rejects.toThrow(

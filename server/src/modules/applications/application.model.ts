@@ -24,7 +24,7 @@ const applicationSchema = new Schema(
     // Calendar date in Europe/Kyiv, stored as midnight UTC of that date.
     regDate: { type: Date, required: true },
     customer: { type: String, required: true, trim: true, maxlength: 300 },
-    customerRepresentative: { type: String, required: true, trim: true, maxlength: 300 },
+    customerRepresentative: { type: String, trim: true, maxlength: 300 },
     // Normalized by the shared phone helper before saving.
     phone: { type: String, required: true, match: /^\+380\d{9}$/ },
     email: { type: String, trim: true, lowercase: true, maxlength: 254 },

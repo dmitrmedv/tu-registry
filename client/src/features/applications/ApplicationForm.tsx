@@ -10,11 +10,12 @@ import {
   manualApplicationSchema,
   OBJECT_TYPES,
 } from '@tu-registry/shared';
-import { useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { type FieldErrors, type FieldPath, type Resolver, useForm } from 'react-hook-form';
 import { useCurrentUser } from '@/features/auth';
 import { toApiError } from '@/shared/api/apiError';
-import { formatCalendarDate } from '@/shared/lib/format';
+import { useFormDraft } from '@/shared/hooks/useFormDraft';
+import { formatCalendarDate, formatDateTime } from '@/shared/lib/format';
 import { OBJECT_TYPE_LABELS } from '@/shared/lib/labels';
 import { Alert, Button, CheckboxField, SelectField, Spinner, TextField } from '@/shared/ui';
 import styles from './ApplicationForm.module.scss';
@@ -82,35 +83,64 @@ export function ApplicationForm({ onCreated, manualDefaults }: Props) {
   const createAuto = useCreateApplication();
   const createManual = useCreateManualApplication();
 
-  const {
-    register,
-    handleSubmit,
-    setError,
-    watch,
-    formState: { errors, isSubmitting },
-  } = useForm<FormValues, unknown, Submitted>({
-    resolver: useApplicationResolver(today),
-    defaultValues: {
+  const emptyValues = useMemo<FormValues>(
+    () => ({
       customer: '',
       customerRepresentative: '',
       phone: '',
       email: '',
       objectAddress: '',
+      objectType: '' as FormValues['objectType'],
       manual: Boolean(manualDefaults),
       regDate: manualDefaults?.regDate ?? '',
       regSeq: '',
+    }),
+    [manualDefaults],
+  );
+  // Typed data survives a page reload; the draft belongs to this user only.
+  const draft = useFormDraft(`new-application:${user.id}`, emptyValues);
+  const [draftNoticeVisible, setDraftNoticeVisible] = useState(draft.restoredAt !== null);
+
+  const {
+    register,
+    handleSubmit,
+    setError,
+    watch,
+    reset,
+    formState: { errors, isSubmitting },
+  } = useForm<FormValues, unknown, Submitted>({
+    resolver: useApplicationResolver(today),
+    // Rights may have been revoked since the draft was saved.
+    defaultValues: {
+      ...draft.initialValues,
+      manual: canRegisterManually && draft.initialValues.manual,
     },
   });
   const manual = watch('manual');
+
+  useEffect(() => {
+    const subscription = watch((values) => draft.save(values as FormValues));
+    return () => subscription.unsubscribe();
+  }, [watch, draft]);
+
+  const discardDraft = () => {
+    reset(emptyValues);
+    draft.clear();
+    setDraftNoticeVisible(false);
+  };
 
   const onSubmit = handleSubmit(async (values) => {
     try {
       if (values.manual) {
         const { manual: _manual, ...data } = values;
-        onCreated(await createManual.mutateAsync(data));
+        const created = await createManual.mutateAsync(data);
+        draft.clear();
+        onCreated(created);
       } else {
         const { manual: _manual, ...data } = values;
-        onCreated(await createAuto.mutateAsync(data));
+        const created = await createAuto.mutateAsync(data);
+        draft.clear();
+        onCreated(created);
       }
     } catch (error) {
       const apiError = toApiError(error);
@@ -129,6 +159,16 @@ export function ApplicationForm({ onCreated, manualDefaults }: Props) {
 
   return (
     <form className={styles.form} onSubmit={onSubmit} noValidate>
+      {draftNoticeVisible && draft.restoredAt && (
+        <Alert variant="info">
+          <div className={styles.draftNotice}>
+            <span>Відновлено незбережені дані від {formatDateTime(draft.restoredAt)}.</span>
+            <Button size="sm" onClick={discardDraft}>
+              Очистити форму
+            </Button>
+          </div>
+        </Alert>
+      )}
       {errors.root?.message && <Alert variant="error">{errors.root.message}</Alert>}
 
       <fieldset className={styles.section}>

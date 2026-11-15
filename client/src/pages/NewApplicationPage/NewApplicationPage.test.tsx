@@ -1,6 +1,6 @@
 import type { ApplicationDto } from '@tu-registry/shared';
 import { kyivCalendarDate } from '@tu-registry/shared';
-import { fireEvent, screen, waitFor } from '@testing-library/react';
+import { cleanup, fireEvent, screen, waitFor } from '@testing-library/react';
 import { http as mock, HttpResponse } from 'msw';
 import { describe, expect, it } from 'vitest';
 import { renderApp } from '@/test/renderApp';
@@ -278,5 +278,80 @@ describe('NewApplicationPage — manual registration', () => {
     ).toBeInTheDocument();
     expect(screen.getByLabelText('Порядковий номер')).toHaveAttribute('aria-invalid', 'true');
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  });
+});
+
+describe('NewApplicationPage — unsaved draft', () => {
+  const draftKey = (userId: string) => `tu-registry:draft:new-application:${userId}`;
+
+  it('restores typed data after a page reload and offers to clear it', async () => {
+    const first = openPage();
+    await first.user.type(await screen.findByLabelText('Замовник'), 'ТОВ «Чернетка»');
+    await first.user.type(screen.getByLabelText('Телефон'), '0671234567');
+
+    cleanup(); // simulates the reload: the app starts again from scratch
+    const { user } = openPage();
+
+    expect(await screen.findByLabelText('Замовник')).toHaveValue('ТОВ «Чернетка»');
+    expect(screen.getByLabelText('Телефон')).toHaveValue('0671234567');
+    expect(screen.getByText(/Відновлено незбережені дані від/)).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Очистити форму' }));
+    expect(screen.getByLabelText('Замовник')).toHaveValue('');
+    expect(screen.queryByText(/Відновлено незбережені дані/)).not.toBeInTheDocument();
+    expect(localStorage.getItem(draftKey(employee.id))).toBeNull();
+  });
+
+  it('removes the draft once the application is registered', async () => {
+    const { user } = openPage();
+    server.use(
+      mock.post('*/api/v1/applications', () => HttpResponse.json(created, { status: 201 })),
+    );
+
+    await screen.findByText('15т/26');
+    await fillRequiredFields(user);
+    expect(localStorage.getItem(draftKey(employee.id))).not.toBeNull();
+    await user.click(screen.getByRole('button', { name: 'Зареєструвати заяву' }));
+
+    await screen.findByText(/Заяву зареєстровано/);
+    expect(localStorage.getItem(draftKey(employee.id))).toBeNull();
+  });
+
+  it('removes all drafts on logout', async () => {
+    const { user } = openPage();
+    server.use(mock.post('*/api/v1/auth/logout', () => new HttpResponse(null, { status: 204 })));
+
+    await user.type(await screen.findByLabelText('Замовник'), 'ТОВ «Чернетка»');
+    await user.click(screen.getByRole('button', { name: 'Вийти' }));
+
+    await screen.findByRole('heading', { name: 'Вхід до системи' });
+    expect(localStorage.getItem(draftKey(employee.id))).toBeNull();
+  });
+
+  it("does not show another user's draft", async () => {
+    localStorage.setItem(
+      draftKey(registrar.id),
+      JSON.stringify({ savedAt: new Date().toISOString(), values: { customer: 'Чуже' } }),
+    );
+
+    openPage(employee);
+
+    expect(await screen.findByLabelText('Замовник')).toHaveValue('');
+  });
+
+  it('does not restore manual mode for a user who lost the right to use it', async () => {
+    localStorage.setItem(
+      draftKey(employee.id),
+      JSON.stringify({
+        savedAt: new Date().toISOString(),
+        values: { customer: 'ТОВ «Архів»', manual: true, regDate: '2024-05-20', regSeq: '14' },
+      }),
+    );
+
+    openPage(employee);
+
+    expect(await screen.findByLabelText('Замовник')).toHaveValue('ТОВ «Архів»');
+    expect(screen.queryByLabelText('Порядковий номер')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Зареєструвати заяву' })).toBeInTheDocument();
   });
 });

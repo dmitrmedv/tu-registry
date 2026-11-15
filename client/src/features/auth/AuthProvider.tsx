@@ -4,6 +4,7 @@ import { type ReactNode, useCallback, useEffect, useMemo, useState } from 'react
 import { authEvents } from '@/shared/api/authEvents';
 import { refreshSession } from '@/shared/api/http';
 import { tokenStore } from '@/shared/api/tokenStore';
+import { clearAllDrafts } from '@/shared/lib/draftStorage';
 import { authApi } from './api';
 import { AuthContext, type AuthContextValue, type AuthStatus } from './authContext';
 
@@ -51,8 +52,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       await authApi.logout();
     } finally {
       tokenStore.set(null);
-      // Nothing from the previous user may remain in the cache.
+      // Nothing from the previous user may remain: cached data and unsaved form drafts.
       queryClient.clear();
+      clearAllDrafts();
       setState({ status: 'anonymous', user: null, sessionEnded: false });
     }
   }, [queryClient]);

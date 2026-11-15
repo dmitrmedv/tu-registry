@@ -22,6 +22,8 @@ afterEach(() => {
   cleanup();
   server.resetHandlers();
   tokenStore.set(null);
+  // Form drafts must not leak from one test into the next.
+  localStorage.clear();
 });
 
 afterAll(() => server.close());

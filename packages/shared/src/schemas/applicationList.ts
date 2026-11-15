@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { OBJECT_TYPES } from '../enums';
+import { APPLICATION_STATUSES, OBJECT_TYPES } from '../enums';
 import { parseRegNumber } from '../regNumber';
 import type { ApplicationDto } from './application';
 
@@ -47,6 +47,7 @@ export const applicationListQuerySchema = z
     address: searchText,
     number: regNumberSearchField,
     objectType: z.preprocess(emptyToUndefined, z.enum(OBJECT_TYPES).optional()),
+    status: z.preprocess(emptyToUndefined, z.enum(APPLICATION_STATUSES).optional()),
     createdBy: z.preprocess(
       emptyToUndefined,
       z

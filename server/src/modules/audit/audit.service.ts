@@ -18,6 +18,15 @@ type AuditEntry = {
   details?: Record<string, unknown>;
 };
 
+/** Records a refused action; the caller then throws 403. Never inside a transaction. */
+export async function recordAccessDenied(
+  actorId: string | null,
+  details: Record<string, unknown>,
+  context: RequestContext,
+) {
+  await recordAudit({ action: 'ACCESS_DENIED', actor: actorId, details }, context);
+}
+
 /** Pass `session` to make the audit entry part of a transaction (written only on commit). */
 export async function recordAudit(
   entry: AuditEntry,

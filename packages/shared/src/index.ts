@@ -6,3 +6,4 @@ export * from './schemas/application';
 export * from './schemas/auth';
 export * from './schemas/user';
 export * from './schemas/applicationList';
+export * from './schemas/audit';

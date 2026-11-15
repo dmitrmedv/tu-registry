@@ -2,6 +2,7 @@ import type { ErrorRequestHandler } from 'express';
 import mongoose from 'mongoose';
 import { logger } from '../config/logger';
 import { ApiError } from '../utils/ApiError';
+import { isDuplicateKey } from '../utils/db';
 
 /** Errors thrown by express.json() (body-parser) carry a 4xx status and a `type`. */
 type HttpClientError = { status: number; type?: string };
@@ -10,11 +11,6 @@ function isHttpClientError(err: unknown): err is HttpClientError {
   if (typeof err !== 'object' || err === null || !('status' in err)) return false;
   const { status } = err as { status: unknown };
   return typeof status === 'number' && status >= 400 && status < 500;
-}
-
-/** MongoDB unique index violation (E11000). */
-function isDuplicateKeyError(err: unknown): err is { keyPattern?: Record<string, unknown> } {
-  return typeof err === 'object' && err !== null && (err as { code?: unknown }).code === 11000;
 }
 
 const CLIENT_ERROR_CODES: Record<string, { code: string; message: string }> = {
@@ -64,7 +60,7 @@ export const errorHandler: ErrorRequestHandler = (err, req, res, _next) => {
     return;
   }
 
-  if (isDuplicateKeyError(err)) {
+  if (isDuplicateKey(err)) {
     res.status(409).json({
       error: {
         code: 'DUPLICATE',

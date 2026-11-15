@@ -1,6 +1,6 @@
 import { hasRegistrationRights, type Role } from '@tu-registry/shared';
 import type { Request, RequestHandler } from 'express';
-import { recordAudit, requestContext } from '../modules/audit/audit.service';
+import { recordAccessDenied, requestContext } from '../modules/audit/audit.service';
 import { RefreshSession } from '../modules/auth/refreshSession.model';
 import { verifyAccessToken } from '../modules/auth/tokens';
 import { toUserDto } from '../modules/users/user.dto';
@@ -49,12 +49,9 @@ export const requirePasswordChanged: RequestHandler = (req, _res, next) => {
 
 /** Records the refusal in the audit log and returns the 403 to throw. */
 async function denyAccess(req: Request, required: Record<string, unknown>, message?: string) {
-  await recordAudit(
-    {
-      action: 'ACCESS_DENIED',
-      actor: req.user?.id ?? null,
-      details: { method: req.method, path: req.originalUrl, ...required },
-    },
+  await recordAccessDenied(
+    req.user?.id ?? null,
+    { method: req.method, path: req.originalUrl, ...required },
     requestContext(req),
   );
   return ApiError.forbidden(message);

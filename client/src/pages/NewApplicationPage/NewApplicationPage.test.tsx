@@ -30,6 +30,7 @@ const created: ApplicationDto = {
   registrationMode: 'AUTO',
   status: 'ACTIVE',
   createdBy: { id: employee.id, fullName: employee.fullName },
+  annulment: null,
   createdAt: '2026-03-12T09:00:00.000Z',
   updatedAt: '2026-03-12T09:00:00.000Z',
   version: 1,

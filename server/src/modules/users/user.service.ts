@@ -3,7 +3,9 @@ import type {
   UpdateUserInput,
   UserWithTemporaryPassword,
 } from '@tu-registry/shared';
+import mongoose from 'mongoose';
 import { ApiError } from '../../utils/ApiError';
+import { isDuplicateKey } from '../../utils/db';
 import { generateTemporaryPassword, hashPassword } from '../../utils/password';
 import { type RequestContext, recordAudit } from '../audit/audit.service';
 import { revokeAllSessions } from '../auth/session.service';
@@ -13,12 +15,6 @@ import { User } from './user.model';
 type Actor = { id: string };
 
 const userNotFound = () => ApiError.notFound('Користувача не знайдено');
-
-function isDuplicateKey(error: unknown) {
-  return (
-    typeof error === 'object' && error !== null && (error as { code?: unknown }).code === 11000
-  );
-}
 
 export async function listUsers() {
   const users = await User.find().sort({ fullName: 1 });
@@ -134,4 +130,19 @@ export async function resetPassword(
     context,
   );
   return { user: toUserDto(user), temporaryPassword };
+}
+
+export type UserSummary = { id: string; fullName: string; login: string };
+
+/** Names for ids referenced elsewhere (authors, actors); one query for any number of ids. */
+export async function findUserSummaries(ids: (string | null | undefined)[]) {
+  const unique = [...new Set(ids.filter((id): id is string => Boolean(id)))];
+  const users = unique.length
+    ? await User.find({ _id: mongoose.trusted({ $in: unique }) })
+        .select('fullName login')
+        .lean()
+    : [];
+  return new Map<string, UserSummary>(
+    users.map((u) => [String(u._id), { id: String(u._id), fullName: u.fullName, login: u.login }]),
+  );
 }

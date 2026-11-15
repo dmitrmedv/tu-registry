@@ -10,6 +10,7 @@ import {
 } from '@tu-registry/shared';
 import mongoose, { type ClientSession } from 'mongoose';
 import { ApiError } from '../../utils/ApiError';
+import { inTransaction, isDuplicateKey } from '../../utils/db';
 import { fromIsoDate, kyivToday, toIsoDate } from '../../utils/kyivDate';
 import { type RequestContext, recordAudit } from '../audit/audit.service';
 import { issueNextNumber, peekNextNumber } from '../numbering/numbering.service';
@@ -25,12 +26,6 @@ type Actor = { id: string; fullName: string };
  * (unique index → E11000). Re-running the whole registration picks the next free one.
  */
 const MAX_AUTO_ATTEMPTS = 3;
-
-function isDuplicateKey(error: unknown) {
-  return (
-    typeof error === 'object' && error !== null && (error as { code?: unknown }).code === 11000
-  );
-}
 
 type Registration = {
   fields: CreateApplicationData;
@@ -75,19 +70,6 @@ async function insertRegistration(
   return created!;
 }
 
-async function inTransaction<T>(work: (session: ClientSession) => Promise<T>) {
-  const session = await mongoose.startSession();
-  try {
-    let result: T | undefined;
-    await session.withTransaction(async () => {
-      result = await work(session);
-    });
-    return result as T;
-  } finally {
-    await session.endSession();
-  }
-}
-
 /** Registers an application with today's date (Kyiv) and the next number of the year. */
 export async function createApplication(
   fields: CreateApplicationData,
@@ -115,9 +97,9 @@ export async function createApplication(
   }
 }
 
-const yearOf = (isoDate: string) => Number(isoDate.slice(0, 4));
+export const yearOf = (isoDate: string) => Number(isoDate.slice(0, 4));
 
-function numberTaken(regNumber: string, takenOn?: Date) {
+export function numberTaken(regNumber: string, takenOn?: Date) {
   const by = takenOn ? ` (заява від ${toIsoDate(takenOn).split('-').reverse().join('.')})` : '';
   return new ApiError(409, 'REG_NUMBER_TAKEN', `Номер ${regNumber} уже зайнятий${by}`, {
     field: 'regNumber',
@@ -159,9 +141,13 @@ export async function createManualApplication(
 }
 
 /** Lets the form show "14т/24 — free/taken" while the user types. Read-only. */
-export async function checkManualNumber(regDate: string, seq: number) {
+export async function checkManualNumber(regDate: string, seq: number, excludeId?: string) {
   const year = yearOf(regDate);
-  const existing = await Application.findOne({ regYear: year, regSeq: seq }).select('regDate');
+  const existing = await Application.findOne({
+    regYear: year,
+    regSeq: seq,
+    ...(excludeId && { _id: mongoose.trusted({ $ne: excludeId }) }),
+  }).select('regDate');
   return {
     regNumber: formatRegNumber(year, seq),
     available: !existing,

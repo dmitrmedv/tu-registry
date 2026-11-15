@@ -1,0 +1,322 @@
+import {
+  type AnnulApplicationInput,
+  type ApplicationChangeDto,
+  formatRegNumber,
+  type UpdateApplicationData,
+} from '@tu-registry/shared';
+import type { AuthUser } from '../../types/express';
+import { ApiError } from '../../utils/ApiError';
+import { inTransaction, isDuplicateKey } from '../../utils/db';
+import { fromIsoDate, toIsoDate } from '../../utils/kyivDate';
+import { type RequestContext, recordAccessDenied, recordAudit } from '../audit/audit.service';
+import { findUserSummaries } from '../users/user.service';
+import { type ApplicationDocument, toApplicationDto } from './application.dto';
+import { Application } from './application.model';
+import { numberTaken, yearOf } from './application.service';
+import { ApplicationChange } from './applicationChange.model';
+
+type Actor = Pick<AuthUser, 'id' | 'role' | 'canManageRegistration'>;
+type FieldChange = { field: string; oldValue: unknown; newValue: unknown };
+
+const CONTENT_FIELDS = [
+  'customer',
+  'customerRepresentative',
+  'phone',
+  'email',
+  'objectAddress',
+  'objectType',
+] as const;
+
+const notFound = () => ApiError.notFound('Заяву не знайдено');
+const versionConflict = () =>
+  new ApiError(
+    409,
+    'VERSION_CONFLICT',
+    'Заяву щойно змінив інший користувач. Завантажте актуальні дані й повторіть зміни.',
+  );
+
+async function loadApplication(id: string) {
+  const app = await Application.findById(id);
+  if (!app) throw notFound();
+  return app;
+}
+
+const isOwner = (app: ApplicationDocument, actor: Actor) => app.createdBy.equals(actor.id);
+const isAdmin = (actor: Actor) => actor.role === 'ADMIN';
+
+/** Audits the refusal (outside any transaction, so it is kept) and returns the 403. */
+async function deny(
+  actor: Actor,
+  app: ApplicationDocument,
+  required: string,
+  message: string,
+  context: RequestContext,
+) {
+  await recordAccessDenied(actor.id, { applicationId: app.id as string, required }, context);
+  return ApiError.forbidden(message);
+}
+
+async function toDto(app: ApplicationDocument) {
+  const authorId = String(app.createdBy);
+  const annulledById = app.annulment ? String(app.annulment.by) : null;
+  const names = await findUserSummaries([authorId, annulledById]);
+  const name = (id: string) => ({ id, fullName: names.get(id)?.fullName ?? '—' });
+  return toApplicationDto(app, name(authorId), annulledById ? name(annulledById) : null);
+}
+
+export async function getApplication(id: string) {
+  return toDto(await loadApplication(id));
+}
+
+/**
+ * Applies only the fields that actually changed. Content fields: owner or admin.
+ * Date/number: admin, or the owner with the "authorized" flag. The number's year always
+ * follows the registration date; the automatic counter is never touched.
+ */
+export async function updateApplication(
+  id: string,
+  input: UpdateApplicationData,
+  actor: Actor,
+  context: RequestContext,
+) {
+  const current = await loadApplication(id);
+  if (current.status === 'ANNULLED') {
+    throw new ApiError(
+      409,
+      'APPLICATION_ANNULLED',
+      'Анульовану заяву не можна редагувати. Спершу її має відновити адміністратор.',
+    );
+  }
+
+  const touchesContent = CONTENT_FIELDS.some((field) => input[field] !== undefined);
+  const touchesRegistration = input.regDate !== undefined || input.regSeq !== undefined;
+  if (touchesContent && !isOwner(current, actor) && !isAdmin(actor)) {
+    throw await deny(actor, current, 'owner', 'Редагувати можна лише власні заяви', context);
+  }
+  if (
+    touchesRegistration &&
+    !isAdmin(actor) &&
+    !(isOwner(current, actor) && actor.canManageRegistration)
+  ) {
+    throw await deny(
+      actor,
+      current,
+      'canManageRegistration',
+      'Дату й номер можуть змінювати лише уповноважені користувачі у власних заявах',
+      context,
+    );
+  }
+  if (input.version !== current.version) throw versionConflict();
+
+  const set: Record<string, unknown> = {};
+  const unset: Record<string, 1> = {};
+  const changes: FieldChange[] = [];
+
+  for (const field of CONTENT_FIELDS) {
+    const next = input[field];
+    const previous = current[field] ?? null;
+    if (next === undefined || next === previous) continue;
+    changes.push({ field, oldValue: previous, newValue: next });
+    if (next === null) unset[field] = 1;
+    else set[field] = next;
+  }
+
+  const oldDate = toIsoDate(current.regDate);
+  const newDate = input.regDate ?? oldDate;
+  const oldNumber = formatRegNumber(current.regYear, current.regSeq);
+  const newYear = yearOf(newDate);
+  const newSeq = input.regSeq ?? current.regSeq;
+  const newNumber = formatRegNumber(newYear, newSeq);
+  if (newDate !== oldDate) {
+    changes.push({ field: 'regDate', oldValue: oldDate, newValue: newDate });
+    set.regDate = fromIsoDate(newDate);
+  }
+  if (newNumber !== oldNumber) {
+    changes.push({ field: 'regNumber', oldValue: oldNumber, newValue: newNumber });
+    set.regYear = newYear;
+    set.regSeq = newSeq;
+  }
+  if (changes.length === 0) return toDto(current);
+
+  try {
+    await inTransaction(async (session) => {
+      if (newNumber !== oldNumber) {
+        const holder = await Application.findOne({ regYear: newYear, regSeq: newSeq })
+          .select('regDate')
+          .session(session);
+        if (holder) throw numberTaken(newNumber, holder.regDate);
+      }
+      // Matches only the version the user saw: a concurrent edit makes this a no-op.
+      const { modifiedCount } = await Application.updateOne(
+        { _id: current._id, version: input.version, status: 'ACTIVE' },
+        {
+          $set: { ...set, updatedBy: actor.id },
+          ...(Object.keys(unset).length > 0 && { $unset: unset }),
+          $inc: { version: 1 },
+        },
+        { session, runValidators: true },
+      );
+      if (modifiedCount === 0) throw versionConflict();
+
+      await ApplicationChange.create(
+        [{ applicationId: current._id, changedBy: actor.id, action: 'UPDATED', changes }],
+        { session },
+      );
+      const audit = { actor: actor.id, entityType: 'Application' as const, entityId: current._id };
+      if (newNumber !== oldNumber) {
+        await recordAudit(
+          { ...audit, action: 'REG_NUMBER_CHANGED', details: { from: oldNumber, to: newNumber } },
+          context,
+          session,
+        );
+      }
+      if (newDate !== oldDate) {
+        await recordAudit(
+          {
+            ...audit,
+            action: 'REG_DATE_CHANGED',
+            details: { regNumber: newNumber, from: oldDate, to: newDate },
+          },
+          context,
+          session,
+        );
+      }
+    });
+  } catch (error) {
+    if (isDuplicateKey(error)) throw numberTaken(newNumber);
+    throw error;
+  }
+  return getApplication(id);
+}
+
+/** Owner or admin. The number stays taken; the record keeps all its data. */
+export async function annulApplication(
+  id: string,
+  { reason, version }: AnnulApplicationInput,
+  actor: Actor,
+  context: RequestContext,
+) {
+  const current = await loadApplication(id);
+  if (!isOwner(current, actor) && !isAdmin(actor)) {
+    throw await deny(actor, current, 'owner', 'Анулювати можна лише власні заяви', context);
+  }
+  if (current.status === 'ANNULLED') {
+    throw new ApiError(409, 'ALREADY_ANNULLED', 'Заяву вже анульовано');
+  }
+  if (version !== current.version) throw versionConflict();
+
+  await inTransaction(async (session) => {
+    const { modifiedCount } = await Application.updateOne(
+      { _id: current._id, version, status: 'ACTIVE' },
+      {
+        $set: {
+          status: 'ANNULLED',
+          annulment: { reason, at: new Date(), by: actor.id },
+          updatedBy: actor.id,
+        },
+        $inc: { version: 1 },
+      },
+      { session },
+    );
+    if (modifiedCount === 0) throw versionConflict();
+    await ApplicationChange.create(
+      [
+        {
+          applicationId: current._id,
+          changedBy: actor.id,
+          action: 'ANNULLED',
+          changes: [
+            { field: 'status', oldValue: 'ACTIVE', newValue: 'ANNULLED' },
+            { field: 'annulmentReason', oldValue: null, newValue: reason },
+          ],
+        },
+      ],
+      { session },
+    );
+    await recordAudit(
+      {
+        action: 'APPLICATION_ANNULLED',
+        actor: actor.id,
+        entityType: 'Application',
+        entityId: current._id,
+        details: { regNumber: formatRegNumber(current.regYear, current.regSeq) },
+      },
+      context,
+      session,
+    );
+  });
+  return getApplication(id);
+}
+
+/** Admin only (enforced by the route). */
+export async function restoreApplication(
+  id: string,
+  version: number,
+  actor: Actor,
+  context: RequestContext,
+) {
+  const current = await loadApplication(id);
+  if (current.status !== 'ANNULLED') {
+    throw new ApiError(409, 'NOT_ANNULLED', 'Заява не анульована');
+  }
+  if (version !== current.version) throw versionConflict();
+
+  await inTransaction(async (session) => {
+    const { modifiedCount } = await Application.updateOne(
+      { _id: current._id, version, status: 'ANNULLED' },
+      {
+        $set: { status: 'ACTIVE', updatedBy: actor.id },
+        $unset: { annulment: 1 },
+        $inc: { version: 1 },
+      },
+      { session },
+    );
+    if (modifiedCount === 0) throw versionConflict();
+    await ApplicationChange.create(
+      [
+        {
+          applicationId: current._id,
+          changedBy: actor.id,
+          action: 'RESTORED',
+          changes: [{ field: 'status', oldValue: 'ANNULLED', newValue: 'ACTIVE' }],
+        },
+      ],
+      { session },
+    );
+    await recordAudit(
+      {
+        action: 'APPLICATION_RESTORED',
+        actor: actor.id,
+        entityType: 'Application',
+        entityId: current._id,
+        details: { regNumber: formatRegNumber(current.regYear, current.regSeq) },
+      },
+      context,
+      session,
+    );
+  });
+  return getApplication(id);
+}
+
+/** Every saved change, newest first, with the author's name. */
+export async function getApplicationHistory(id: string): Promise<ApplicationChangeDto[]> {
+  if (!(await Application.exists({ _id: id }))) throw notFound();
+  const rows = await ApplicationChange.find({ applicationId: id })
+    .sort({ changedAt: -1, _id: -1 })
+    .lean();
+  const names = await findUserSummaries(rows.map((row) => String(row.changedBy)));
+  return rows.map((row) => ({
+    id: String(row._id),
+    action: row.action,
+    changedAt: row.changedAt.toISOString(),
+    changedBy: {
+      id: String(row.changedBy),
+      fullName: names.get(String(row.changedBy))?.fullName ?? '—',
+    },
+    changes: row.changes.map((change) => ({
+      field: change.field,
+      oldValue: change.oldValue ?? null,
+      newValue: change.newValue ?? null,
+    })),
+  }));
+}

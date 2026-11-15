@@ -1,6 +1,6 @@
 import type { ApplicationDto } from '@tu-registry/shared';
 import { useState } from 'react';
-import { ApplicationForm, type ManualDefaults } from '@/features/applications';
+import { ApplicationForm } from '@/features/applications';
 import { formatCalendarDate } from '@/shared/lib/format';
 import { Alert, Button } from '@/shared/ui';
 import pageStyles from '../page.module.scss';
@@ -8,15 +8,8 @@ import styles from './NewApplicationPage.module.scss';
 
 export function NewApplicationPage() {
   const [created, setCreated] = useState<ApplicationDto | null>(null);
-  const [manualDefaults, setManualDefaults] = useState<ManualDefaults>();
-
-  const registerAnother = () => {
-    // Back-dated entry usually comes in batches from one day: keep the mode and the date.
-    setManualDefaults(
-      created?.registrationMode === 'MANUAL' ? { regDate: created.regDate } : undefined,
-    );
-    setCreated(null);
-  };
+  // The next form starts empty and in automatic mode, also after a manual entry.
+  const registerAnother = () => setCreated(null);
 
   return (
     <section className={pageStyles.wide}>
@@ -40,7 +33,7 @@ export function NewApplicationPage() {
           </div>
         </div>
       ) : (
-        <ApplicationForm onCreated={setCreated} manualDefaults={manualDefaults} />
+        <ApplicationForm onCreated={setCreated} />
       )}
     </section>
   );

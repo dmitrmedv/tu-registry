@@ -54,7 +54,7 @@ async function fillRequiredFields(user: ReturnType<typeof openPage>['user']) {
   await user.type(screen.getByLabelText('Представник замовника (необовʼязково)'), 'Петренко Іван');
   await user.type(screen.getByLabelText('Телефон'), '(067) 123-45-67');
   await user.type(screen.getByLabelText('Адреса обʼєкта'), 'м. Київ, вул. Прикладна, 1');
-  await user.selectOptions(screen.getByLabelText('Тип обʼєкта'), 'Побутовий');
+  await user.click(screen.getByRole('radio', { name: 'Побутовий' }));
   await user.click(screen.getByRole('radio', { name: 'Житловий будинок' }));
 }
 
@@ -290,7 +290,7 @@ describe('NewApplicationPage — manual registration', () => {
     expect(await screen.findByText(/не може бути пізнішою за сьогодні/)).toBeInTheDocument();
   });
 
-  it('sends date and digits, and keeps mode and date for the next entry', async () => {
+  it('sends date and digits, then starts the next entry in automatic mode', async () => {
     let sentBody: unknown;
     const { user } = await openManual();
     server.use(
@@ -322,9 +322,9 @@ describe('NewApplicationPage — manual registration', () => {
     expect(sentBody).not.toHaveProperty('manual');
 
     await user.click(screen.getByRole('button', { name: 'Зареєструвати ще' }));
-    expect(screen.getByRole('switch', { name: switchName })).toBeChecked();
-    expect(screen.getByLabelText('Дата реєстрації')).toHaveValue('2024-05-20');
-    expect(screen.getByLabelText('Порядковий номер')).toHaveValue('');
+    expect(screen.getByRole('switch', { name: switchName })).not.toBeChecked();
+    expect(screen.queryByLabelText('Дата реєстрації')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Зареєструвати заяву' })).toBeInTheDocument();
     expect(screen.getByLabelText('Замовник')).toHaveValue('');
   });
 

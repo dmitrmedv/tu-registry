@@ -1,6 +1,6 @@
 import '@testing-library/jest-dom/vitest';
 import { cleanup } from '@testing-library/react';
-import { afterAll, afterEach, beforeAll } from 'vitest';
+import { afterAll, afterEach, beforeAll, vi } from 'vitest';
 import { tokenStore } from '@/shared/api/tokenStore';
 import { server } from './server';
 
@@ -14,6 +14,9 @@ if (!HTMLDialogElement.prototype.showModal) {
     this.dispatchEvent(new Event('close'));
   };
 }
+
+// jsdom has no layout or scrolling; the registry scrolls to the top when the page changes.
+window.scrollTo = vi.fn() as typeof window.scrollTo;
 
 // Any request without a handler fails the test instead of silently hitting the network.
 beforeAll(() => server.listen({ onUnhandledFrame: 'error' }));

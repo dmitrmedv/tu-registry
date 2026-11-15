@@ -11,7 +11,7 @@ test('registers an application under the next number and finds it in the registr
   await page.getByLabel('Замовник', { exact: true }).fill(customer);
   await page.getByLabel('Телефон').fill('067 123 45 67');
   await page.getByLabel('Адреса обʼєкта').fill('м. Київ, вул. Тестова, 1');
-  await page.getByLabel('Тип обʼєкта').selectOption({ label: 'Побутовий' });
+  await page.getByRole('radio', { name: 'Побутовий', exact: true }).check();
   await page.getByRole('radio', { name: 'Житловий будинок' }).check();
   await page.getByLabel('Коментар (необовʼязково)').fill('Подано особисто');
   await page.getByRole('button', { name: 'Зареєструвати заяву' }).click();
@@ -36,7 +36,7 @@ test('enters a back-dated application under the number typed by hand', async ({ 
   await page.getByLabel('Замовник', { exact: true }).fill(uniqueName('ТОВ Архів'));
   await page.getByLabel('Телефон').fill('+380 50 111 22 33');
   await page.getByLabel('Адреса обʼєкта').fill('м. Одеса, вул. Архівна, 7');
-  await page.getByLabel('Тип обʼєкта').selectOption({ label: 'Непобутовий' });
+  await page.getByRole('radio', { name: 'Непобутовий' }).check();
   await page.getByRole('radio', { name: 'Інше' }).check();
   await page.getByLabel('Уточніть категорію').fill('Котельня');
   await page.getByLabel('Ручне встановлення дати та номера реєстрації').check();

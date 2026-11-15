@@ -80,8 +80,9 @@ describe('RegistryPage', () => {
     expect(last().get('createdBy')).toBeNull();
     expect(last().get('sort')).toBe('-regDate');
     expect(screen.getByRole('status')).toHaveTextContent('Знайдено: 2');
-    // One way back to the registry: the title in the header.
+    // One way back to the registry (the header title) and one "Нова заява" (on the page).
     expect(screen.getAllByRole('link', { name: /^Реєстр/ })).toHaveLength(1);
+    expect(screen.getAllByRole('link', { name: 'Нова заява' })).toHaveLength(1);
   });
 
   it('applies a text filter after typing pauses and starts from page 1', async () => {
@@ -150,6 +151,9 @@ describe('RegistryPage', () => {
     await user.selectOptions(screen.getByLabelText('Рядків на сторінці'), 'по 50');
     await waitFor(() => expect(last().get('limit')).toBe('50'));
     expect(last().get('page')).toBe('1');
+    // Each change of page or page size starts from the top of the list.
+    expect(window.scrollTo).toHaveBeenCalledTimes(2);
+    expect(window.scrollTo).toHaveBeenLastCalledWith({ top: 0 });
   });
 
   it('flags a malformed number and does not send it', async () => {

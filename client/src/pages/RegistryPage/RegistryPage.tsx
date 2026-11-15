@@ -29,6 +29,12 @@ export function RegistryPage() {
   const users = useUserOptions();
   const meta = list.data?.meta;
 
+  // Another page starts from its first row, not where the previous one was scrolled to.
+  const changePage = (patch: { page?: number; limit?: number }) => {
+    update(patch);
+    window.scrollTo({ top: 0 });
+  };
+
   // A page number beyond the end (e.g. after narrowing filters) jumps to the last page.
   useEffect(() => {
     if (meta && params.page > meta.totalPages) update({ page: meta.totalPages }, { replace: true });
@@ -45,13 +51,35 @@ export function RegistryPage() {
 
       {notice && <Alert variant="success">{notice}</Alert>}
 
-      <RegistryFilters
-        params={params}
-        update={update}
-        reset={reset}
-        activeFilterCount={activeFilterCount}
-        users={users.data}
-      />
+      {/* Filters and the result bar (count, pages, page size) stay on screen while scrolling. */}
+      <div className={styles.stickyBar}>
+        <RegistryFilters
+          params={params}
+          update={update}
+          reset={reset}
+          activeFilterCount={activeFilterCount}
+          users={users.data}
+        />
+        {meta && meta.total > 0 && (
+          <div className={styles.summary}>
+            <span role="status">Знайдено: {meta.total}</span>
+            <div className={styles.paging}>
+              <Pagination
+                page={meta.page}
+                totalPages={meta.totalPages}
+                onChange={(page) => changePage({ page })}
+              />
+              <SelectField
+                className={styles.pageSize}
+                label="Рядків на сторінці"
+                options={PAGE_SIZE_OPTIONS}
+                value={String(params.limit)}
+                onChange={(e) => changePage({ limit: Number(e.target.value) })}
+              />
+            </div>
+          </div>
+        )}
+      </div>
 
       {list.isPending ? (
         <Spinner label="Завантаження заяв…" />
@@ -90,9 +118,6 @@ export function RegistryPage() {
         </div>
       ) : (
         <>
-          <div className={styles.summary}>
-            <span role="status">Знайдено: {meta!.total}</span>
-          </div>
           <div
             className={clsx(list.isPlaceholderData && styles.loadingTable)}
             aria-busy={list.isFetching}
@@ -101,20 +126,6 @@ export function RegistryPage() {
               rows={list.data.data}
               sort={params.sort}
               onSort={(sort) => update({ sort })}
-            />
-          </div>
-          <div className={styles.footer}>
-            <Pagination
-              page={meta!.page}
-              totalPages={meta!.totalPages}
-              onChange={(page) => update({ page })}
-            />
-            <SelectField
-              className={styles.pageSize}
-              label="Рядків на сторінці"
-              options={PAGE_SIZE_OPTIONS}
-              value={String(params.limit)}
-              onChange={(e) => update({ limit: Number(e.target.value) })}
             />
           </div>
         </>

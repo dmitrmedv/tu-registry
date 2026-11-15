@@ -31,9 +31,6 @@ type FormValues = CreateApplicationInput & { manual: boolean; regDate: string; r
 type Submitted =
   (CreateApplicationData & { manual: false }) | (ManualApplicationData & { manual: true });
 
-/** Pre-fills the next form when several old applications are entered in a row. */
-export type ManualDefaults = { regDate: string };
-
 type ServerErrorDetails = { fieldErrors?: Record<string, string[] | undefined> };
 
 /** One form, two strict schemas: the switch decides which one validates the values. */
@@ -73,9 +70,25 @@ function RegistrationPreview({ next }: { next: ReturnType<typeof useNextNumber> 
   );
 }
 
-type Props = { onCreated: (app: ApplicationDto) => void; manualDefaults?: ManualDefaults };
+const EMPTY_VALUES: FormValues = {
+  customer: '',
+  customerRepresentative: '',
+  phone: '',
+  email: '',
+  objectAddress: '',
+  objectType: '' as FormValues['objectType'],
+  objectCategory: '' as FormValues['objectCategory'],
+  objectCategoryOther: '',
+  comment: '',
+  // Every new form starts in automatic mode, also right after a manual entry.
+  manual: false,
+  regDate: '',
+  regSeq: '',
+};
 
-export function ApplicationForm({ onCreated, manualDefaults }: Props) {
+type Props = { onCreated: (app: ApplicationDto) => void };
+
+export function ApplicationForm({ onCreated }: Props) {
   const user = useCurrentUser();
   const canRegisterManually = hasRegistrationRights(user);
   const today = kyivCalendarDate();
@@ -83,25 +96,8 @@ export function ApplicationForm({ onCreated, manualDefaults }: Props) {
   const createAuto = useCreateApplication();
   const createManual = useCreateManualApplication();
 
-  const emptyValues = useMemo<FormValues>(
-    () => ({
-      customer: '',
-      customerRepresentative: '',
-      phone: '',
-      email: '',
-      objectAddress: '',
-      objectType: '' as FormValues['objectType'],
-      objectCategory: '' as FormValues['objectCategory'],
-      objectCategoryOther: '',
-      comment: '',
-      manual: Boolean(manualDefaults),
-      regDate: manualDefaults?.regDate ?? '',
-      regSeq: '',
-    }),
-    [manualDefaults],
-  );
   // Typed data survives a page reload; the draft belongs to this user only.
-  const draft = useFormDraft(`new-application:${user.id}`, emptyValues);
+  const draft = useFormDraft(`new-application:${user.id}`, EMPTY_VALUES);
   const [draftNoticeVisible, setDraftNoticeVisible] = useState(draft.restoredAt !== null);
 
   const form = useForm<FormValues, unknown, Submitted>({
@@ -128,7 +124,7 @@ export function ApplicationForm({ onCreated, manualDefaults }: Props) {
   }, [watch, draft]);
 
   const discardDraft = () => {
-    reset(emptyValues);
+    reset(EMPTY_VALUES);
     draft.clear();
     setDraftNoticeVisible(false);
   };

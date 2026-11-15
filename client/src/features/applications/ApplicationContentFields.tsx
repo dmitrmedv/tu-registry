@@ -7,13 +7,13 @@ import {
 } from '@tu-registry/shared';
 import { useFormContext } from 'react-hook-form';
 import { OBJECT_CATEGORY_LABELS, OBJECT_TYPE_LABELS } from '@/shared/lib/labels';
-import { ChoiceField, SelectField, TextAreaField, TextField } from '@/shared/ui';
+import { ChoiceField, TextAreaField, TextField } from '@/shared/ui';
 import styles from './ApplicationForm.module.scss';
 
-const OBJECT_TYPE_OPTIONS = [
-  { value: '', label: '— оберіть —' },
-  ...OBJECT_TYPES.map((type) => ({ value: type, label: OBJECT_TYPE_LABELS[type] })),
-];
+const OBJECT_TYPE_OPTIONS = OBJECT_TYPES.map((type) => ({
+  value: type,
+  label: OBJECT_TYPE_LABELS[type],
+}));
 const OBJECT_CATEGORY_OPTIONS = OBJECT_CATEGORIES.map((category) => ({
   value: category,
   label: OBJECT_CATEGORY_LABELS[category],
@@ -69,8 +69,9 @@ export function ApplicationContentFields() {
             error={errors.objectAddress?.message}
             {...register('objectAddress')}
           />
-          <SelectField
-            label="Тип обʼєкта"
+          <ChoiceField
+            className={styles.wide}
+            legend="Тип обʼєкта"
             options={OBJECT_TYPE_OPTIONS}
             error={errors.objectType?.message}
             {...register('objectType')}

@@ -63,21 +63,15 @@ export function AppLayout() {
             Меню
           </button>
           <div id="main-menu" className={clsx(styles.menu, menuOpen && styles.menuOpen)}>
-            {!restricted && (
+            {/* "Нова заява" lives on the registry page; the header keeps admin sections only. */}
+            {!restricted && user.role === 'ADMIN' && (
               <nav aria-label="Основна навігація" className={styles.nav}>
-                <NavLink to="/applications/new" className={navClass} onClick={closeMenu}>
-                  Нова заява
+                <NavLink to="/users" className={navClass} onClick={closeMenu}>
+                  Користувачі
                 </NavLink>
-                {user.role === 'ADMIN' && (
-                  <NavLink to="/users" className={navClass} onClick={closeMenu}>
-                    Користувачі
-                  </NavLink>
-                )}
-                {user.role === 'ADMIN' && (
-                  <NavLink to="/audit" className={navClass} onClick={closeMenu}>
-                    Журнал
-                  </NavLink>
-                )}
+                <NavLink to="/audit" className={navClass} onClick={closeMenu}>
+                  Журнал
+                </NavLink>
               </nav>
             )}
             <div className={styles.account}>

@@ -1,4 +1,4 @@
-import { screen, within } from '@testing-library/react';
+import { screen } from '@testing-library/react';
 import { http as mock, HttpResponse } from 'msw';
 import { describe, expect, it } from 'vitest';
 import { renderApp } from '@/test/renderApp';
@@ -108,7 +108,6 @@ describe('authentication flow', () => {
     renderApp('/users');
 
     expect(await screen.findByRole('heading', { name: 'Недостатньо прав' })).toBeInTheDocument();
-    const nav = screen.getByRole('navigation', { name: 'Основна навігація' });
-    expect(within(nav).queryByRole('link', { name: 'Користувачі' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Користувачі' })).not.toBeInTheDocument();
   });
 });

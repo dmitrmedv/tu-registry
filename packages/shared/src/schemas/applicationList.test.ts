@@ -14,6 +14,22 @@ describe('applicationListQuerySchema', () => {
     ).toEqual({ page: 1, limit: 20, sort: '-regDate' });
   });
 
+  it('accepts a sort for every registry column, ascending and descending', () => {
+    for (const sort of ['customer', '-customerRepresentative', 'areaType', '-createdBy']) {
+      expect(applicationListQuerySchema.parse({ sort }).sort).toBe(sort);
+    }
+  });
+
+  it('searches the representative and the comment, and filters by area', () => {
+    expect(
+      applicationListQuerySchema.parse({
+        customerRepresentative: ' Петренко ',
+        comment: 'довідка',
+        areaType: 'RURAL',
+      }),
+    ).toMatchObject({ customerRepresentative: 'Петренко', comment: 'довідка', areaType: 'RURAL' });
+  });
+
   it('filters by object category', () => {
     expect(applicationListQuerySchema.parse({ objectCategory: 'LAND_PLOT' }).objectCategory).toBe(
       'LAND_PLOT',
@@ -31,9 +47,10 @@ describe('applicationListQuerySchema', () => {
     { page: '0' },
     { limit: '5' },
     { limit: '500' },
-    { sort: 'customer' },
     { objectType: 'INDUSTRIAL' },
     { objectCategory: 'CASTLE' },
+    { areaType: 'SUBURBAN' },
+    { sort: 'phone' },
     { createdBy: 'not-an-id' },
     { dateFrom: '2026-02-30' },
     { dateFrom: '2026-03-10', dateTo: '2026-03-01' },

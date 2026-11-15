@@ -7,6 +7,10 @@ export type Role = (typeof ROLES)[number];
 export const OBJECT_TYPES = ['DOMESTIC', 'NON_DOMESTIC'] as const;
 export type ObjectType = (typeof OBJECT_TYPES)[number];
 
+/** Urban or rural locality of the object. */
+export const AREA_TYPES = ['URBAN', 'RURAL'] as const;
+export type AreaType = (typeof AREA_TYPES)[number];
+
 /** What is being connected. `OTHER` comes with the user's own wording (objectCategoryOther). */
 export const OBJECT_CATEGORIES = [
   'LAND_PLOT',

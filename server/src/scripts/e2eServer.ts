@@ -49,9 +49,14 @@ const server: Server = createApp().listen(env.API_PORT, () => {
 
 async function shutdown() {
   server.close();
-  await disconnectDb();
-  await replSet.stop();
-  process.exit(0);
+  try {
+    await disconnectDb();
+    await replSet.stop();
+    process.exit(0);
+  } catch (error) {
+    console.error('E2E server shutdown failed:', error);
+    process.exit(1);
+  }
 }
 
 process.on('SIGTERM', () => void shutdown());

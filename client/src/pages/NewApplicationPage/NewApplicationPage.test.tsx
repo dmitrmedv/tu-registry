@@ -27,7 +27,7 @@ const created: ApplicationDto = {
   email: null,
   settlement: 'м. Київ',
   objectAddress: 'вул. Прикладна, 1',
-  cadastralNumber: null,
+  areaType: 'URBAN',
   objectType: 'DOMESTIC',
   objectCategory: 'RESIDENTIAL_HOUSE',
   objectCategoryOther: null,
@@ -58,6 +58,7 @@ async function fillRequiredFields(user: ReturnType<typeof openPage>['user']) {
   await user.type(screen.getByLabelText('Населений пункт'), 'м. Київ');
   await user.type(screen.getByLabelText('Адреса обʼєкта'), 'вул. Прикладна, 1');
   await user.click(screen.getByRole('radio', { name: 'Побутовий' }));
+  await user.click(screen.getByRole('radio', { name: 'Міська' }));
   await user.click(screen.getByRole('radio', { name: 'Житловий будинок' }));
 }
 
@@ -81,11 +82,8 @@ describe('NewApplicationPage', () => {
     expect(screen.getByText('Оберіть категорію обʼєкта')).toBeInTheDocument();
     expect(screen.getByText('Населений пункт: обовʼязкове поле')).toBeInTheDocument();
 
-    await user.type(screen.getByLabelText('Кад. № (необовʼязково)'), '12345');
-    await user.click(screen.getByRole('button', { name: 'Зареєструвати заяву' }));
-    expect(
-      await screen.findByText('Кадастровий номер у форматі 3220481301:01:007:0012'),
-    ).toBeInTheDocument();
+    expect(screen.getByText('Оберіть місцевість')).toBeInTheDocument();
+    expect(screen.queryByLabelText(/Кад\. №/)).not.toBeInTheDocument();
 
     await user.type(screen.getByLabelText('Телефон'), '12345');
     await user.click(screen.getByRole('button', { name: 'Зареєструвати заяву' }));
@@ -116,6 +114,7 @@ describe('NewApplicationPage', () => {
       phone: '+380671234567',
       settlement: 'м. Київ',
       objectAddress: 'вул. Прикладна, 1',
+      areaType: 'URBAN',
       objectType: 'DOMESTIC',
       objectCategory: 'RESIDENTIAL_HOUSE',
     });

@@ -13,6 +13,7 @@ const valid = {
   email: ' Info@Example.UA ',
   settlement: 'м. Київ',
   objectAddress: 'вул. Прикладна, 1',
+  areaType: 'URBAN',
   objectType: 'DOMESTIC',
   objectCategory: 'RESIDENTIAL_HOUSE',
 };
@@ -171,20 +172,20 @@ describe('deleteApplicationQuerySchema', () => {
   });
 });
 
-describe('settlement and cadastral number', () => {
-  it('accepts a cadastral number in the State Land Cadastre format only', () => {
-    const parse = (cadastralNumber: string) =>
-      createApplicationSchema.safeParse({ ...valid, cadastralNumber });
-    expect(parse(' 3220481301:01:007:0012 ').data?.cadastralNumber).toBe('3220481301:01:007:0012');
-    expect(parse('').data?.cadastralNumber).toBeUndefined();
-    for (const bad of ['3220481301:01:007', '322048130:01:007:0012', '3220481301-01-007-0012']) {
-      expect(parse(bad).success).toBe(false);
-    }
+describe('area type', () => {
+  it('is required and checked against the list', () => {
+    const { areaType: _omitted, ...withoutArea } = valid;
+    expect(createApplicationSchema.safeParse(withoutArea).error?.issues[0]?.message).toBe(
+      'Оберіть місцевість',
+    );
+    expect(createApplicationSchema.safeParse({ ...valid, areaType: 'SUBURBAN' }).success).toBe(
+      false,
+    );
   });
 
-  it('in an update, "" clears the cadastral number but not the settlement', () => {
+  it('can be changed alone in an update, but not cleared', () => {
     const schema = updateApplicationSchema('2026-03-12');
-    expect(schema.parse({ cadastralNumber: '', version: 2 }).cadastralNumber).toBeNull();
-    expect(schema.safeParse({ settlement: ' ', version: 2 }).success).toBe(false);
+    expect(schema.parse({ areaType: 'RURAL', version: 2 }).areaType).toBe('RURAL');
+    expect(schema.safeParse({ areaType: '', version: 2 }).success).toBe(false);
   });
 });

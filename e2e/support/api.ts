@@ -47,6 +47,7 @@ export async function createApplication(
       customer: uniqueName('ТОВ E2E'),
       phone: '+380671234567',
       settlement: 'м. Київ',
+      areaType: 'URBAN',
       objectAddress: 'вул. Тестова, 1',
       objectType: 'DOMESTIC',
       objectCategory: 'RESIDENTIAL_HOUSE',

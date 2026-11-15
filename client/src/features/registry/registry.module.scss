@@ -25,13 +25,9 @@
 
 .filtersToggle {
   align-self: flex-start;
-
-  @include up(md) {
-    display: none;
-  }
 }
 
-// Mobile: collapsed until toggled. Desktop: always visible, in a grid.
+// Collapsible on every screen: open, it fills the sticky bar; folded, only the button stays.
 .filterPanel {
   display: none;
   grid-template-columns: 1fr;
@@ -46,12 +42,11 @@
   }
 
   @include up(md) {
-    display: grid;
     grid-template-columns: repeat(3, 1fr);
   }
 
   @include up(xl) {
-    grid-template-columns: repeat(4, 1fr);
+    grid-template-columns: repeat(5, 1fr);
   }
 }
 

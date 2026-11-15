@@ -77,7 +77,7 @@ const EMPTY_VALUES: FormValues = {
   email: '',
   settlement: '',
   objectAddress: '',
-  cadastralNumber: '',
+  areaType: '' as FormValues['areaType'],
   objectType: '' as FormValues['objectType'],
   objectCategory: '' as FormValues['objectCategory'],
   objectCategoryOther: '',

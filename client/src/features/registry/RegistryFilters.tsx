@@ -1,6 +1,8 @@
 import {
   APPLICATION_STATUSES,
   type ApplicationStatus,
+  AREA_TYPES,
+  type AreaType,
   OBJECT_CATEGORIES,
   OBJECT_TYPES,
   type ObjectCategory,
@@ -9,11 +11,13 @@ import {
 } from '@tu-registry/shared';
 import clsx from 'clsx';
 import { useState } from 'react';
-import { OBJECT_CATEGORY_LABELS, OBJECT_TYPE_LABELS } from '@/shared/lib/labels';
+import { AREA_TYPE_LABELS, OBJECT_CATEGORY_LABELS, OBJECT_TYPE_LABELS } from '@/shared/lib/labels';
 import { Button, SelectField, TextField } from '@/shared/ui';
 import styles from './registry.module.scss';
 import { isNumberSearchValid, isPeriodValid, type RegistryParams } from './registryParams';
 import { SearchField } from './SearchField';
+
+const WIDE_SCREEN = '(min-width: 768px)';
 
 type Props = {
   params: RegistryParams;
@@ -36,6 +40,11 @@ const CATEGORY_OPTIONS = [
   })),
 ];
 
+const AREA_OPTIONS = [
+  { value: '', label: 'Усі' },
+  ...AREA_TYPES.map((area) => ({ value: area, label: AREA_TYPE_LABELS[area] })),
+];
+
 const STATUS_OPTIONS = [
   { value: '', label: 'Усі' },
   ...APPLICATION_STATUSES.map((status) => ({
@@ -45,10 +54,13 @@ const STATUS_OPTIONS = [
 ];
 
 export function RegistryFilters({ params, update, reset, activeFilterCount, users }: Props) {
-  const [open, setOpen] = useState(false);
+  // Open on wide screens, collapsed on phones; either way the button folds it away.
+  const [open, setOpen] = useState(() => window.matchMedia?.(WIDE_SCREEN).matches ?? true);
   // Typing creates no history entries; picking a value does.
-  const commitText = (key: 'customer' | 'settlement' | 'address' | 'number') => (value: string) =>
-    update({ [key]: value }, { replace: true });
+  const commitText =
+    (key: 'customer' | 'settlement' | 'address' | 'representative' | 'comment' | 'number') =>
+    (value: string) =>
+      update({ [key]: value }, { replace: true });
 
   const userOptions = [
     { value: 'all', label: 'Усі користувачі' },
@@ -80,12 +92,13 @@ export function RegistryFilters({ params, update, reset, activeFilterCount, user
           value={params.settlement}
           onCommit={commitText('settlement')}
         />
+        <SearchField label="Адреса" value={params.address} onCommit={commitText('address')} />
         <SearchField
-          label="Адреса"
-          placeholder="вулиця або кад. №"
-          value={params.address}
-          onCommit={commitText('address')}
+          label="Представник замовника"
+          value={params.representative}
+          onCommit={commitText('representative')}
         />
+        <SearchField label="Коментар" value={params.comment} onCommit={commitText('comment')} />
         <SearchField
           label="Номер"
           placeholder="15 або 15т/26"
@@ -108,6 +121,12 @@ export function RegistryFilters({ params, update, reset, activeFilterCount, user
           options={CATEGORY_OPTIONS}
           value={params.category}
           onChange={(e) => update({ category: e.target.value as ObjectCategory | '' })}
+        />
+        <SelectField
+          label="Місцевість"
+          options={AREA_OPTIONS}
+          value={params.area}
+          onChange={(e) => update({ area: e.target.value as AreaType | '' })}
         />
         <SelectField
           label="Статус"

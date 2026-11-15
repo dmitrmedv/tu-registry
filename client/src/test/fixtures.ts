@@ -14,7 +14,7 @@ export function makeApplication(overrides: Partial<ApplicationDto> = {}): Applic
     email: 'office@example.ua',
     settlement: 'м. Київ',
     objectAddress: 'вул. Прикладна, 1',
-    cadastralNumber: null,
+    areaType: 'URBAN',
     objectType: 'DOMESTIC',
     objectCategory: 'RESIDENTIAL_HOUSE',
     objectCategoryOther: null,

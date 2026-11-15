@@ -1,4 +1,5 @@
 import {
+  AREA_TYPES,
   COMMENT_MAX,
   type CreateApplicationInput,
   OBJECT_CATEGORIES,
@@ -6,13 +7,17 @@ import {
   OBJECT_TYPES,
 } from '@tu-registry/shared';
 import { useFormContext } from 'react-hook-form';
-import { OBJECT_CATEGORY_LABELS, OBJECT_TYPE_LABELS } from '@/shared/lib/labels';
+import { AREA_TYPE_LABELS, OBJECT_CATEGORY_LABELS, OBJECT_TYPE_LABELS } from '@/shared/lib/labels';
 import { ChoiceField, TextAreaField, TextField } from '@/shared/ui';
 import styles from './ApplicationForm.module.scss';
 
 const OBJECT_TYPE_OPTIONS = OBJECT_TYPES.map((type) => ({
   value: type,
   label: OBJECT_TYPE_LABELS[type],
+}));
+const AREA_TYPE_OPTIONS = AREA_TYPES.map((area) => ({
+  value: area,
+  label: AREA_TYPE_LABELS[area],
 }));
 const OBJECT_CATEGORY_OPTIONS = OBJECT_CATEGORIES.map((category) => ({
   value: category,
@@ -77,15 +82,14 @@ export function ApplicationContentFields() {
               error={errors.objectAddress?.message}
               {...register('objectAddress')}
             />
-            <TextField
-              label="Кад. № (необовʼязково)"
-              placeholder="3220481301:01:007:0012"
-              inputMode="numeric"
-              autoComplete="off"
-              error={errors.cadastralNumber?.message}
-              {...register('cadastralNumber')}
-            />
           </div>
+          <ChoiceField
+            className={styles.wide}
+            legend="Місцевість"
+            options={AREA_TYPE_OPTIONS}
+            error={errors.areaType?.message}
+            {...register('areaType')}
+          />
           <ChoiceField
             className={styles.wide}
             legend="Тип обʼєкта"

@@ -1,10 +1,24 @@
 import { z } from 'zod';
-import { APPLICATION_STATUSES, OBJECT_CATEGORIES, OBJECT_TYPES } from '../enums';
+import { APPLICATION_STATUSES, AREA_TYPES, OBJECT_CATEGORIES, OBJECT_TYPES } from '../enums';
 import { parseRegNumber } from '../regNumber';
 import type { ApplicationDto } from './application';
 
-export const APPLICATION_SORTS = ['-regDate', 'regDate', '-regNumber', 'regNumber'] as const;
-export type ApplicationSort = (typeof APPLICATION_SORTS)[number];
+/** Every registry column can be sorted; "-field" is descending. */
+export const SORT_FIELDS = [
+  'regNumber',
+  'regDate',
+  'customer',
+  'settlement',
+  'areaType',
+  'objectAddress',
+  'objectType',
+  'objectCategory',
+  'customerRepresentative',
+  'createdBy',
+] as const;
+export type SortField = (typeof SORT_FIELDS)[number];
+export const APPLICATION_SORTS = SORT_FIELDS.flatMap((field) => [field, `-${field}`] as const);
+export type ApplicationSort = SortField | `-${SortField}`;
 
 export const PAGE_SIZES = [20, 50, 100] as const;
 
@@ -45,11 +59,13 @@ export const applicationListQuerySchema = z
     sort: z.preprocess(emptyToUndefined, z.enum(APPLICATION_SORTS).default('-regDate')),
     customer: searchText,
     settlement: searchText,
-    /** Matches the street address or the cadastral number. */
     address: searchText,
+    customerRepresentative: searchText,
+    comment: searchText,
     number: regNumberSearchField,
     objectType: z.preprocess(emptyToUndefined, z.enum(OBJECT_TYPES).optional()),
     objectCategory: z.preprocess(emptyToUndefined, z.enum(OBJECT_CATEGORIES).optional()),
+    areaType: z.preprocess(emptyToUndefined, z.enum(AREA_TYPES).optional()),
     status: z.preprocess(emptyToUndefined, z.enum(APPLICATION_STATUSES).optional()),
     createdBy: z.preprocess(
       emptyToUndefined,
@@ -81,7 +97,7 @@ export type ApplicationListItemDto = Pick<
   | 'customerRepresentative'
   | 'settlement'
   | 'objectAddress'
-  | 'cadastralNumber'
+  | 'areaType'
   | 'objectType'
   | 'objectCategory'
   | 'objectCategoryOther'

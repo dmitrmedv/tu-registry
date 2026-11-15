@@ -1,6 +1,6 @@
 import {
   APPLICATION_STATUSES,
-  CADASTRAL_NUMBER_PATTERN,
+  AREA_TYPES,
   COMMENT_MAX,
   OBJECT_CATEGORIES,
   OBJECT_CATEGORY_OTHER_MAX,
@@ -41,7 +41,9 @@ const applicationSchema = new Schema(
     // where the address started with it ("м. Київ, ...") and stay without it otherwise.
     settlement: { type: String, trim: true, maxlength: SETTLEMENT_MAX },
     objectAddress: { type: String, required: true, trim: true, maxlength: 500 },
-    cadastralNumber: { type: String, trim: true, match: CADASTRAL_NUMBER_PATTERN },
+    // Required for new records (Zod); older ones got it from their settlement via
+    // `npm run db:migrate` where the settlement made it clear.
+    areaType: { type: String, enum: AREA_TYPES },
     objectType: { type: String, enum: OBJECT_TYPES, required: true },
     // Records created before the field existed got OTHER via `npm run db:migrate`.
     objectCategory: { type: String, enum: OBJECT_CATEGORIES, required: true },
@@ -88,6 +90,11 @@ applicationSchema.index(BY_DATE);
 applicationSchema.index({ createdBy: 1, ...BY_DATE });
 applicationSchema.index({ objectType: 1, ...BY_DATE });
 applicationSchema.index({ objectCategory: 1, ...BY_DATE });
+// Text columns sort alphabetically (Ukrainian collation) with the number as a tie-breaker;
+// a query uses these only with the same collation (see application.query.ts).
+for (const field of ['customer', 'settlement', 'objectAddress', 'customerRepresentative']) {
+  applicationSchema.index({ [field]: 1, regYear: 1, regSeq: 1 }, { collation: { locale: 'uk' } });
+}
 
 export type ApplicationData = InferSchemaType<typeof applicationSchema>;
 export const Application = model('Application', applicationSchema);

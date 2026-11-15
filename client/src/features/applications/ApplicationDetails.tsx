@@ -1,7 +1,7 @@
 import { type ApplicationDto, formatPhone } from '@tu-registry/shared';
 import type { ReactNode } from 'react';
 import { formatCalendarDate, formatDateTime } from '@/shared/lib/format';
-import { formatObjectCategory, OBJECT_TYPE_LABELS } from '@/shared/lib/labels';
+import { AREA_TYPE_LABELS, formatObjectCategory, OBJECT_TYPE_LABELS } from '@/shared/lib/labels';
 import styles from './ApplicationDetails.module.scss';
 
 function Field({ label, children }: { label: string; children: ReactNode }) {
@@ -59,7 +59,7 @@ export function ApplicationDetails({ app }: { app: ApplicationDto }) {
         <dl>
           <Field label="Населений пункт">{app.settlement}</Field>
           <Field label="Адреса">{app.objectAddress}</Field>
-          <Field label="Кадастровий номер">{app.cadastralNumber}</Field>
+          <Field label="Місцевість">{app.areaType && AREA_TYPE_LABELS[app.areaType]}</Field>
           <Field label="Тип обʼєкта">{OBJECT_TYPE_LABELS[app.objectType]}</Field>
           <Field label="Категорія">
             {formatObjectCategory(app.objectCategory, app.objectCategoryOther)}

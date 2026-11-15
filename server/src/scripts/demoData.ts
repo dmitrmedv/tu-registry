@@ -51,7 +51,7 @@ async function add() {
       phone: `+38067${String(1000000 + i).padStart(7, '0')}`,
       settlement: SETTLEMENTS[i % SETTLEMENTS.length],
       objectAddress: `${STREETS[i % STREETS.length]}, ${i + 1}`,
-      cadastralNumber: i % 3 === 0 ? `3220481301:01:${String(i).padStart(3, '0')}:0012` : undefined,
+      areaType: SETTLEMENTS[i % SETTLEMENTS.length]!.startsWith('с.') ? 'RURAL' : 'URBAN',
       objectType: i % 4 === 0 ? 'NON_DOMESTIC' : 'DOMESTIC',
       objectCategory: OBJECT_CATEGORIES[i % OBJECT_CATEGORIES.length],
       objectCategoryOther:

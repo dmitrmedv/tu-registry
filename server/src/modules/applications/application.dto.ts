@@ -23,7 +23,7 @@ export function toApplicationDto(
     email: app.email ?? null,
     settlement: app.settlement ?? null,
     objectAddress: app.objectAddress,
-    cadastralNumber: app.cadastralNumber ?? null,
+    areaType: app.areaType ?? null,
     objectType: app.objectType,
     objectCategory: app.objectCategory,
     objectCategoryOther: app.objectCategoryOther ?? null,

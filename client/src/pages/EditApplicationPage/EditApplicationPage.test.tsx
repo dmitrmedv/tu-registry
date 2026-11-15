@@ -160,19 +160,34 @@ describe('EditApplicationPage', () => {
     expect(sent).toEqual([{ phone: '+380501112233', version: 3 }]);
   });
 
-  it('sends the settlement and clears the cadastral number with ""', async () => {
+  it('sends the settlement and the area type', async () => {
     const sent = captureUpdates();
-    const { user } = openEdit(owner, [
-      makeApplication({ cadastralNumber: '3220481301:01:007:0012' }),
-    ]);
+    const { user } = openEdit(owner);
 
     const settlement = await screen.findByLabelText('Населений пункт');
     await user.clear(settlement);
-    await user.type(settlement, 'м. Ірпінь');
-    await user.clear(screen.getByLabelText('Кад. № (необовʼязково)'));
+    await user.type(settlement, 'с. Гора');
+    await user.click(screen.getByRole('radio', { name: 'Сільська' }));
     await user.click(screen.getByRole('button', { name: 'Зберегти' }));
 
     await screen.findByText('Зміни збережено');
-    expect(sent).toEqual([{ settlement: 'м. Ірпінь', cadastralNumber: '', version: 3 }]);
+    expect(sent).toEqual([{ settlement: 'с. Гора', areaType: 'RURAL', version: 3 }]);
+  });
+
+  it('asks an older record without an area type to choose one before saving', async () => {
+    const sent = captureUpdates();
+    const { user } = openEdit(owner, [makeApplication({ areaType: null })]);
+
+    const phone = await screen.findByLabelText('Телефон');
+    await user.clear(phone);
+    await user.type(phone, '050 111 22 33');
+    await user.click(screen.getByRole('button', { name: 'Зберегти' }));
+    expect(await screen.findByText('Оберіть місцевість')).toBeInTheDocument();
+    expect(sent).toHaveLength(0);
+
+    await user.click(screen.getByRole('radio', { name: 'Міська' }));
+    await user.click(screen.getByRole('button', { name: 'Зберегти' }));
+    await screen.findByText('Зміни збережено');
+    expect(sent).toEqual([{ phone: '+380501112233', areaType: 'URBAN', version: 3 }]);
   });
 });

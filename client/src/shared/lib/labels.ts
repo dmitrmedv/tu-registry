@@ -1,41 +1,29 @@
 import {
   type ApplicationChangeAction,
   type ApplicationStatus,
+  AREA_TYPE_LABELS,
+  type AreaType,
   type AuditAction,
   formatPhone,
+  OBJECT_CATEGORY_LABELS,
+  OBJECT_TYPE_LABELS,
   type ObjectCategory,
   type ObjectType,
   type Role,
 } from '@tu-registry/shared';
 import { formatCalendarDate } from './format';
 
+// Enum names live in @tu-registry/shared (the server sorts by them); re-exported for the UI.
+export { AREA_TYPE_LABELS, OBJECT_CATEGORY_LABELS, OBJECT_TYPE_LABELS };
+
 export const ROLE_LABELS: Record<Role, string> = {
   USER: 'Користувач',
   ADMIN: 'Адміністратор',
 };
 
-export const OBJECT_TYPE_LABELS: Record<ObjectType, string> = {
-  DOMESTIC: 'Побутовий',
-  NON_DOMESTIC: 'Непобутовий',
-};
-
-export const OBJECT_CATEGORY_LABELS: Record<ObjectCategory, string> = {
-  LAND_PLOT: 'Земельна ділянка',
-  RESIDENTIAL_HOUSE: 'Житловий будинок',
-  APARTMENT: 'Квартира',
-  NON_RESIDENTIAL: 'Нежитлове приміщення',
-  BIOGAS_PRODUCER: 'Виробник біогазу',
-  OTHER: 'Інше',
-};
-
 /** "Інше: котельня" for OTHER with wording, otherwise the category's name. */
 export function formatObjectCategory(category: ObjectCategory, other: string | null) {
   return category === 'OTHER' && other ? `Інше: ${other}` : OBJECT_CATEGORY_LABELS[category];
-}
-
-/** The registry's address column: "вул. Шевченка, 1; кад. № 3220481301:01:007:0012". */
-export function formatObjectAddress(address: string, cadastralNumber: string | null) {
-  return cadastralNumber ? `${address}; кад. № ${cadastralNumber}` : address;
 }
 
 export const STATUS_LABELS: Record<ApplicationStatus, string> = {
@@ -78,6 +66,8 @@ export const APPLICATION_FIELD_LABELS: Record<string, string> = {
   email: 'Email',
   settlement: 'Населений пункт',
   objectAddress: 'Адреса обʼєкта',
+  areaType: 'Місцевість',
+  // The field was removed in stage 12; older history entries still mention it.
   cadastralNumber: 'Кадастровий номер',
   objectType: 'Тип обʼєкта',
   objectCategory: 'Категорія обʼєкта',
@@ -100,6 +90,8 @@ export function formatFieldValue(field: string, value: unknown): string {
       return formatCalendarDate(text);
     case 'objectType':
       return OBJECT_TYPE_LABELS[text as ObjectType] ?? text;
+    case 'areaType':
+      return AREA_TYPE_LABELS[text as AreaType] ?? text;
     case 'objectCategory':
       return OBJECT_CATEGORY_LABELS[text as ObjectCategory] ?? text;
     case 'status':

@@ -29,7 +29,8 @@ function formValues(app: ApplicationDto): ManualApplicationInput {
     email: app.email ?? '',
     settlement: app.settlement ?? '',
     objectAddress: app.objectAddress,
-    cadastralNumber: app.cadastralNumber ?? '',
+    // Older records may have no area type yet: the form then asks for it.
+    areaType: app.areaType ?? ('' as ManualApplicationInput['areaType']),
     objectType: app.objectType,
     objectCategory: app.objectCategory,
     objectCategoryOther: app.objectCategoryOther ?? '',
@@ -54,9 +55,7 @@ function changedFields(
   if ((values.email ?? null) !== app.email) changes.email = values.email ?? '';
   if (values.settlement !== app.settlement) changes.settlement = values.settlement;
   if (values.objectAddress !== app.objectAddress) changes.objectAddress = values.objectAddress;
-  if ((values.cadastralNumber ?? null) !== app.cadastralNumber) {
-    changes.cadastralNumber = values.cadastralNumber ?? '';
-  }
+  if (values.areaType !== app.areaType) changes.areaType = values.areaType;
   if (values.objectType !== app.objectType) changes.objectType = values.objectType;
   if (values.objectCategory !== app.objectCategory) changes.objectCategory = values.objectCategory;
   // The wording matters only for OTHER; for any other category the server clears it.

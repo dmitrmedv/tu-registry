@@ -18,7 +18,7 @@ const row = (overrides: Partial<ApplicationListItemDto> = {}): ApplicationListIt
   customerRepresentative: null,
   settlement: 'м. Київ',
   objectAddress: 'вул. Прикладна, 1',
-  cadastralNumber: null,
+  areaType: 'URBAN',
   objectType: 'DOMESTIC',
   objectCategory: 'RESIDENTIAL_HOUSE',
   objectCategoryOther: null,
@@ -65,7 +65,7 @@ describe('RegistryPage', () => {
         customerRepresentative: 'Петренко Іван',
         objectCategory: 'OTHER',
         objectCategoryOther: 'Котельня',
-        cadastralNumber: '3220481301:01:007:0012',
+        areaType: 'RURAL',
       }),
     ]);
 
@@ -90,17 +90,17 @@ describe('RegistryPage', () => {
     ).toEqual([
       '№↕',
       'Дата реєстрації▼',
-      'Замовник',
-      'Населений пункт',
-      'Адреса',
-      'Тип обʼєкта',
-      'Категорія',
-      'Представник замовника',
-      'Зареєстрував',
+      'Замовник↕',
+      'Населений пункт↕',
+      'Місцевість↕',
+      'Адреса↕',
+      'Тип обʼєкта↕',
+      'Категорія↕',
+      'Представник замовника↕',
+      'Зареєстрував↕',
     ]);
-    expect(
-      within(rows[2]!).getByText('вул. Прикладна, 1; кад. № 3220481301:01:007:0012'),
-    ).toBeInTheDocument();
+    expect(within(rows[1]!).getByText('Міська')).toBeInTheDocument();
+    expect(within(rows[2]!).getByText('Сільська')).toBeInTheDocument();
     // One way back to the registry (the header title) and one "Нова заява" (on the page).
     expect(screen.getAllByRole('link', { name: /^Реєстр/ })).toHaveLength(1);
     expect(screen.getAllByRole('link', { name: 'Нова заява' })).toHaveLength(1);
@@ -259,14 +259,59 @@ describe('RegistryPage — card links and status', () => {
     selection.mockRestore();
   });
 
-  it('searches by settlement, and by street or cadastral number in "Адреса"', async () => {
+  it('searches by settlement, representative and comment, and filters by area', async () => {
+    const { last } = serveRegistry();
+    const { user, router } = renderApp('/');
+    await screen.findByRole('table');
+
+    await user.type(screen.getByLabelText('Населений пункт'), 'Бровари');
+    await user.type(screen.getByLabelText('Представник замовника'), 'Петренко');
+    await user.type(screen.getByLabelText('Коментар'), 'довідка');
+    await user.selectOptions(screen.getByLabelText('Місцевість'), 'Сільська');
+
+    await waitFor(() =>
+      expect(Object.fromEntries(last())).toMatchObject({
+        settlement: 'Бровари',
+        customerRepresentative: 'Петренко',
+        comment: 'довідка',
+        areaType: 'RURAL',
+      }),
+    );
+    // The URL keeps them, so a reload or the card's back link restores the same list.
+    expect(router.state.location.search).toContain('representative=');
+    expect(router.state.location.search).toContain('area=RURAL');
+  });
+
+  it('sorts every column: names from А first, a second click reverses', async () => {
     const { last } = serveRegistry();
     const { user } = renderApp('/');
     await screen.findByRole('table');
 
-    await user.type(screen.getByLabelText('Населений пункт'), 'Бровари');
-    await waitFor(() => expect(last().get('settlement')).toBe('Бровари'));
-    expect(screen.getByLabelText('Адреса')).toHaveAttribute('placeholder', 'вулиця або кад. №');
+    await user.click(screen.getByRole('button', { name: /^Замовник/ }));
+    await waitFor(() => expect(last().get('sort')).toBe('customer'));
+    expect(screen.getByRole('columnheader', { name: /^Замовник/ })).toHaveAttribute(
+      'aria-sort',
+      'ascending',
+    );
+    await user.click(screen.getByRole('button', { name: /^Замовник/ }));
+    await waitFor(() => expect(last().get('sort')).toBe('-customer'));
+
+    await user.click(screen.getByRole('button', { name: /^Зареєстрував/ }));
+    await waitFor(() => expect(last().get('sort')).toBe('createdBy'));
+    await user.click(screen.getByRole('button', { name: /^Місцевість/ }));
+    await waitFor(() => expect(last().get('sort')).toBe('areaType'));
+  });
+
+  it('folds the filter panel away and back', async () => {
+    serveRegistry();
+    const { user } = renderApp('/');
+    await screen.findByRole('table');
+    const toggle = screen.getByRole('button', { name: /^Фільтри/ });
+
+    // jsdom has no media queries: the panel starts open, as on a wide screen.
+    expect(toggle).toHaveAttribute('aria-expanded', 'true');
+    await user.click(toggle);
+    expect(toggle).toHaveAttribute('aria-expanded', 'false');
   });
 
   it('filters by category', async () => {

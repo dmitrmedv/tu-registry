@@ -26,7 +26,7 @@ const CONTENT_FIELDS = [
   'email',
   'settlement',
   'objectAddress',
-  'cadastralNumber',
+  'areaType',
   'objectType',
   'objectCategory',
   'objectCategoryOther',

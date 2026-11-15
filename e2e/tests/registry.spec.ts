@@ -25,3 +25,21 @@ test('filters and the result bar stay under the header; paging starts from the t
   await expect(page.getByText(/^Сторінка 2 з \d+$/)).toBeVisible();
   expect(await page.evaluate(() => window.scrollY)).toBe(0);
 });
+
+test('sorts by any column in Ukrainian alphabetical order', async ({ page }) => {
+  const headers = await apiLogin(page.request, ADMIN);
+  const tag = `сорт-${Date.now().toString(36)}`;
+  for (const name of ['Їжак', 'Аргон', 'Ґудзик']) {
+    await createApplication(page.request, headers, { customer: `${name} ${tag}` });
+  }
+
+  await page.goto(`/?customer=${encodeURIComponent(tag)}`);
+  const table = page.getByRole('table', { name: 'Реєстр заяв' });
+  const firstCustomer = table.getByRole('row').nth(1).getByRole('cell').nth(2);
+
+  await table.getByRole('button', { name: /^Замовник/ }).click();
+  await expect(firstCustomer).toHaveText(`Аргон ${tag}`);
+  await table.getByRole('button', { name: /^Замовник/ }).click();
+  await expect(firstCustomer).toHaveText(`Їжак ${tag}`);
+  await expect(table.getByRole('row').nth(2).getByRole('cell').nth(2)).toHaveText(`Ґудзик ${tag}`);
+});

@@ -18,6 +18,7 @@ const fields = {
   customerRepresentative: 'Коваль Олена',
   phone: '0441234567',
   settlement: 'м. Київ',
+  areaType: 'URBAN',
   objectAddress: 'вул. Архівна, 5',
   objectType: 'DOMESTIC',
   objectCategory: 'APARTMENT',

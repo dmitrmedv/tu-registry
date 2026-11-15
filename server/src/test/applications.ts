@@ -12,6 +12,7 @@ export const applicationFields = {
   phone: '0671234567',
   email: 'office@example.ua',
   settlement: 'м. Київ',
+  areaType: 'URBAN',
   objectAddress: 'вул. Прикладна, 1',
   objectType: 'DOMESTIC',
   objectCategory: 'RESIDENTIAL_HOUSE',

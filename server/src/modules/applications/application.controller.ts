@@ -13,12 +13,13 @@ import { kyivToday } from '../../utils/kyivDate';
 import { idParamsSchema, parseRequest } from '../../utils/parseRequest';
 import { requestContext } from '../audit/audit.service';
 import { deleteApplication } from './application.delete.service';
+import { listApplications } from './application.list.service';
 import * as editService from './application.edit.service';
 import * as applicationService from './application.service';
 
 export const list: RequestHandler = async (req, res) => {
   const { query } = parseRequest(req, { query: applicationListQuerySchema });
-  res.json(await applicationService.listApplications(query));
+  res.json(await listApplications(query));
 };
 
 export const create: RequestHandler = async (req, res) => {

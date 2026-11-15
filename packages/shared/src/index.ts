@@ -1,5 +1,6 @@
 export * from './dates';
 export * from './enums';
+export * from './labels';
 export * from './phone';
 export * from './regNumber';
 export * from './schemas/application';

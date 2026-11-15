@@ -1,19 +1,20 @@
-import type { ApplicationListItemDto, ApplicationSort } from '@tu-registry/shared';
+import type { ApplicationListItemDto, ApplicationSort, SortField } from '@tu-registry/shared';
 import clsx from 'clsx';
 import type { MouseEvent } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router';
 import { formatCalendarDate } from '@/shared/lib/format';
-import { formatObjectAddress, formatObjectCategory, OBJECT_TYPE_LABELS } from '@/shared/lib/labels';
+import { AREA_TYPE_LABELS, formatObjectCategory, OBJECT_TYPE_LABELS } from '@/shared/lib/labels';
 import { Badge, Table } from '@/shared/ui';
 import styles from './registry.module.scss';
-
-type SortField = 'regNumber' | 'regDate';
 
 type Props = {
   rows: ApplicationListItemDto[];
   sort: ApplicationSort;
   onSort: (sort: ApplicationSort) => void;
 };
+
+/** Number and date start from the newest; names start from А. A second click reverses. */
+const NEWEST_FIRST: SortField[] = ['regNumber', 'regDate'];
 
 function SortableHeader({
   field,
@@ -22,8 +23,9 @@ function SortableHeader({
   onSort,
 }: { field: SortField; label: string } & Pick<Props, 'sort' | 'onSort'>) {
   const direction = sort === field ? 'ascending' : sort === `-${field}` ? 'descending' : undefined;
-  // First click sorts newest/highest first; the next click reverses.
-  const next: ApplicationSort = direction === 'descending' ? field : `-${field}`;
+  const firstClick: ApplicationSort = NEWEST_FIRST.includes(field) ? `-${field}` : field;
+  const next: ApplicationSort =
+    direction === undefined ? firstClick : direction === 'ascending' ? `-${field}` : field;
   return (
     <th scope="col" aria-sort={direction ?? 'none'}>
       <button type="button" className={styles.sortButton} onClick={() => onSort(next)}>
@@ -35,6 +37,17 @@ function SortableHeader({
     </th>
   );
 }
+
+const COLUMNS: [SortField, string][] = [
+  ['customer', 'Замовник'],
+  ['settlement', 'Населений пункт'],
+  ['areaType', 'Місцевість'],
+  ['objectAddress', 'Адреса'],
+  ['objectType', 'Тип обʼєкта'],
+  ['objectCategory', 'Категорія'],
+  ['customerRepresentative', 'Представник замовника'],
+  ['createdBy', 'Зареєстрував'],
+];
 
 /**
  * A click anywhere on a row opens the card; Ctrl/Cmd+click and the middle button open it in a
@@ -64,13 +77,9 @@ export function RegistryTable({ rows, sort, onSort }: Props) {
         <tr>
           <SortableHeader field="regNumber" label="№" sort={sort} onSort={onSort} />
           <SortableHeader field="regDate" label="Дата реєстрації" sort={sort} onSort={onSort} />
-          <th scope="col">Замовник</th>
-          <th scope="col">Населений пункт</th>
-          <th scope="col">Адреса</th>
-          <th scope="col">Тип обʼєкта</th>
-          <th scope="col">Категорія</th>
-          <th scope="col">Представник замовника</th>
-          <th scope="col">Зареєстрував</th>
+          {COLUMNS.map(([field, label]) => (
+            <SortableHeader key={field} field={field} label={label} sort={sort} onSort={onSort} />
+          ))}
         </tr>
       </thead>
       <tbody>
@@ -105,9 +114,8 @@ export function RegistryTable({ rows, sort, onSort }: Props) {
             <td className={styles.nowrap}>{formatCalendarDate(row.regDate)}</td>
             <td className={styles.wrap}>{row.customer}</td>
             <td className={styles.nowrap}>{row.settlement ?? '—'}</td>
-            <td className={styles.wrap}>
-              {formatObjectAddress(row.objectAddress, row.cadastralNumber)}
-            </td>
+            <td className={styles.nowrap}>{row.areaType ? AREA_TYPE_LABELS[row.areaType] : '—'}</td>
+            <td className={styles.wrap}>{row.objectAddress}</td>
             <td className={styles.nowrap}>{OBJECT_TYPE_LABELS[row.objectType]}</td>
             <td className={styles.wrap}>
               {formatObjectCategory(row.objectCategory, row.objectCategoryOther)}

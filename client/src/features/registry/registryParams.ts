@@ -4,6 +4,8 @@ import {
   type ApplicationStatus,
   type ApplicationListQuery,
   type ApplicationSort,
+  AREA_TYPES,
+  type AreaType,
   OBJECT_CATEGORIES,
   OBJECT_TYPES,
   type ObjectCategory,
@@ -19,11 +21,13 @@ export type RegistryParams = {
   sort: ApplicationSort;
   customer: string;
   settlement: string;
-  /** Street address or cadastral number. */
   address: string;
+  representative: string;
+  comment: string;
   number: string;
   type: ObjectType | '';
   category: ObjectCategory | '';
+  area: AreaType | '';
   status: ApplicationStatus | '';
   /** "all" (default), "mine", or a user id. */
   user: string;
@@ -38,9 +42,12 @@ export const DEFAULT_PARAMS: RegistryParams = {
   customer: '',
   settlement: '',
   address: '',
+  representative: '',
+  comment: '',
   number: '',
   type: '',
   category: '',
+  area: '',
   status: '',
   user: 'all',
   from: '',
@@ -51,9 +58,12 @@ const FILTER_KEYS = [
   'customer',
   'settlement',
   'address',
+  'representative',
+  'comment',
   'number',
   'type',
   'category',
+  'area',
   'status',
   'from',
   'to',
@@ -69,6 +79,7 @@ export function readParams(search: URLSearchParams): RegistryParams {
   const sort = search.get('sort') as ApplicationSort;
   const type = search.get('type') as ObjectType;
   const category = search.get('category') as ObjectCategory;
+  const area = search.get('area') as AreaType;
   const status = search.get('status') as ApplicationStatus;
   const user = text('user');
   const date = (key: string) => (ISO_DATE.test(text(key)) ? text(key) : '');
@@ -79,9 +90,12 @@ export function readParams(search: URLSearchParams): RegistryParams {
     customer: text('customer'),
     settlement: text('settlement'),
     address: text('address'),
+    representative: text('representative'),
+    comment: text('comment'),
     number: text('number'),
     type: OBJECT_TYPES.includes(type) ? type : '',
     category: OBJECT_CATEGORIES.includes(category) ? category : '',
+    area: AREA_TYPES.includes(area) ? area : '',
     status: APPLICATION_STATUSES.includes(status) ? status : '',
     user: user === 'mine' || OBJECT_ID.test(user) ? user : 'all',
     from: date('from'),
@@ -119,6 +133,9 @@ export function toApiQuery(params: RegistryParams, currentUserId: string): Appli
     sort: params.sort,
     customer: params.customer || undefined,
     settlement: params.settlement || undefined,
+    customerRepresentative: params.representative || undefined,
+    comment: params.comment || undefined,
+    areaType: params.area || undefined,
     address: params.address || undefined,
     number: params.number && isNumberSearchValid(params.number) ? params.number : undefined,
     objectType: params.type || undefined,

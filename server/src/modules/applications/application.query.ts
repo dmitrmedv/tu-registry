@@ -1,4 +1,12 @@
-import type { ApplicationListQueryData, ApplicationSort } from '@tu-registry/shared';
+import {
+  type ApplicationListQueryData,
+  type ApplicationSort,
+  AREA_TYPE_LABELS,
+  codesByLabel,
+  OBJECT_CATEGORY_LABELS,
+  OBJECT_TYPE_LABELS,
+  type SortField,
+} from '@tu-registry/shared';
 import mongoose from 'mongoose';
 import { fromIsoDate } from '../../utils/kyivDate';
 
@@ -12,17 +20,23 @@ function contains(text: string) {
   return mongoose.trusted({ $regex: escapeRegex(text), $options: 'i' });
 }
 
-/** Translates a validated list query into a MongoDB filter. */
+const TEXT_SEARCHES = [
+  ['customer', 'customer'],
+  ['settlement', 'settlement'],
+  ['address', 'objectAddress'],
+  ['customerRepresentative', 'customerRepresentative'],
+  ['comment', 'comment'],
+] as const;
+
+/**
+ * Translates a validated list query into a MongoDB filter. Values are already cast (ObjectId,
+ * Date), so the same filter works in find() and in an aggregation, which does not cast.
+ */
 export function buildListFilter(query: ApplicationListQueryData) {
   const filter: Record<string, unknown> = {};
-  if (query.customer) filter.customer = contains(query.customer);
-  if (query.settlement) filter.settlement = contains(query.settlement);
-  // One field for the street address and the cadastral number.
-  if (query.address) {
-    filter.$or = mongoose.trusted([
-      { objectAddress: contains(query.address) },
-      { cadastralNumber: contains(query.address) },
-    ]);
+  for (const [param, field] of TEXT_SEARCHES) {
+    const text = query[param];
+    if (text) filter[field] = contains(text);
   }
   if (query.number) {
     filter.regSeq = query.number.seq;
@@ -30,8 +44,9 @@ export function buildListFilter(query: ApplicationListQueryData) {
   }
   if (query.objectType) filter.objectType = query.objectType;
   if (query.objectCategory) filter.objectCategory = query.objectCategory;
+  if (query.areaType) filter.areaType = query.areaType;
   if (query.status) filter.status = query.status;
-  if (query.createdBy) filter.createdBy = query.createdBy;
+  if (query.createdBy) filter.createdBy = new mongoose.Types.ObjectId(query.createdBy);
   if (query.dateFrom || query.dateTo) {
     // Both ends inclusive: registration dates are stored as midnight UTC.
     filter.regDate = mongoose.trusted({
@@ -42,10 +57,41 @@ export function buildListFilter(query: ApplicationListQueryData) {
   return filter;
 }
 
-/** Numbers sort numerically (year, then sequence); dates break ties by number. */
-export const LIST_SORTS: Record<ApplicationSort, Record<string, 1 | -1>> = {
-  '-regDate': { regDate: -1, regYear: -1, regSeq: -1 },
-  regDate: { regDate: 1, regYear: 1, regSeq: 1 },
-  '-regNumber': { regYear: -1, regSeq: -1 },
-  regNumber: { regYear: 1, regSeq: 1 },
+/** Ukrainian alphabetical order for text; the matching indexes are built with it too. */
+export const UKRAINIAN = { locale: 'uk' } as const;
+
+export type ListSort =
+  /** Sorted by the database through an index. */
+  | { kind: 'indexed'; sort: Record<string, 1 | -1>; collation?: typeof UKRAINIAN }
+  /** Sorted by a computed key (an enum's name, the author's name) after filtering. */
+  | {
+      kind: 'computed';
+      field: 'objectType' | 'objectCategory' | 'areaType' | 'createdBy';
+      dir: 1 | -1;
+    };
+
+const TEXT_SORT_FIELDS = ['customer', 'settlement', 'objectAddress', 'customerRepresentative'];
+
+/** Equal values are always ordered by number, in the same direction, so pages are stable. */
+export function listSort(sort: ApplicationSort): ListSort {
+  const dir = sort.startsWith('-') ? -1 : 1;
+  const field = sort.replace(/^-/, '') as SortField;
+  const byNumber = { regYear: dir, regSeq: dir } as const;
+  if (field === 'regNumber') return { kind: 'indexed', sort: byNumber };
+  if (field === 'regDate') return { kind: 'indexed', sort: { regDate: dir, ...byNumber } };
+  if (TEXT_SORT_FIELDS.includes(field)) {
+    return { kind: 'indexed', sort: { [field]: dir, ...byNumber }, collation: UKRAINIAN };
+  }
+  return {
+    kind: 'computed',
+    field: field as Extract<ListSort, { kind: 'computed' }>['field'],
+    dir,
+  };
+}
+
+/** Enum codes in the alphabetical order of their names: the position is the sort key. */
+export const CODES_BY_NAME = {
+  objectType: codesByLabel(OBJECT_TYPE_LABELS),
+  objectCategory: codesByLabel(OBJECT_CATEGORY_LABELS),
+  areaType: codesByLabel(AREA_TYPE_LABELS),
 };

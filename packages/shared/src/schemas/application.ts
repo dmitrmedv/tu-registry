@@ -1,5 +1,7 @@
 import { z } from 'zod';
 import {
+  AREA_TYPES,
+  type AreaType,
   type ApplicationChangeAction,
   type ApplicationStatus,
   OBJECT_CATEGORIES,
@@ -54,17 +56,6 @@ export const emailField = z
 
 export const OBJECT_CATEGORY_OTHER_MAX = 200;
 export const SETTLEMENT_MAX = 100;
-/** State Land Cadastre number: 10:2:3:4 digits, e.g. 3220481301:01:007:0012. */
-export const CADASTRAL_NUMBER_PATTERN = /^\d{10}:\d{2}:\d{3}:\d{4}$/;
-const cadastralFormat = 'Кадастровий номер у форматі 3220481301:01:007:0012';
-
-/** Optional; an empty string means "none" (undefined on create, null in an update). */
-const cadastralNumber = <Empty extends undefined | null>(empty: Empty) =>
-  z
-    .string()
-    .trim()
-    .refine((value) => value === '' || CADASTRAL_NUMBER_PATTERN.test(value), cadastralFormat)
-    .transform((value): string | Empty => (value === '' ? empty : value));
 export const COMMENT_MAX = 2000;
 
 const objectCategoryField = z.enum(OBJECT_CATEGORIES, { error: 'Оберіть категорію обʼєкта' });
@@ -77,7 +68,7 @@ const applicationFields = z.object({
   email: emailField,
   settlement: requiredText('Населений пункт', SETTLEMENT_MAX),
   objectAddress: requiredText('Адреса обʼєкта', 500),
-  cadastralNumber: cadastralNumber(undefined).optional(),
+  areaType: z.enum(AREA_TYPES, { error: 'Оберіть місцевість' }),
   objectType: z.enum(OBJECT_TYPES, { error: 'Оберіть тип обʼєкта' }),
   objectCategory: objectCategoryField,
   // Used only with OTHER; the server drops it for any other category.
@@ -183,7 +174,8 @@ export type ApplicationDto = {
   /** Null only for records from before the field whose address could not be split. */
   settlement: string | null;
   objectAddress: string;
-  cadastralNumber: string | null;
+  /** Null only for records from before the field whose settlement gave no clue. */
+  areaType: AreaType | null;
   objectType: ObjectType;
   objectCategory: ObjectCategory;
   /** The user's wording for OTHER; null for any other category (and for migrated records). */
@@ -235,7 +227,7 @@ export function updateApplicationSchema(today: string) {
       email: clearableEmail.optional(),
       settlement: applicationFields.shape.settlement.optional(),
       objectAddress: applicationFields.shape.objectAddress.optional(),
-      cadastralNumber: cadastralNumber(null).optional(),
+      areaType: applicationFields.shape.areaType.optional(),
       objectType: applicationFields.shape.objectType.optional(),
       // Whether OTHER has its wording is checked by the server against the stored value
       // when only one of the two is sent.

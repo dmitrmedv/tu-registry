@@ -15,6 +15,7 @@ const body = {
   phone: '(067) 123-45-67',
   email: 'Office@Example.UA',
   settlement: 'м. Київ',
+  areaType: 'URBAN',
   objectAddress: 'вул. Прикладна, 1',
   objectType: 'NON_DOMESTIC',
   objectCategory: 'NON_RESIDENTIAL',

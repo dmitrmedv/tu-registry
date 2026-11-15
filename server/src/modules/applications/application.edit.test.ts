@@ -1,7 +1,13 @@
 import request from 'supertest';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createApp } from '../../app';
-import { signedInUser } from '../../test/auth';
+import {
+  APPLICATIONS,
+  type ApiSession,
+  applicationFields,
+  registerApplication,
+  signedInWithAuth,
+} from '../../test/applications';
 import { useTestDb } from '../../test/db';
 import { clock } from '../../utils/clock';
 import { AuditLog } from '../audit/auditLog.model';
@@ -10,29 +16,13 @@ import { Application } from './application.model';
 import { ApplicationChange } from './applicationChange.model';
 
 const app = createApp();
-const BASE = '/api/v1/applications';
+const BASE = APPLICATIONS;
+const fields = applicationFields;
 
-const fields = {
-  customer: 'ТОВ «Приклад»',
-  customerRepresentative: 'Петренко Іван',
-  phone: '0671234567',
-  email: 'office@example.ua',
-  objectAddress: 'м. Київ, вул. Прикладна, 1',
-  objectType: 'DOMESTIC',
-};
-
-type Session = Awaited<ReturnType<typeof as>>;
-
-async function as(options: Parameters<typeof signedInUser>[1] = {}) {
-  const session = await signedInUser(app, options);
-  return { ...session, auth: { Authorization: `Bearer ${session.accessToken}` } };
-}
-
-async function register(who: Session, body: Record<string, unknown> = fields) {
-  const res = await request(app).post(BASE).set(who.auth).send(body);
-  expect(res.status).toBe(201);
-  return res.body as { id: string; version: number; regNumber: string };
-}
+type Session = ApiSession;
+const as = (options: Parameters<typeof signedInWithAuth>[1] = {}) => signedInWithAuth(app, options);
+const register = (who: Session, body: Record<string, unknown> = fields) =>
+  registerApplication(app, who, body);
 
 const get = (who: Session, id: string) => request(app).get(`${BASE}/${id}`).set(who.auth);
 const patch = (who: Session, id: string, body: Record<string, unknown>) =>

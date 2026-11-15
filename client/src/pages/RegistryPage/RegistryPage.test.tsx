@@ -18,6 +18,8 @@ const row = (overrides: Partial<ApplicationListItemDto> = {}): ApplicationListIt
   customerRepresentative: null,
   objectAddress: 'м. Київ, вул. Прикладна, 1',
   objectType: 'DOMESTIC',
+  objectCategory: 'RESIDENTIAL_HOUSE',
+  objectCategoryOther: null,
   registrationMode: 'AUTO',
   status: 'ACTIVE',
   createdBy: { id: me.id, fullName: me.fullName },
@@ -51,7 +53,7 @@ function serveRegistry(rows: ApplicationListItemDto[] = [row()], totalPages = 1)
 }
 
 describe('RegistryPage', () => {
-  it('shows my applications by default, newest first', async () => {
+  it("shows everyone's applications by default, newest first", async () => {
     const { last } = serveRegistry([
       row(),
       row({
@@ -59,6 +61,8 @@ describe('RegistryPage', () => {
         regNumber: '14т/24',
         registrationMode: 'MANUAL',
         customerRepresentative: 'Петренко Іван',
+        objectCategory: 'OTHER',
+        objectCategoryOther: 'Котельня',
       }),
     ]);
 
@@ -70,10 +74,14 @@ describe('RegistryPage', () => {
     expect(within(rows[1]!).getByText('15т/26')).toBeInTheDocument();
     expect(within(rows[1]!).getByText('12.03.2026')).toBeInTheDocument();
     expect(within(rows[1]!).getByText('—')).toBeInTheDocument(); // no representative
+    expect(within(rows[1]!).getByText('Житловий будинок')).toBeInTheDocument();
     expect(within(rows[2]!).getByText('вручну')).toBeInTheDocument();
-    expect(last().get('createdBy')).toBe(me.id);
+    expect(within(rows[2]!).getByText('Інше: Котельня')).toBeInTheDocument();
+    expect(last().get('createdBy')).toBeNull();
     expect(last().get('sort')).toBe('-regDate');
     expect(screen.getByRole('status')).toHaveTextContent('Знайдено: 2');
+    // One way back to the registry: the title in the header.
+    expect(screen.getAllByRole('link', { name: /^Реєстр/ })).toHaveLength(1);
   });
 
   it('applies a text filter after typing pauses and starts from page 1', async () => {
@@ -157,9 +165,10 @@ describe('RegistryPage', () => {
 
   it('invites to register when I have no applications yet', async () => {
     const { last } = serveRegistry([]);
-    const { user } = renderApp('/');
+    const { user } = renderApp('/?user=mine');
 
     expect(await screen.findByText('Ви ще не зареєстрували жодної заяви.')).toBeInTheDocument();
+    expect(last().get('createdBy')).toBe(me.id);
     await user.click(screen.getByRole('button', { name: 'Показати всі заяви' }));
     await waitFor(() => expect(last().get('createdBy')).toBeNull());
   });
@@ -191,6 +200,16 @@ describe('RegistryPage — card links and status', () => {
     expect(link).toHaveAttribute('href', '/applications/a1');
     const annulledRow = screen.getByRole('link', { name: '16т/26' }).closest('tr')!;
     expect(within(annulledRow).getByText('Анульовано')).toBeInTheDocument();
+  });
+
+  it('filters by category', async () => {
+    const { last } = serveRegistry();
+    const { user } = renderApp('/');
+    await screen.findByRole('table');
+
+    await user.selectOptions(screen.getByLabelText('Категорія'), 'Виробник біогазу');
+
+    await waitFor(() => expect(last().get('objectCategory')).toBe('BIOGAS_PRODUCER'));
   });
 
   it('filters by status', async () => {

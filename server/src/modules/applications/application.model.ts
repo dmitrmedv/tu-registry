@@ -1,4 +1,11 @@
-import { APPLICATION_STATUSES, OBJECT_TYPES, REGISTRATION_MODES } from '@tu-registry/shared';
+import {
+  APPLICATION_STATUSES,
+  COMMENT_MAX,
+  OBJECT_CATEGORIES,
+  OBJECT_CATEGORY_OTHER_MAX,
+  OBJECT_TYPES,
+  REGISTRATION_MODES,
+} from '@tu-registry/shared';
 import { type HydratedDocument, type InferSchemaType, Schema, model } from 'mongoose';
 import { toJSONTransform } from '../../utils/toJSON';
 
@@ -30,6 +37,10 @@ const applicationSchema = new Schema(
     email: { type: String, trim: true, lowercase: true, maxlength: 254 },
     objectAddress: { type: String, required: true, trim: true, maxlength: 500 },
     objectType: { type: String, enum: OBJECT_TYPES, required: true },
+    // Records created before the field existed got OTHER via `npm run db:migrate`.
+    objectCategory: { type: String, enum: OBJECT_CATEGORIES, required: true },
+    objectCategoryOther: { type: String, trim: true, maxlength: OBJECT_CATEGORY_OTHER_MAX },
+    comment: { type: String, trim: true, maxlength: COMMENT_MAX },
     registrationMode: { type: String, enum: REGISTRATION_MODES, required: true },
     status: { type: String, enum: APPLICATION_STATUSES, default: 'ACTIVE', required: true },
     annulment: { type: annulmentSchema, default: undefined },
@@ -70,6 +81,7 @@ const BY_DATE = { regDate: -1, regYear: -1, regSeq: -1 } as const;
 applicationSchema.index(BY_DATE);
 applicationSchema.index({ createdBy: 1, ...BY_DATE });
 applicationSchema.index({ objectType: 1, ...BY_DATE });
+applicationSchema.index({ objectCategory: 1, ...BY_DATE });
 
 export type ApplicationData = InferSchemaType<typeof applicationSchema>;
 export const Application = model('Application', applicationSchema);

@@ -20,6 +20,17 @@ const entries: AuditLogDto[] = [
     ip: '127.0.0.1',
   },
   {
+    id: 'e3',
+    createdAt: '2026-03-12T10:00:00.000Z',
+    action: 'APPLICATION_DELETED',
+    actor: { id: admin.id, fullName: admin.fullName, login: admin.login },
+    entityType: 'Application',
+    entityId: 'app00000000000000000002',
+    entityLabel: '7т/26',
+    details: { regNumber: '7т/26', regDate: '2026-02-01' },
+    ip: '127.0.0.1',
+  },
+  {
     id: 'e2',
     createdAt: '2026-03-12T08:00:00.000Z',
     action: 'LOGIN_FAILED',
@@ -40,7 +51,7 @@ function openJournal() {
       requests.push(new URL(request.url).searchParams);
       return HttpResponse.json({
         data: entries,
-        meta: { page: 1, limit: 50, total: 2, totalPages: 1 },
+        meta: { page: 1, limit: 50, total: 3, totalPages: 1 },
       });
     }),
   );
@@ -52,13 +63,18 @@ describe('AuditPage', () => {
     openJournal();
 
     const table = await screen.findByRole('table', { name: 'Журнал аудиту' });
-    const [, first, second] = within(table).getAllByRole('row');
+    const [, first, deleted, second] = within(table).getAllByRole('row');
     expect(first).toHaveTextContent('Змінено номер заяви');
     expect(within(first!).getByRole('link', { name: 'Заява 50т/26' })).toHaveAttribute(
       'href',
       '/applications/app00000000000000000001',
     );
     expect(first).toHaveTextContent('1т/26 → 50т/26');
+    // A deleted application keeps its number but has no card to link to.
+    expect(deleted).toHaveTextContent('Видалено заяву');
+    expect(deleted).toHaveTextContent('Заява 7т/26');
+    expect(deleted).toHaveTextContent('заява від 01.02.2026');
+    expect(within(deleted!).queryByRole('link')).not.toBeInTheDocument();
     expect(second).toHaveTextContent('Невдалий вхід');
     expect(second).toHaveTextContent('логін «ivan», невірний пароль');
   });

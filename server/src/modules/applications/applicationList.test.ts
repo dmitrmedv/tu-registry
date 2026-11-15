@@ -1,3 +1,4 @@
+import type { ObjectCategory } from '@tu-registry/shared';
 import type { Types } from 'mongoose';
 import request from 'supertest';
 import { beforeEach, describe, expect, it } from 'vitest';
@@ -17,6 +18,7 @@ type Seed = Partial<{
   customer: string;
   objectAddress: string;
   objectType: 'DOMESTIC' | 'NON_DOMESTIC';
+  objectCategory: ObjectCategory;
   createdBy: Types.ObjectId;
 }>;
 
@@ -37,6 +39,7 @@ async function seed(rows: Seed[]) {
         phone: '+380671234567',
         objectAddress: row.objectAddress ?? `вул. Тестова, ${i + 1}`,
         objectType: row.objectType ?? 'DOMESTIC',
+        objectCategory: row.objectCategory ?? 'RESIDENTIAL_HOUSE',
         registrationMode: 'AUTO',
         createdBy: row.createdBy ?? me,
       };

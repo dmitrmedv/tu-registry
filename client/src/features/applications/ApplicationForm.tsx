@@ -8,24 +8,24 @@ import {
   kyivCalendarDate,
   type ManualApplicationData,
   manualApplicationSchema,
-  OBJECT_TYPES,
 } from '@tu-registry/shared';
 import { useEffect, useMemo, useState } from 'react';
-import { type FieldErrors, type FieldPath, type Resolver, useForm } from 'react-hook-form';
+import {
+  type FieldErrors,
+  type FieldPath,
+  FormProvider,
+  type Resolver,
+  useForm,
+} from 'react-hook-form';
 import { useCurrentUser } from '@/features/auth';
 import { toApiError } from '@/shared/api/apiError';
 import { useFormDraft } from '@/shared/hooks/useFormDraft';
 import { formatCalendarDate, formatDateTime } from '@/shared/lib/format';
-import { OBJECT_TYPE_LABELS } from '@/shared/lib/labels';
-import { Alert, Button, CheckboxField, SelectField, Spinner, TextField } from '@/shared/ui';
+import { Alert, Button, CheckboxField, Spinner, TextField } from '@/shared/ui';
+import { ApplicationContentFields } from './ApplicationContentFields';
 import styles from './ApplicationForm.module.scss';
 import { ManualNumberStatus } from './ManualNumberStatus';
 import { useCreateApplication, useCreateManualApplication, useNextNumber } from './queries';
-
-const OBJECT_TYPE_OPTIONS = [
-  { value: '', label: '— оберіть —' },
-  ...OBJECT_TYPES.map((type) => ({ value: type, label: OBJECT_TYPE_LABELS[type] })),
-];
 
 type FormValues = CreateApplicationInput & { manual: boolean; regDate: string; regSeq: string };
 type Submitted =
@@ -91,6 +91,9 @@ export function ApplicationForm({ onCreated, manualDefaults }: Props) {
       email: '',
       objectAddress: '',
       objectType: '' as FormValues['objectType'],
+      objectCategory: '' as FormValues['objectCategory'],
+      objectCategoryOther: '',
+      comment: '',
       manual: Boolean(manualDefaults),
       regDate: manualDefaults?.regDate ?? '',
       regSeq: '',
@@ -101,14 +104,7 @@ export function ApplicationForm({ onCreated, manualDefaults }: Props) {
   const draft = useFormDraft(`new-application:${user.id}`, emptyValues);
   const [draftNoticeVisible, setDraftNoticeVisible] = useState(draft.restoredAt !== null);
 
-  const {
-    register,
-    handleSubmit,
-    setError,
-    watch,
-    reset,
-    formState: { errors, isSubmitting },
-  } = useForm<FormValues, unknown, Submitted>({
+  const form = useForm<FormValues, unknown, Submitted>({
     resolver: useApplicationResolver(today),
     // Rights may have been revoked since the draft was saved.
     defaultValues: {
@@ -116,6 +112,14 @@ export function ApplicationForm({ onCreated, manualDefaults }: Props) {
       manual: canRegisterManually && draft.initialValues.manual,
     },
   });
+  const {
+    register,
+    handleSubmit,
+    setError,
+    watch,
+    reset,
+    formState: { errors, isSubmitting },
+  } = form;
   const manual = watch('manual');
 
   useEffect(() => {
@@ -158,116 +162,75 @@ export function ApplicationForm({ onCreated, manualDefaults }: Props) {
   });
 
   return (
-    <form className={styles.form} onSubmit={onSubmit} noValidate>
-      {draftNoticeVisible && draft.restoredAt && (
-        <Alert variant="info">
-          <div className={styles.draftNotice}>
-            <span>Відновлено незбережені дані від {formatDateTime(draft.restoredAt)}.</span>
-            <Button size="sm" onClick={discardDraft}>
-              Очистити форму
-            </Button>
-          </div>
-        </Alert>
-      )}
-      {errors.root?.message && <Alert variant="error">{errors.root.message}</Alert>}
-
-      <fieldset className={styles.section}>
-        <legend>Замовник</legend>
-        <div className={styles.grid}>
-          <TextField label="Замовник" error={errors.customer?.message} {...register('customer')} />
-          <TextField
-            label="Представник замовника (необовʼязково)"
-            error={errors.customerRepresentative?.message}
-            {...register('customerRepresentative')}
-          />
-          <TextField
-            label="Телефон"
-            type="tel"
-            autoComplete="off"
-            hint="Наприклад: 067 123 45 67"
-            error={errors.phone?.message}
-            {...register('phone')}
-          />
-          <TextField
-            label="Email (необовʼязково)"
-            type="email"
-            autoComplete="off"
-            error={errors.email?.message}
-            {...register('email')}
-          />
-        </div>
-      </fieldset>
-
-      <fieldset className={styles.section}>
-        <legend>Обʼєкт</legend>
-        <div className={styles.grid}>
-          <TextField
-            className={styles.wide}
-            label="Адреса обʼєкта"
-            error={errors.objectAddress?.message}
-            {...register('objectAddress')}
-          />
-          <SelectField
-            label="Тип обʼєкта"
-            options={OBJECT_TYPE_OPTIONS}
-            error={errors.objectType?.message}
-            {...register('objectType')}
-          />
-        </div>
-      </fieldset>
-
-      <fieldset className={styles.section}>
-        <legend>Реєстрація</legend>
-        {canRegisterManually && (
-          <CheckboxField
-            variant="switch"
-            label="Ручне встановлення дати та номера реєстрації"
-            hint="Для заяв, які були зареєстровані раніше, але ще не внесені до електронного реєстру"
-            {...register('manual')}
-          />
-        )}
-        {manual ? (
-          <>
-            <div className={styles.grid}>
-              <TextField
-                label="Дата реєстрації"
-                type="date"
-                max={today}
-                error={errors.regDate?.message}
-                {...register('regDate')}
-              />
-              <TextField
-                label="Порядковий номер"
-                inputMode="numeric"
-                autoComplete="off"
-                placeholder="14"
-                hint="Лише цифри; «т» і рік додаються автоматично"
-                error={errors.regSeq?.message}
-                {...register('regSeq')}
-              />
+    <FormProvider {...form}>
+      <form className={styles.form} onSubmit={onSubmit} noValidate>
+        {draftNoticeVisible && draft.restoredAt && (
+          <Alert variant="info">
+            <div className={styles.draftNotice}>
+              <span>Відновлено незбережені дані від {formatDateTime(draft.restoredAt)}.</span>
+              <Button size="sm" onClick={discardDraft}>
+                Очистити форму
+              </Button>
             </div>
-            <ManualNumberStatus
-              regDate={watch('regDate')}
-              regSeq={watch('regSeq')}
-              next={next.data}
-            />
-          </>
-        ) : (
-          <>
-            <RegistrationPreview next={next} />
-            <p className={styles.muted}>
-              Дата й номер присвоюються автоматично під час збереження. Номер може відрізнятися від
-              орієнтовного, якщо інший працівник зареєструє заяву раніше.
-            </p>
-          </>
+          </Alert>
         )}
-      </fieldset>
+        {errors.root?.message && <Alert variant="error">{errors.root.message}</Alert>}
 
-      <div className={styles.actions}>
-        <Button type="submit" variant="primary" loading={isSubmitting}>
-          {manual ? 'Внести заяву' : 'Зареєструвати заяву'}
-        </Button>
-      </div>
-    </form>
+        <ApplicationContentFields />
+
+        <fieldset className={styles.section}>
+          <legend>Реєстрація</legend>
+          {canRegisterManually && (
+            <CheckboxField
+              variant="switch"
+              label="Ручне встановлення дати та номера реєстрації"
+              hint="Для заяв, які були зареєстровані раніше, але ще не внесені до електронного реєстру"
+              {...register('manual')}
+            />
+          )}
+          {manual ? (
+            <>
+              <div className={styles.grid}>
+                <TextField
+                  label="Дата реєстрації"
+                  type="date"
+                  max={today}
+                  error={errors.regDate?.message}
+                  {...register('regDate')}
+                />
+                <TextField
+                  label="Порядковий номер"
+                  inputMode="numeric"
+                  autoComplete="off"
+                  placeholder="14"
+                  hint="Лише цифри; «т» і рік додаються автоматично"
+                  error={errors.regSeq?.message}
+                  {...register('regSeq')}
+                />
+              </div>
+              <ManualNumberStatus
+                regDate={watch('regDate')}
+                regSeq={watch('regSeq')}
+                next={next.data}
+              />
+            </>
+          ) : (
+            <>
+              <RegistrationPreview next={next} />
+              <p className={styles.muted}>
+                Дата й номер присвоюються автоматично під час збереження. Номер може відрізнятися
+                від орієнтовного, якщо інший працівник зареєструє заяву раніше.
+              </p>
+            </>
+          )}
+        </fieldset>
+
+        <div className={styles.actions}>
+          <Button type="submit" variant="primary" loading={isSubmitting}>
+            {manual ? 'Внести заяву' : 'Зареєструвати заяву'}
+          </Button>
+        </div>
+      </form>
+    </FormProvider>
   );
 }

@@ -1,13 +1,15 @@
 import {
   APPLICATION_STATUSES,
   type ApplicationStatus,
+  OBJECT_CATEGORIES,
   OBJECT_TYPES,
+  type ObjectCategory,
   type ObjectType,
   type UserOptionDto,
 } from '@tu-registry/shared';
 import clsx from 'clsx';
 import { useState } from 'react';
-import { OBJECT_TYPE_LABELS } from '@/shared/lib/labels';
+import { OBJECT_CATEGORY_LABELS, OBJECT_TYPE_LABELS } from '@/shared/lib/labels';
 import { Button, SelectField, TextField } from '@/shared/ui';
 import styles from './registry.module.scss';
 import { isNumberSearchValid, isPeriodValid, type RegistryParams } from './registryParams';
@@ -26,6 +28,14 @@ const TYPE_OPTIONS = [
   ...OBJECT_TYPES.map((type) => ({ value: type, label: OBJECT_TYPE_LABELS[type] })),
 ];
 
+const CATEGORY_OPTIONS = [
+  { value: '', label: 'Усі категорії' },
+  ...OBJECT_CATEGORIES.map((category) => ({
+    value: category,
+    label: OBJECT_CATEGORY_LABELS[category],
+  })),
+];
+
 const STATUS_OPTIONS = [
   { value: '', label: 'Усі' },
   ...APPLICATION_STATUSES.map((status) => ({
@@ -41,8 +51,8 @@ export function RegistryFilters({ params, update, reset, activeFilterCount, user
     update({ [key]: value }, { replace: true });
 
   const userOptions = [
-    { value: 'mine', label: 'Мої заяви' },
     { value: 'all', label: 'Усі користувачі' },
+    { value: 'mine', label: 'Мої заяви' },
     ...(users ?? []).map((u) => ({
       value: u.id,
       label: u.isActive ? u.fullName : `${u.fullName} (деактивований)`,
@@ -82,6 +92,12 @@ export function RegistryFilters({ params, update, reset, activeFilterCount, user
           options={TYPE_OPTIONS}
           value={params.type}
           onChange={(e) => update({ type: e.target.value as ObjectType | '' })}
+        />
+        <SelectField
+          label="Категорія"
+          options={CATEGORY_OPTIONS}
+          value={params.category}
+          onChange={(e) => update({ category: e.target.value as ObjectCategory | '' })}
         />
         <SelectField
           label="Статус"

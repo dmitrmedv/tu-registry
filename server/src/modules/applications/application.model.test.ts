@@ -16,6 +16,7 @@ function validApplication(overrides: Record<string, unknown> = {}): ApplicationI
     phone: '+380671234567',
     objectAddress: 'м. Київ, вул. Прикладна, 1',
     objectType: 'DOMESTIC',
+    objectCategory: 'RESIDENTIAL_HOUSE',
     registrationMode: 'AUTO',
     createdBy: new Types.ObjectId(),
     ...overrides,

@@ -4,8 +4,20 @@ import { applicationListQuerySchema, regNumberSearchField } from './applicationL
 describe('applicationListQuerySchema', () => {
   it('applies defaults and drops empty query values', () => {
     expect(
-      applicationListQuerySchema.parse({ customer: '', objectType: '', createdBy: '', sort: '' }),
+      applicationListQuerySchema.parse({
+        customer: '',
+        objectType: '',
+        objectCategory: '',
+        createdBy: '',
+        sort: '',
+      }),
     ).toEqual({ page: 1, limit: 20, sort: '-regDate' });
+  });
+
+  it('filters by object category', () => {
+    expect(applicationListQuerySchema.parse({ objectCategory: 'LAND_PLOT' }).objectCategory).toBe(
+      'LAND_PLOT',
+    );
   });
 
   it('coerces paging values from strings', () => {
@@ -21,6 +33,7 @@ describe('applicationListQuerySchema', () => {
     { limit: '500' },
     { sort: 'customer' },
     { objectType: 'INDUSTRIAL' },
+    { objectCategory: 'CASTLE' },
     { createdBy: 'not-an-id' },
     { dateFrom: '2026-02-30' },
     { dateFrom: '2026-03-10', dateTo: '2026-03-01' },

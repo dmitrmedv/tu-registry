@@ -1,11 +1,13 @@
 import { useState } from 'react';
-import { Link, useLocation, useParams } from 'react-router';
+import { Link, useLocation, useNavigate, useParams } from 'react-router';
 import {
   AnnulDialog,
   ApplicationDetails,
   ApplicationHistory,
   canAnnul,
+  canDelete,
   canEdit,
+  DeleteDialog,
   canRestore,
   useApplication,
   useRestoreApplication,
@@ -14,6 +16,7 @@ import { useCurrentUser } from '@/features/auth';
 import { toApiError } from '@/shared/api/apiError';
 import { Alert, Badge, Button, ConfirmDialog, LinkButton, Spinner } from '@/shared/ui';
 import pageStyles from '../page.module.scss';
+import type { RegistryPageState } from '../RegistryPage/RegistryPage';
 import styles from './ApplicationPage.module.scss';
 
 /** Navigation state: where "back to registry" returns, and a one-off message. */
@@ -22,14 +25,16 @@ export type ApplicationPageState = { registrySearch?: string; notice?: string } 
 export function ApplicationPage() {
   const { id = '' } = useParams();
   const user = useCurrentUser();
+  const navigate = useNavigate();
   const state = useLocation().state as ApplicationPageState;
   const application = useApplication(id);
   const restore = useRestoreApplication(id);
-  const [dialog, setDialog] = useState<'annul' | 'restore' | null>(null);
+  const [dialog, setDialog] = useState<'annul' | 'restore' | 'delete' | null>(null);
   const [restoreError, setRestoreError] = useState<string>();
 
+  const registry = { pathname: '/', search: state?.registrySearch ?? '' };
   const backLink = (
-    <Link to={{ pathname: '/', search: state?.registrySearch ?? '' }} className={styles.back}>
+    <Link to={registry} className={styles.back}>
       ← До реєстру
     </Link>
   );
@@ -88,6 +93,11 @@ export function ApplicationPage() {
             </Button>
           )}
           {canRestore(app, user) && <Button onClick={() => setDialog('restore')}>Відновити</Button>}
+          {canDelete(app, user) && (
+            <Button variant="danger" onClick={() => setDialog('delete')}>
+              Видалити
+            </Button>
+          )}
         </div>
       </div>
 
@@ -99,6 +109,17 @@ export function ApplicationPage() {
       <ApplicationHistory applicationId={app.id} />
 
       {dialog === 'annul' && <AnnulDialog app={app} onClose={closeDialog} />}
+      {dialog === 'delete' && (
+        <DeleteDialog
+          app={app}
+          onClose={closeDialog}
+          onDeleted={() =>
+            navigate(registry, {
+              state: { notice: `Заяву ${app.regNumber} видалено` } satisfies RegistryPageState,
+            })
+          }
+        />
+      )}
       {dialog === 'restore' && (
         <ConfirmDialog
           open

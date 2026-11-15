@@ -1,20 +1,13 @@
 import { expect, test } from '@playwright/test';
 import { ADMIN } from '../support/accounts';
-import { apiLogin, uniqueName } from '../support/api';
+import { apiLogin, createApplication, uniqueName } from '../support/api';
 
 test('a dialog is usable from the keyboard and returns focus when closed', async ({ page }) => {
   const headers = await apiLogin(page.request, ADMIN);
-  const response = await page.request.post('/api/v1/applications', {
-    headers,
-    data: {
-      customer: uniqueName('ТОВ Клавіатура'),
-      phone: '+380671234567',
-      objectAddress: 'м. Київ, вул. Тестова, 3',
-      objectType: 'DOMESTIC',
-    },
+  const app = await createApplication(page.request, headers, {
+    customer: uniqueName('ТОВ Клавіатура'),
+    objectAddress: 'м. Київ, вул. Тестова, 3',
   });
-  expect(response.ok(), await response.text()).toBe(true);
-  const app = (await response.json()) as { id: string; regNumber: string };
 
   await page.goto(`/applications/${app.id}`);
   const annulButton = page.getByRole('button', { name: 'Анулювати' });

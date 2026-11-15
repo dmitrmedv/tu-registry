@@ -1,21 +1,15 @@
 import { expect, test } from '@playwright/test';
 import { ADMIN } from '../support/accounts';
-import { apiLogin, uniqueName } from '../support/api';
+import { apiLogin, createApplication, uniqueName } from '../support/api';
 
 test('edits, annuls and restores an application; the journal records it', async ({ page }) => {
   // Prepared through the API (registration has its own test); the page shares the session.
   const headers = await apiLogin(page.request, ADMIN);
-  const response = await page.request.post('/api/v1/applications', {
-    headers,
-    data: {
-      customer: uniqueName('ТОВ Життєвий цикл'),
-      phone: '+380671234567',
-      objectAddress: 'м. Львів, вул. Тестова, 2',
-      objectType: 'NON_DOMESTIC',
-    },
+  const app = await createApplication(page.request, headers, {
+    customer: uniqueName('ТОВ Життєвий цикл'),
+    objectAddress: 'м. Львів, вул. Тестова, 2',
+    objectType: 'NON_DOMESTIC',
   });
-  expect(response.ok(), await response.text()).toBe(true);
-  const app = (await response.json()) as { id: string; regNumber: string };
 
   await page.goto(`/applications/${app.id}`);
   await expect(page.getByRole('heading', { name: `Заява ${app.regNumber}` })).toBeVisible();
@@ -49,4 +43,33 @@ test('edits, annuls and restores an application; the journal records it', async 
     .filter({ has: page.getByRole('link', { name: `Заява ${app.regNumber}` }) });
   await expect(entries.filter({ hasText: 'Анульовано заяву' })).toHaveCount(1);
   await expect(entries.filter({ hasText: 'Відновлено заяву' })).toHaveCount(1);
+});
+
+test('an administrator deletes an application for good; the journal keeps its number', async ({
+  page,
+}) => {
+  const headers = await apiLogin(page.request, ADMIN);
+  const app = await createApplication(page.request, headers);
+
+  await page.goto(`/applications/${app.id}`);
+  await page.getByRole('button', { name: 'Видалити' }).click();
+  const dialog = page.getByRole('dialog', { name: `Видалити заяву ${app.regNumber}?` });
+  const confirm = dialog.getByRole('button', { name: 'Видалити назавжди' });
+  await expect(confirm).toBeDisabled();
+  await dialog.getByLabel(`Введіть номер ${app.regNumber} для підтвердження`).fill(app.regNumber);
+  await confirm.click();
+
+  await expect(page.getByText(`Заяву ${app.regNumber} видалено`)).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Реєстр заяв' })).toBeVisible();
+  await expect(page.getByRole('link', { name: app.regNumber, exact: true })).toHaveCount(0);
+
+  await page.goto(`/applications/${app.id}`);
+  await expect(page.getByRole('heading', { name: 'Заяву не знайдено' })).toBeVisible();
+
+  await page.goto('/audit?action=APPLICATION_DELETED');
+  await expect(
+    page.getByRole('table', { name: 'Журнал аудиту' }).getByRole('row', {
+      name: new RegExp(`Заява ${app.regNumber}`),
+    }),
+  ).toHaveCount(1);
 });

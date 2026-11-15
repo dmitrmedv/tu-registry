@@ -29,8 +29,12 @@
   }
 }
 
+.wide,
 .annulled {
   grid-column: 1 / -1;
+}
+
+.annulled {
   border-color: var(--color-danger);
   background: var(--color-danger-bg);
 }
@@ -87,4 +91,11 @@
 .oldValue {
   color: var(--color-text-muted);
   text-decoration: line-through;
+}
+
+.comment {
+  margin: 0;
+  // Keep the line breaks people typed.
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
 }

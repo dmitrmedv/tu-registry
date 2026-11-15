@@ -31,7 +31,7 @@ test('an administrator creates a user, who must replace the temporary password',
 
   // Until the password is changed, the rest of the application is closed.
   await expect(page.getByRole('heading', { name: 'Зміна пароля' })).toBeVisible();
-  await expect(page.getByRole('link', { name: 'Реєстр', exact: true })).toHaveCount(0);
+  await expect(page.getByRole('navigation', { name: 'Основна навігація' })).toHaveCount(0);
 
   await page.getByLabel('Поточний пароль').fill(temporaryPassword!);
   await page.getByLabel('Новий пароль', { exact: true }).fill('my-own-password-1');

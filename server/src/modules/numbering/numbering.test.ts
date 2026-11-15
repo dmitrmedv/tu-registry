@@ -16,6 +16,7 @@ const input = {
   phone: '+380671234567',
   objectAddress: 'м. Київ, вул. Прикладна, 1',
   objectType: 'DOMESTIC' as const,
+  objectCategory: 'RESIDENTIAL_HOUSE' as const,
 };
 
 const register = () => createApplication(input, actor, {});

@@ -117,3 +117,69 @@
   min-height: 80px;
   resize: vertical;
 }
+
+.choice {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  min-width: 0;
+
+  legend {
+    margin-bottom: var(--space-1);
+    padding: 0;
+  }
+}
+
+.choiceOptions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.choiceOption {
+  position: relative;
+
+  // The radio stays in the accessibility tree and takes focus; the label is what people see.
+  input {
+    position: absolute;
+    inset: 0;
+    margin: 0;
+    opacity: 0;
+    cursor: pointer;
+  }
+
+  span {
+    display: inline-flex;
+    align-items: center;
+    min-height: 38px;
+    padding: var(--space-2) var(--space-3);
+    background: var(--color-surface);
+    border: 1px solid var(--color-border-strong);
+    border-radius: var(--radius-md);
+    color: var(--color-text);
+    font-size: var(--text-sm);
+    transition:
+      background-color 0.15s ease,
+      border-color 0.15s ease;
+  }
+
+  input:hover + span {
+    border-color: var(--color-primary);
+  }
+
+  input:checked + span {
+    background: var(--color-primary);
+    border-color: var(--color-primary);
+    color: var(--color-on-primary);
+    font-weight: 500;
+  }
+
+  input:focus-visible + span {
+    outline: 2px solid var(--color-primary);
+    outline-offset: 2px;
+  }
+
+  input[aria-invalid='true']:not(:checked) + span {
+    border-color: var(--color-danger);
+  }
+}

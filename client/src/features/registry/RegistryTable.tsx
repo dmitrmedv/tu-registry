@@ -1,7 +1,7 @@
 import type { ApplicationListItemDto, ApplicationSort } from '@tu-registry/shared';
 import { Link, useLocation } from 'react-router';
 import { formatCalendarDate } from '@/shared/lib/format';
-import { OBJECT_TYPE_LABELS } from '@/shared/lib/labels';
+import { formatObjectCategory, OBJECT_TYPE_LABELS } from '@/shared/lib/labels';
 import { Badge, Table } from '@/shared/ui';
 import styles from './registry.module.scss';
 
@@ -47,6 +47,7 @@ export function RegistryTable({ rows, sort, onSort }: Props) {
           <th scope="col">Представник замовника</th>
           <th scope="col">Адреса</th>
           <th scope="col">Тип обʼєкта</th>
+          <th scope="col">Категорія</th>
           <th scope="col">Зареєстрував</th>
         </tr>
       </thead>
@@ -79,6 +80,9 @@ export function RegistryTable({ rows, sort, onSort }: Props) {
             <td className={styles.wrap}>{row.customerRepresentative ?? '—'}</td>
             <td className={styles.wrap}>{row.objectAddress}</td>
             <td className={styles.nowrap}>{OBJECT_TYPE_LABELS[row.objectType]}</td>
+            <td className={styles.wrap}>
+              {formatObjectCategory(row.objectCategory, row.objectCategoryOther)}
+            </td>
             <td className={styles.nowrap}>{row.createdBy.fullName}</td>
           </tr>
         ))}

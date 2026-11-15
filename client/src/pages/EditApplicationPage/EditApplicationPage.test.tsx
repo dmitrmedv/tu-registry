@@ -129,4 +129,34 @@ describe('EditApplicationPage', () => {
     ).toBeInTheDocument();
     expect(screen.getByText(/Анульовану заяву не можна редагувати/)).toBeInTheDocument();
   });
+
+  it('sends the category with its wording, and clears the comment with ""', async () => {
+    const sent = captureUpdates();
+    const { user } = openEdit(owner, [makeApplication({ comment: 'Старий коментар' })]);
+
+    await user.click(await screen.findByRole('radio', { name: 'Інше' }));
+    await user.type(screen.getByLabelText('Уточніть категорію'), 'Котельня');
+    await user.clear(screen.getByLabelText('Коментар (необовʼязково)'));
+    await user.click(screen.getByRole('button', { name: 'Зберегти' }));
+
+    await screen.findByText('Зміни збережено');
+    expect(sent).toEqual([
+      { objectCategory: 'OTHER', objectCategoryOther: 'Котельня', comment: '', version: 3 },
+    ]);
+  });
+
+  it('keeps a migrated "other" without wording editable until the category is touched', async () => {
+    const sent = captureUpdates();
+    const legacy = makeApplication({ objectCategory: 'OTHER', objectCategoryOther: null });
+    const { user } = openEdit(owner, [legacy]);
+
+    const phone = await screen.findByLabelText('Телефон');
+    expect(screen.getByRole('radio', { name: 'Інше' })).toBeChecked();
+    await user.clear(phone);
+    await user.type(phone, '050 111 22 33');
+    await user.click(screen.getByRole('button', { name: 'Зберегти' }));
+
+    await screen.findByText('Зміни збережено');
+    expect(sent).toEqual([{ phone: '+380501112233', version: 3 }]);
+  });
 });

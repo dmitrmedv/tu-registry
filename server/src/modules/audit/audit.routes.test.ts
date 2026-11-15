@@ -41,6 +41,7 @@ describe('audit journal API', () => {
       phone: '+380671234567',
       objectAddress: 'Адреса',
       objectType: 'DOMESTIC',
+      objectCategory: 'RESIDENTIAL_HOUSE',
       registrationMode: 'AUTO',
       createdBy: adminId,
     });

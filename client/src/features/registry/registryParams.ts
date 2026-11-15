@@ -4,7 +4,9 @@ import {
   type ApplicationStatus,
   type ApplicationListQuery,
   type ApplicationSort,
+  OBJECT_CATEGORIES,
   OBJECT_TYPES,
+  type ObjectCategory,
   type ObjectType,
   PAGE_SIZES,
   regNumberSearchField,
@@ -19,8 +21,9 @@ export type RegistryParams = {
   address: string;
   number: string;
   type: ObjectType | '';
+  category: ObjectCategory | '';
   status: ApplicationStatus | '';
-  /** "mine" (default), "all", or a user id. */
+  /** "all" (default), "mine", or a user id. */
   user: string;
   from: string;
   to: string;
@@ -34,13 +37,23 @@ export const DEFAULT_PARAMS: RegistryParams = {
   address: '',
   number: '',
   type: '',
+  category: '',
   status: '',
-  user: 'mine',
+  user: 'all',
   from: '',
   to: '',
 };
 
-const FILTER_KEYS = ['customer', 'address', 'number', 'type', 'status', 'from', 'to'] as const;
+const FILTER_KEYS = [
+  'customer',
+  'address',
+  'number',
+  'type',
+  'category',
+  'status',
+  'from',
+  'to',
+] as const;
 const OBJECT_ID = /^[a-f\d]{24}$/i;
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -51,6 +64,7 @@ export function readParams(search: URLSearchParams): RegistryParams {
   const limit = Number(search.get('limit'));
   const sort = search.get('sort') as ApplicationSort;
   const type = search.get('type') as ObjectType;
+  const category = search.get('category') as ObjectCategory;
   const status = search.get('status') as ApplicationStatus;
   const user = text('user');
   const date = (key: string) => (ISO_DATE.test(text(key)) ? text(key) : '');
@@ -62,8 +76,9 @@ export function readParams(search: URLSearchParams): RegistryParams {
     address: text('address'),
     number: text('number'),
     type: OBJECT_TYPES.includes(type) ? type : '',
+    category: OBJECT_CATEGORIES.includes(category) ? category : '',
     status: APPLICATION_STATUSES.includes(status) ? status : '',
-    user: user === 'all' || OBJECT_ID.test(user) ? user : 'mine',
+    user: user === 'mine' || OBJECT_ID.test(user) ? user : 'all',
     from: date('from'),
     to: date('to'),
   };
@@ -79,7 +94,7 @@ export function writeParams(params: RegistryParams) {
 }
 
 export function countActiveFilters(params: RegistryParams) {
-  return FILTER_KEYS.filter((key) => params[key] !== '').length + (params.user !== 'mine' ? 1 : 0);
+  return FILTER_KEYS.filter((key) => params[key] !== '').length + (params.user !== 'all' ? 1 : 0);
 }
 
 export function isNumberSearchValid(value: string) {
@@ -101,6 +116,7 @@ export function toApiQuery(params: RegistryParams, currentUserId: string): Appli
     address: params.address || undefined,
     number: params.number && isNumberSearchValid(params.number) ? params.number : undefined,
     objectType: params.type || undefined,
+    objectCategory: params.category || undefined,
     status: params.status || undefined,
     createdBy:
       params.user === 'mine' ? currentUserId : params.user === 'all' ? undefined : params.user,

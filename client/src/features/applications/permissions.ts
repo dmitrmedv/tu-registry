@@ -3,7 +3,7 @@ import type { ApplicationDto, UserDto } from '@tu-registry/shared';
 /**
  * What the UI offers to whom. Mirrors the server rules (the server always decides):
  * content — owner or admin; date/number — admin or owner with the "authorized" flag;
- * annul — owner or admin; restore — admin. Annulled applications cannot be edited.
+ * annul — owner or admin; restore and delete — admin. Annulled applications cannot be edited.
  */
 type User = Pick<UserDto, 'id' | 'role' | 'canManageRegistration'>;
 type Application = Pick<ApplicationDto, 'createdBy' | 'status'>;
@@ -22,3 +22,5 @@ export const canAnnul = (app: Application, user: User) =>
   isActive(app) && (isOwner(app, user) || isAdmin(user));
 
 export const canRestore = (app: Application, user: User) => !isActive(app) && isAdmin(user);
+
+export const canDelete = (_app: Application, user: User) => isAdmin(user);

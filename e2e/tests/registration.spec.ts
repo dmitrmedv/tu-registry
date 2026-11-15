@@ -12,6 +12,8 @@ test('registers an application under the next number and finds it in the registr
   await page.getByLabel('Телефон').fill('067 123 45 67');
   await page.getByLabel('Адреса обʼєкта').fill('м. Київ, вул. Тестова, 1');
   await page.getByLabel('Тип обʼєкта').selectOption({ label: 'Побутовий' });
+  await page.getByRole('radio', { name: 'Житловий будинок' }).check();
+  await page.getByLabel('Коментар (необовʼязково)').fill('Подано особисто');
   await page.getByRole('button', { name: 'Зареєструвати заяву' }).click();
 
   const result = page.getByText('Заяву зареєстровано:');
@@ -19,12 +21,13 @@ test('registers an application under the next number and finds it in the registr
   const regNumber = (await result.locator('strong').textContent()) ?? '';
   expect(regNumber).toMatch(/^\d+т\/\d{2}$/);
 
-  await page.getByRole('link', { name: 'Реєстр', exact: true }).click();
+  await page.getByRole('link', { name: 'Реєстр заяв на ТУ' }).click();
   await page.getByRole('searchbox', { name: 'Замовник' }).fill(customer);
 
   const table = page.getByRole('table', { name: 'Реєстр заяв' });
   await expect(table.getByRole('row')).toHaveCount(2); // header + the new application
   await expect(table.getByRole('link', { name: regNumber })).toBeVisible();
+  await expect(table.getByRole('cell', { name: 'Житловий будинок' })).toBeVisible();
 });
 
 test('enters a back-dated application under the number typed by hand', async ({ page }) => {
@@ -33,7 +36,9 @@ test('enters a back-dated application under the number typed by hand', async ({ 
   await page.getByLabel('Замовник', { exact: true }).fill(uniqueName('ТОВ Архів'));
   await page.getByLabel('Телефон').fill('+380 50 111 22 33');
   await page.getByLabel('Адреса обʼєкта').fill('м. Одеса, вул. Архівна, 7');
-  await page.getByLabel('Тип обʼєкта').selectOption({ label: 'Побутовий' });
+  await page.getByLabel('Тип обʼєкта').selectOption({ label: 'Непобутовий' });
+  await page.getByRole('radio', { name: 'Інше' }).check();
+  await page.getByLabel('Уточніть категорію').fill('Котельня');
   await page.getByLabel('Ручне встановлення дати та номера реєстрації').check();
   await page.getByLabel('Дата реєстрації').fill('2024-05-10');
   await page.getByLabel('Порядковий номер').fill('14');

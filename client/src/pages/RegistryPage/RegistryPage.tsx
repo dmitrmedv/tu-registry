@@ -1,6 +1,7 @@
 import { PAGE_SIZES } from '@tu-registry/shared';
 import clsx from 'clsx';
 import { useEffect } from 'react';
+import { useLocation } from 'react-router';
 import { useCurrentUser } from '@/features/auth';
 import {
   RegistryFilters,
@@ -17,8 +18,12 @@ import pageStyles from '../page.module.scss';
 
 const PAGE_SIZE_OPTIONS = PAGE_SIZES.map((size) => ({ value: String(size), label: `по ${size}` }));
 
+/** Navigation state: a one-off message, e.g. after deleting an application. */
+export type RegistryPageState = { notice?: string } | null;
+
 export function RegistryPage() {
   const user = useCurrentUser();
+  const notice = (useLocation().state as RegistryPageState)?.notice;
   const { params, update, reset, activeFilterCount } = useRegistryParams();
   const list = useApplicationList(toApiQuery(params, user.id));
   const users = useUserOptions();
@@ -37,6 +42,8 @@ export function RegistryPage() {
           Нова заява
         </LinkButton>
       </div>
+
+      {notice && <Alert variant="success">{notice}</Alert>}
 
       <RegistryFilters
         params={params}
@@ -57,12 +64,7 @@ export function RegistryPage() {
         </Alert>
       ) : meta!.total === 0 ? (
         <div className={styles.empty}>
-          {activeFilterCount > 0 ? (
-            <>
-              <p>Нічого не знайдено за вказаними умовами.</p>
-              <Button onClick={reset}>Скинути фільтри</Button>
-            </>
-          ) : params.user === 'mine' ? (
+          {params.user === 'mine' && activeFilterCount === 1 ? (
             <>
               <p>Ви ще не зареєстрували жодної заяви.</p>
               <div className={styles.emptyActions}>
@@ -71,6 +73,11 @@ export function RegistryPage() {
                 </LinkButton>
                 <Button onClick={() => update({ user: 'all' })}>Показати всі заяви</Button>
               </div>
+            </>
+          ) : activeFilterCount > 0 ? (
+            <>
+              <p>Нічого не знайдено за вказаними умовами.</p>
+              <Button onClick={reset}>Скинути фільтри</Button>
             </>
           ) : (
             <>

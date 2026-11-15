@@ -16,6 +16,7 @@ const body = {
   email: 'Office@Example.UA',
   objectAddress: 'м. Київ, вул. Прикладна, 1',
   objectType: 'NON_DOMESTIC',
+  objectCategory: 'NON_RESIDENTIAL',
 };
 
 async function employee() {
@@ -44,6 +45,9 @@ describe('applications API', () => {
       phone: '+380671234567',
       email: 'office@example.ua',
       objectType: 'NON_DOMESTIC',
+      objectCategory: 'NON_RESIDENTIAL',
+      objectCategoryOther: null,
+      comment: null,
       registrationMode: 'AUTO',
       createdBy: { id: user.id, fullName: user.fullName },
     });

@@ -152,4 +152,62 @@ describe('ApplicationPage', () => {
 
     expect(await screen.findByRole('heading', { name: 'Заяву не знайдено' })).toBeInTheDocument();
   });
+
+  it('shows the category with its wording and the comment', async () => {
+    openCard(
+      owner,
+      makeApplication({
+        objectCategory: 'OTHER',
+        objectCategoryOther: 'Котельня',
+        comment: 'Перший рядок\nДругий рядок',
+      }),
+    );
+
+    expect(await screen.findByText('Інше: Котельня')).toBeInTheDocument();
+    const comment = screen.getByRole('region', { name: 'Коментар' });
+    expect(comment).toHaveTextContent('Перший рядок Другий рядок');
+  });
+
+  it('offers deleting to administrators only', async () => {
+    openCard(owner);
+    await screen.findByRole('heading', { name: 'Заява 14т/26' });
+    expect(screen.queryByRole('button', { name: 'Видалити' })).not.toBeInTheDocument();
+  });
+
+  it('deletes after the number is typed, then returns to the registry with a notice', async () => {
+    const deleted = vi.fn();
+    const cardRequests = vi.fn();
+    const { user, router } = openCard(admin);
+    server.use(
+      mock.get('*/api/v1/applications/:id', () => {
+        cardRequests();
+        return HttpResponse.json(makeApplication());
+      }),
+      mock.delete('*/api/v1/applications/:id', ({ request, params }) => {
+        deleted(params.id, new URL(request.url).searchParams.get('version'));
+        return new HttpResponse(null, { status: 204 });
+      }),
+      mock.get('*/api/v1/applications', () =>
+        HttpResponse.json({ data: [], meta: { page: 1, limit: 20, total: 0, totalPages: 1 } }),
+      ),
+      mock.get('*/api/v1/users/options', () => HttpResponse.json([])),
+    );
+
+    await user.click(await screen.findByRole('button', { name: 'Видалити' }));
+    const dialog = screen.getByRole('dialog', { name: 'Видалити заяву 14т/26?' });
+    const confirm = within(dialog).getByRole('button', { name: 'Видалити назавжди' });
+    expect(confirm).toBeDisabled();
+
+    await user.type(
+      within(dialog).getByLabelText('Введіть номер 14т/26 для підтвердження'),
+      '14т/26',
+    );
+    await user.click(confirm);
+
+    expect(await screen.findByText('Заяву 14т/26 видалено')).toBeInTheDocument();
+    expect(deleted).toHaveBeenCalledWith('app00000000000000000001', '3');
+    expect(router.state.location.pathname).toBe('/');
+    // The deleted record is not requested again (no "not found" flash before navigating).
+    expect(cardRequests).toHaveBeenCalledTimes(1);
+  });
 });

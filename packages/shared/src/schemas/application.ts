@@ -2,7 +2,9 @@ import { z } from 'zod';
 import {
   type ApplicationChangeAction,
   type ApplicationStatus,
+  OBJECT_CATEGORIES,
   OBJECT_TYPES,
+  type ObjectCategory,
   type ObjectType,
   type RegistrationMode,
 } from '../enums';
@@ -50,16 +52,35 @@ export const emailField = z
   .transform((value) => (value === '' ? undefined : value))
   .optional();
 
-export const createApplicationSchema = z
-  .object({
-    customer: requiredText('Замовник', 300),
-    customerRepresentative: optionalText('Представник замовника', 300),
-    phone: phoneField,
-    email: emailField,
-    objectAddress: requiredText('Адреса обʼєкта', 500),
-    objectType: z.enum(OBJECT_TYPES, { error: 'Оберіть тип обʼєкта' }),
-  })
-  .strict();
+export const OBJECT_CATEGORY_OTHER_MAX = 200;
+export const COMMENT_MAX = 2000;
+
+const objectCategoryField = z.enum(OBJECT_CATEGORIES, { error: 'Оберіть категорію обʼєкта' });
+const otherRequired = 'Уточніть категорію обʼєкта';
+
+const applicationFields = z.object({
+  customer: requiredText('Замовник', 300),
+  customerRepresentative: optionalText('Представник замовника', 300),
+  phone: phoneField,
+  email: emailField,
+  objectAddress: requiredText('Адреса обʼєкта', 500),
+  objectType: z.enum(OBJECT_TYPES, { error: 'Оберіть тип обʼєкта' }),
+  objectCategory: objectCategoryField,
+  // Used only with OTHER; the server drops it for any other category.
+  objectCategoryOther: optionalText('Категорія', OBJECT_CATEGORY_OTHER_MAX),
+  comment: optionalText('Коментар', COMMENT_MAX),
+});
+
+type CategoryInput = { objectCategory?: ObjectCategory; objectCategoryOther?: string | null };
+
+/** "Інше" is only meaningful with the user's own wording. */
+const requireOtherWording = (data: CategoryInput, ctx: z.RefinementCtx) => {
+  if (data.objectCategory === 'OTHER' && !data.objectCategoryOther) {
+    ctx.addIssue({ code: 'custom', path: ['objectCategoryOther'], message: otherRequired });
+  }
+};
+
+export const createApplicationSchema = applicationFields.strict().superRefine(requireOtherWording);
 
 export type CreateApplicationInput = z.input<typeof createApplicationSchema>;
 export type CreateApplicationData = z.output<typeof createApplicationSchema>;
@@ -94,9 +115,14 @@ export const regDateField = z.iso.date('Вкажіть коректну дату
 /**
  * Manual (back-dated) registration. `today` is the Kyiv calendar date "YYYY-MM-DD":
  * the server passes its own (authoritative), the browser its own for instant hints.
+ * `allowOtherWithoutWording`: the edit form of a record migrated to OTHER without wording,
+ * which stays editable until someone touches its category (the server applies the same rule).
  */
-export function manualApplicationSchema(today: string) {
-  return createApplicationSchema
+export function manualApplicationSchema(
+  today: string,
+  { allowOtherWithoutWording = false }: { allowOtherWithoutWording?: boolean } = {},
+) {
+  return applicationFields
     .extend({
       regDate: regDateField.refine(
         (date) => date <= today,
@@ -104,7 +130,10 @@ export function manualApplicationSchema(today: string) {
       ),
       regSeq: regSeqField,
     })
-    .strict();
+    .strict()
+    .superRefine((data, ctx) => {
+      if (!allowOtherWithoutWording) requireOtherWording(data, ctx);
+    });
 }
 
 export type ManualApplicationInput = z.input<ReturnType<typeof manualApplicationSchema>>;
@@ -139,6 +168,10 @@ export type ApplicationDto = {
   email: string | null;
   objectAddress: string;
   objectType: ObjectType;
+  objectCategory: ObjectCategory;
+  /** The user's wording for OTHER; null for any other category (and for migrated records). */
+  objectCategoryOther: string | null;
+  comment: string | null;
   registrationMode: RegistrationMode;
   status: ApplicationStatus;
   createdBy: { id: string; fullName: string };
@@ -179,12 +212,17 @@ const clearableEmail = z
 export function updateApplicationSchema(today: string) {
   return z
     .object({
-      customer: createApplicationSchema.shape.customer.optional(),
+      customer: applicationFields.shape.customer.optional(),
       customerRepresentative: clearableText('Представник замовника', 300).optional(),
       phone: phoneField.optional(),
       email: clearableEmail.optional(),
-      objectAddress: createApplicationSchema.shape.objectAddress.optional(),
-      objectType: createApplicationSchema.shape.objectType.optional(),
+      objectAddress: applicationFields.shape.objectAddress.optional(),
+      objectType: applicationFields.shape.objectType.optional(),
+      // Whether OTHER has its wording is checked by the server against the stored value
+      // when only one of the two is sent.
+      objectCategory: objectCategoryField.optional(),
+      objectCategoryOther: clearableText('Категорія', OBJECT_CATEGORY_OTHER_MAX).optional(),
+      comment: clearableText('Коментар', COMMENT_MAX).optional(),
       regDate: regDateField
         .refine((date) => date <= today, 'Дата реєстрації не може бути пізнішою за сьогодні')
         .optional(),
@@ -195,7 +233,10 @@ export function updateApplicationSchema(today: string) {
     .refine(
       (data) => Object.keys(data).some((key) => key !== 'version'),
       'Немає змін для збереження',
-    );
+    )
+    .superRefine((data, ctx) => {
+      if (data.objectCategoryOther !== undefined) requireOtherWording(data, ctx);
+    });
 }
 
 export type UpdateApplicationInput = z.input<ReturnType<typeof updateApplicationSchema>>;
@@ -215,6 +256,13 @@ export const annulApplicationSchema = z
   .strict();
 
 export const restoreApplicationSchema = z.object({ version: versionField }).strict();
+
+/** Deletion is irreversible; the version guards against deleting what someone just changed. */
+export const deleteApplicationQuerySchema = z.object({
+  version: z.coerce.number('Відсутня версія заяви').int().min(1),
+});
+
+export const OBJECT_CATEGORY_OTHER_REQUIRED = otherRequired;
 
 export type AnnulApplicationInput = z.infer<typeof annulApplicationSchema>;
 

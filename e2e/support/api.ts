@@ -29,3 +29,29 @@ export async function signIn(page: Page, credentials: Credentials, path = '/') {
 export function uniqueName(prefix: string) {
   return `${prefix} ${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
 }
+
+type Headers = Awaited<ReturnType<typeof apiLogin>>;
+
+/**
+ * Registers an application through the API, for tests about what happens after registration
+ * (registration itself is tested through the form). Call before the page loads the app.
+ */
+export async function createApplication(
+  request: APIRequestContext,
+  headers: Headers,
+  overrides: Record<string, unknown> = {},
+) {
+  const response = await request.post('/api/v1/applications', {
+    headers,
+    data: {
+      customer: uniqueName('ТОВ E2E'),
+      phone: '+380671234567',
+      objectAddress: 'м. Київ, вул. Тестова, 1',
+      objectType: 'DOMESTIC',
+      objectCategory: 'RESIDENTIAL_HOUSE',
+      ...overrides,
+    },
+  });
+  expect(response.ok(), await response.text()).toBe(true);
+  return (await response.json()) as { id: string; regNumber: string };
+}

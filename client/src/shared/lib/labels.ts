@@ -3,6 +3,7 @@ import {
   type ApplicationStatus,
   type AuditAction,
   formatPhone,
+  type ObjectCategory,
   type ObjectType,
   type Role,
 } from '@tu-registry/shared';
@@ -17,6 +18,20 @@ export const OBJECT_TYPE_LABELS: Record<ObjectType, string> = {
   DOMESTIC: 'Побутовий',
   NON_DOMESTIC: 'Непобутовий',
 };
+
+export const OBJECT_CATEGORY_LABELS: Record<ObjectCategory, string> = {
+  LAND_PLOT: 'Земельна ділянка',
+  RESIDENTIAL_HOUSE: 'Житловий будинок',
+  APARTMENT: 'Квартира',
+  NON_RESIDENTIAL: 'Нежитлове приміщення',
+  BIOGAS_PRODUCER: 'Виробник біогазу',
+  OTHER: 'Інше',
+};
+
+/** "Інше: котельня" for OTHER with wording, otherwise the category's name. */
+export function formatObjectCategory(category: ObjectCategory, other: string | null) {
+  return category === 'OTHER' && other ? `Інше: ${other}` : OBJECT_CATEGORY_LABELS[category];
+}
 
 export const STATUS_LABELS: Record<ApplicationStatus, string> = {
   ACTIVE: 'Активна',
@@ -46,6 +61,7 @@ export const AUDIT_ACTION_LABELS: Record<AuditAction, string> = {
   REG_DATE_CHANGED: 'Змінено дату реєстрації',
   APPLICATION_ANNULLED: 'Анульовано заяву',
   APPLICATION_RESTORED: 'Відновлено заяву',
+  APPLICATION_DELETED: 'Видалено заяву',
   ACCESS_DENIED: 'Відмовлено в доступі',
 };
 
@@ -57,6 +73,9 @@ export const APPLICATION_FIELD_LABELS: Record<string, string> = {
   email: 'Email',
   objectAddress: 'Адреса обʼєкта',
   objectType: 'Тип обʼєкта',
+  objectCategory: 'Категорія обʼєкта',
+  objectCategoryOther: 'Категорія (уточнення)',
+  comment: 'Коментар',
   regDate: 'Дата реєстрації',
   regNumber: 'Номер реєстрації',
   status: 'Статус',
@@ -74,6 +93,8 @@ export function formatFieldValue(field: string, value: unknown): string {
       return formatCalendarDate(text);
     case 'objectType':
       return OBJECT_TYPE_LABELS[text as ObjectType] ?? text;
+    case 'objectCategory':
+      return OBJECT_CATEGORY_LABELS[text as ObjectCategory] ?? text;
     case 'status':
       return STATUS_LABELS[text as ApplicationStatus] ?? text;
     default:

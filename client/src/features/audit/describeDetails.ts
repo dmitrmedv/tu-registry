@@ -33,6 +33,8 @@ export function describeDetails(entry: AuditLogDto): string {
       const changes = Array.isArray(d.changes) ? (d.changes as { field: string }[]) : [];
       return changes.map((c) => USER_FIELD_LABELS[c.field] ?? c.field).join(', ');
     }
+    case 'APPLICATION_DELETED':
+      return d.regDate ? `заява від ${formatCalendarDate(text(d.regDate))}` : '';
     case 'ACCESS_DENIED':
       return `${text(d.method)} ${text(d.path)}`.trim();
     case 'USER_CREATED':

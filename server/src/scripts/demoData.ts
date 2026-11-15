@@ -8,6 +8,7 @@
  * customer prefix, inserts rows directly (no audit, no history, no counter change), so the
  * real automatic numbering is never affected and removal touches demo rows only.
  */
+import { OBJECT_CATEGORIES } from '@tu-registry/shared';
 import mongoose from 'mongoose';
 import { connectDb, disconnectDb } from '../config/db';
 import { env } from '../config/env';
@@ -49,6 +50,10 @@ async function add() {
       phone: `+38067${String(1000000 + i).padStart(7, '0')}`,
       objectAddress: `м. Київ, ${STREETS[i % STREETS.length]}, ${i + 1}`,
       objectType: i % 4 === 0 ? 'NON_DOMESTIC' : 'DOMESTIC',
+      objectCategory: OBJECT_CATEGORIES[i % OBJECT_CATEGORIES.length],
+      objectCategoryOther:
+        OBJECT_CATEGORIES[i % OBJECT_CATEGORIES.length] === 'OTHER' ? 'Котельня' : undefined,
+      comment: i % 5 === 0 ? 'Демонстраційний коментар' : undefined,
       registrationMode: 'MANUAL',
       createdBy: users[i % users.length]!._id,
     };

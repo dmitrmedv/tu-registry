@@ -29,4 +29,7 @@ export const applicationsApi = {
     http.post<ApplicationDto>(`/applications/${id}/annul`, data).then((r) => r.data),
   restore: (id: string, version: number) =>
     http.post<ApplicationDto>(`/applications/${id}/restore`, { version }).then((r) => r.data),
+  remove: async (id: string, version: number) => {
+    await http.delete(`/applications/${id}`, { params: { version } });
+  },
 };

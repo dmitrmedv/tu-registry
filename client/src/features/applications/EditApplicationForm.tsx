@@ -7,23 +7,17 @@ import {
   type ManualApplicationData,
   type ManualApplicationInput,
   manualApplicationSchema,
-  OBJECT_TYPES,
   type UpdateApplicationInput,
 } from '@tu-registry/shared';
 import { useState } from 'react';
-import { type FieldPath, useForm } from 'react-hook-form';
+import { type FieldPath, FormProvider, useForm } from 'react-hook-form';
 import { toApiError } from '@/shared/api/apiError';
 import { formatCalendarDate } from '@/shared/lib/format';
-import { OBJECT_TYPE_LABELS } from '@/shared/lib/labels';
-import { Alert, Button, ConfirmDialog, LinkButton, SelectField, TextField } from '@/shared/ui';
+import { Alert, Button, ConfirmDialog, LinkButton, TextField } from '@/shared/ui';
+import { ApplicationContentFields } from './ApplicationContentFields';
 import styles from './ApplicationForm.module.scss';
 import { ManualNumberStatus } from './ManualNumberStatus';
 import { useUpdateApplication } from './queries';
-
-const OBJECT_TYPE_OPTIONS = OBJECT_TYPES.map((type) => ({
-  value: type,
-  label: OBJECT_TYPE_LABELS[type],
-}));
 
 type ServerErrorDetails = { fieldErrors?: Record<string, string[] | undefined> };
 
@@ -35,6 +29,9 @@ function formValues(app: ApplicationDto): ManualApplicationInput {
     email: app.email ?? '',
     objectAddress: app.objectAddress,
     objectType: app.objectType,
+    objectCategory: app.objectCategory,
+    objectCategoryOther: app.objectCategoryOther ?? '',
+    comment: app.comment ?? '',
     regDate: app.regDate,
     regSeq: String(app.regSeq),
   };
@@ -55,6 +52,15 @@ function changedFields(
   if ((values.email ?? null) !== app.email) changes.email = values.email ?? '';
   if (values.objectAddress !== app.objectAddress) changes.objectAddress = values.objectAddress;
   if (values.objectType !== app.objectType) changes.objectType = values.objectType;
+  if (values.objectCategory !== app.objectCategory) changes.objectCategory = values.objectCategory;
+  // The wording matters only for OTHER; for any other category the server clears it.
+  if (
+    values.objectCategory === 'OTHER' &&
+    (values.objectCategoryOther ?? null) !== app.objectCategoryOther
+  ) {
+    changes.objectCategoryOther = values.objectCategoryOther ?? '';
+  }
+  if ((values.comment ?? null) !== app.comment) changes.comment = values.comment ?? '';
   if (withRegistration) {
     if (values.regDate !== app.regDate) changes.regDate = values.regDate;
     if (values.regSeq !== app.regSeq) changes.regSeq = values.regSeq;
@@ -84,16 +90,22 @@ export function EditApplicationForm({
   const [pending, setPending] = useState<UpdateApplicationInput | null>(null);
   const [nothingChanged, setNothingChanged] = useState(false);
 
+  const form = useForm<ManualApplicationInput, unknown, ManualApplicationData>({
+    resolver: zodResolver(
+      manualApplicationSchema(today, {
+        // Migrated to OTHER without wording: editable as is until the category is touched.
+        allowOtherWithoutWording: app.objectCategory === 'OTHER' && !app.objectCategoryOther,
+      }),
+    ),
+    defaultValues: formValues(app),
+  });
   const {
     register,
     handleSubmit,
     setError,
     watch,
     formState: { errors, isSubmitting, isDirty },
-  } = useForm<ManualApplicationInput, unknown, ManualApplicationData>({
-    resolver: zodResolver(manualApplicationSchema(today)),
-    defaultValues: formValues(app),
-  });
+  } = form;
 
   const save = async (changes: UpdateApplicationInput) => {
     try {
@@ -133,133 +145,93 @@ export function EditApplicationForm({
     : null;
 
   return (
-    <form className={styles.form} onSubmit={onSubmit} noValidate>
-      {conflict && (
-        <Alert variant="warning">
-          <div className={styles.draftNotice}>
-            <span>
-              Заяву щойно змінив інший користувач. Завантажте актуальні дані — ваші незбережені
-              правки буде втрачено.
-            </span>
-            <Button size="sm" onClick={onReload}>
-              Завантажити актуальні дані
-            </Button>
-          </div>
-        </Alert>
-      )}
-      {errors.root?.message && <Alert variant="error">{errors.root.message}</Alert>}
-      {nothingChanged && <Alert variant="info">Змін немає — зберігати нічого.</Alert>}
-
-      <fieldset className={styles.section}>
-        <legend>Замовник</legend>
-        <div className={styles.grid}>
-          <TextField label="Замовник" error={errors.customer?.message} {...register('customer')} />
-          <TextField
-            label="Представник замовника (необовʼязково)"
-            error={errors.customerRepresentative?.message}
-            {...register('customerRepresentative')}
-          />
-          <TextField
-            label="Телефон"
-            type="tel"
-            autoComplete="off"
-            error={errors.phone?.message}
-            {...register('phone')}
-          />
-          <TextField
-            label="Email (необовʼязково)"
-            type="email"
-            autoComplete="off"
-            error={errors.email?.message}
-            {...register('email')}
-          />
-        </div>
-      </fieldset>
-
-      <fieldset className={styles.section}>
-        <legend>Обʼєкт</legend>
-        <div className={styles.grid}>
-          <TextField
-            className={styles.wide}
-            label="Адреса обʼєкта"
-            error={errors.objectAddress?.message}
-            {...register('objectAddress')}
-          />
-          <SelectField
-            label="Тип обʼєкта"
-            options={OBJECT_TYPE_OPTIONS}
-            error={errors.objectType?.message}
-            {...register('objectType')}
-          />
-        </div>
-      </fieldset>
-
-      <fieldset className={styles.section}>
-        <legend>Реєстрація</legend>
-        {canEditRegistration ? (
-          <>
-            <div className={styles.grid}>
-              <TextField
-                label="Дата реєстрації"
-                type="date"
-                max={today}
-                error={errors.regDate?.message}
-                {...register('regDate')}
-              />
-              <TextField
-                label="Порядковий номер"
-                inputMode="numeric"
-                autoComplete="off"
-                hint="Лише цифри; «т» і рік додаються автоматично"
-                error={errors.regSeq?.message}
-                {...register('regSeq')}
-              />
+    <FormProvider {...form}>
+      <form className={styles.form} onSubmit={onSubmit} noValidate>
+        {conflict && (
+          <Alert variant="warning">
+            <div className={styles.draftNotice}>
+              <span>
+                Заяву щойно змінив інший користувач. Завантажте актуальні дані — ваші незбережені
+                правки буде втрачено.
+              </span>
+              <Button size="sm" onClick={onReload}>
+                Завантажити актуальні дані
+              </Button>
             </div>
-            <ManualNumberStatus
-              regDate={watch('regDate')}
-              regSeq={String(watch('regSeq') ?? '')}
-              next={undefined}
-              excludeId={app.id}
-            />
-          </>
-        ) : (
-          <p className={styles.muted}>
-            {app.regNumber} від {formatCalendarDate(app.regDate)}. Змінювати дату й номер можуть
-            лише уповноважені користувачі у власних заявах та адміністратори.
-          </p>
+          </Alert>
         )}
-      </fieldset>
+        {errors.root?.message && <Alert variant="error">{errors.root.message}</Alert>}
+        {nothingChanged && <Alert variant="info">Змін немає — зберігати нічого.</Alert>}
 
-      <div className={styles.actions}>
-        <LinkButton to={cancelTo}>Скасувати</LinkButton>
-        <Button
-          type="submit"
-          variant="primary"
-          loading={isSubmitting}
-          disabled={!isDirty || conflict}
-        >
-          Зберегти
-        </Button>
-      </div>
+        <ApplicationContentFields />
 
-      {pending && (
-        <ConfirmDialog
-          open
-          title="Змінити реєстраційні дані?"
-          confirmLabel="Змінити"
-          loading={update.isPending}
-          onCancel={() => setPending(null)}
-          onConfirm={() => save(pending)}
-        >
-          <p>
-            Номер: <strong>{app.regNumber}</strong> → <strong>{newNumber}</strong>
-            <br />
-            Дата реєстрації: {formatCalendarDate(app.regDate)} →{' '}
-            {formatCalendarDate(String(newDate))}
-          </p>
-          <p>Зміну буде записано в історію заяви та журнал аудиту.</p>
-        </ConfirmDialog>
-      )}
-    </form>
+        <fieldset className={styles.section}>
+          <legend>Реєстрація</legend>
+          {canEditRegistration ? (
+            <>
+              <div className={styles.grid}>
+                <TextField
+                  label="Дата реєстрації"
+                  type="date"
+                  max={today}
+                  error={errors.regDate?.message}
+                  {...register('regDate')}
+                />
+                <TextField
+                  label="Порядковий номер"
+                  inputMode="numeric"
+                  autoComplete="off"
+                  hint="Лише цифри; «т» і рік додаються автоматично"
+                  error={errors.regSeq?.message}
+                  {...register('regSeq')}
+                />
+              </div>
+              <ManualNumberStatus
+                regDate={watch('regDate')}
+                regSeq={String(watch('regSeq') ?? '')}
+                next={undefined}
+                excludeId={app.id}
+              />
+            </>
+          ) : (
+            <p className={styles.muted}>
+              {app.regNumber} від {formatCalendarDate(app.regDate)}. Змінювати дату й номер можуть
+              лише уповноважені користувачі у власних заявах та адміністратори.
+            </p>
+          )}
+        </fieldset>
+
+        <div className={styles.actions}>
+          <LinkButton to={cancelTo}>Скасувати</LinkButton>
+          <Button
+            type="submit"
+            variant="primary"
+            loading={isSubmitting}
+            disabled={!isDirty || conflict}
+          >
+            Зберегти
+          </Button>
+        </div>
+
+        {pending && (
+          <ConfirmDialog
+            open
+            title="Змінити реєстраційні дані?"
+            confirmLabel="Змінити"
+            loading={update.isPending}
+            onCancel={() => setPending(null)}
+            onConfirm={() => save(pending)}
+          >
+            <p>
+              Номер: <strong>{app.regNumber}</strong> → <strong>{newNumber}</strong>
+              <br />
+              Дата реєстрації: {formatCalendarDate(app.regDate)} →{' '}
+              {formatCalendarDate(String(newDate))}
+            </p>
+            <p>Зміну буде записано в історію заяви та журнал аудиту.</p>
+          </ConfirmDialog>
+        )}
+      </form>
+    </FormProvider>
   );
 }

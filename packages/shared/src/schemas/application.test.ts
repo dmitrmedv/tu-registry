@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { createApplicationSchema, manualApplicationSchema } from './application';
+import {
+  createApplicationSchema,
+  deleteApplicationQuerySchema,
+  manualApplicationSchema,
+  updateApplicationSchema,
+} from './application';
 
 const valid = {
   customer: ' ТОВ «Приклад» ',
@@ -8,6 +13,7 @@ const valid = {
   email: ' Info@Example.UA ',
   objectAddress: 'м. Київ, вул. Прикладна, 1',
   objectType: 'DOMESTIC',
+  objectCategory: 'RESIDENTIAL_HOUSE',
 };
 
 describe('createApplicationSchema', () => {
@@ -35,10 +41,13 @@ describe('createApplicationSchema', () => {
     expect(createApplicationSchema.safeParse(withoutRepresentative).success).toBe(true);
   });
 
-  it.each(['customer', 'phone', 'objectAddress', 'objectType'])('requires %s', (field) => {
-    const result = createApplicationSchema.safeParse({ ...valid, [field]: '' });
-    expect(result.success).toBe(false);
-  });
+  it.each(['customer', 'phone', 'objectAddress', 'objectType', 'objectCategory'])(
+    'requires %s',
+    (field) => {
+      const result = createApplicationSchema.safeParse({ ...valid, [field]: '' });
+      expect(result.success).toBe(false);
+    },
+  );
 
   it('rejects invalid email and phone', () => {
     expect(createApplicationSchema.safeParse({ ...valid, email: 'not-an-email' }).success).toBe(
@@ -95,5 +104,68 @@ describe('manualApplicationSchema', () => {
   ])('explains what is wrong with regSeq = %j', (value, message) => {
     const result = schema.safeParse({ ...manual, regSeq: value });
     expect(result.error?.issues.map((i) => i.message)).toEqual([message]);
+  });
+});
+
+describe('object category and comment', () => {
+  const fieldError = (result: {
+    success: boolean;
+    error?: { issues: { path: PropertyKey[] }[] };
+  }) => result.error?.issues.map((issue) => issue.path.join('.'));
+
+  it('requires wording for "other", in registration and manual entry alike', () => {
+    const other = { ...valid, objectCategory: 'OTHER' };
+    expect(fieldError(createApplicationSchema.safeParse(other))).toEqual(['objectCategoryOther']);
+    const manual = manualApplicationSchema('2026-03-12').safeParse({
+      ...other,
+      objectCategoryOther: ' ',
+      regDate: '2024-05-20',
+      regSeq: '14',
+    });
+    expect(fieldError(manual)).toEqual(['objectCategoryOther']);
+    const legacyEdit = manualApplicationSchema('2026-03-12', {
+      allowOtherWithoutWording: true,
+    }).safeParse({ ...other, regDate: '2024-05-20', regSeq: '14' });
+    expect(legacyEdit.success).toBe(true);
+    expect(
+      createApplicationSchema.parse({ ...other, objectCategoryOther: ' Котельня ' })
+        .objectCategoryOther,
+    ).toBe('Котельня');
+  });
+
+  it('rejects an unknown category', () => {
+    expect(createApplicationSchema.safeParse({ ...valid, objectCategory: 'CASTLE' }).success).toBe(
+      false,
+    );
+  });
+
+  it('keeps the comment optional and limited to 2000 characters', () => {
+    expect(createApplicationSchema.parse({ ...valid, comment: '  ' }).comment).toBeUndefined();
+    expect(createApplicationSchema.safeParse({ ...valid, comment: 'а'.repeat(2000) }).success).toBe(
+      true,
+    );
+    expect(createApplicationSchema.safeParse({ ...valid, comment: 'а'.repeat(2001) }).success).toBe(
+      false,
+    );
+  });
+
+  it('in an update, "" clears the comment and cannot leave "other" without wording', () => {
+    const schema = updateApplicationSchema('2026-03-12');
+    expect(schema.parse({ comment: '', version: 2 }).comment).toBeNull();
+    expect(
+      fieldError(
+        schema.safeParse({ objectCategory: 'OTHER', objectCategoryOther: '', version: 2 }),
+      ),
+    ).toEqual(['objectCategoryOther']);
+    // Only the category: the server checks it against the stored wording.
+    expect(schema.safeParse({ objectCategory: 'OTHER', version: 2 }).success).toBe(true);
+  });
+});
+
+describe('deleteApplicationQuerySchema', () => {
+  it('reads the version from the query string and requires it', () => {
+    expect(deleteApplicationQuerySchema.parse({ version: '3' })).toEqual({ version: 3 });
+    expect(deleteApplicationQuerySchema.safeParse({}).success).toBe(false);
+    expect(deleteApplicationQuerySchema.safeParse({ version: '0' }).success).toBe(false);
   });
 });

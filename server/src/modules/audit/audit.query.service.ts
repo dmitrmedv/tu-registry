@@ -11,6 +11,12 @@ import { findUserSummaries } from '../users/user.service';
 import { AuditLog } from './auditLog.model';
 
 /** The audit journal, newest first. Read-only: there is no API to change or delete entries. */
+/** A string value from an entry's details, if present. */
+function detailString(details: unknown, key: string) {
+  const value = (details as Record<string, unknown> | null | undefined)?.[key];
+  return typeof value === 'string' ? value : null;
+}
+
 export async function listAuditLogs(query: AuditListQueryData): Promise<Paginated<AuditLogDto>> {
   const filter: Record<string, unknown> = {};
   if (query.action) filter.action = query.action;
@@ -67,7 +73,8 @@ export async function listAuditLogs(query: AuditListQueryData): Promise<Paginate
         entityLabel: !entityId
           ? null
           : entityType === 'Application'
-            ? (regNumbers.get(entityId) ?? null)
+            ? // A deleted application is gone; its entries still carry the number in details.
+              (regNumbers.get(entityId) ?? detailString(row.details, 'regNumber'))
             : (users.get(entityId)?.login ?? null),
         details: (row.details as Record<string, unknown> | undefined) ?? null,
         ip: row.ip ?? null,

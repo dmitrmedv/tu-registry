@@ -7,6 +7,17 @@ export type Role = (typeof ROLES)[number];
 export const OBJECT_TYPES = ['DOMESTIC', 'NON_DOMESTIC'] as const;
 export type ObjectType = (typeof OBJECT_TYPES)[number];
 
+/** What is being connected. `OTHER` comes with the user's own wording (objectCategoryOther). */
+export const OBJECT_CATEGORIES = [
+  'LAND_PLOT',
+  'RESIDENTIAL_HOUSE',
+  'APARTMENT',
+  'NON_RESIDENTIAL',
+  'BIOGAS_PRODUCER',
+  'OTHER',
+] as const;
+export type ObjectCategory = (typeof OBJECT_CATEGORIES)[number];
+
 export const REGISTRATION_MODES = ['AUTO', 'MANUAL'] as const;
 export type RegistrationMode = (typeof REGISTRATION_MODES)[number];
 
@@ -32,6 +43,7 @@ export const AUDIT_ACTIONS = [
   'REG_DATE_CHANGED',
   'APPLICATION_ANNULLED',
   'APPLICATION_RESTORED',
+  'APPLICATION_DELETED',
   'ACCESS_DENIED',
 ] as const;
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];

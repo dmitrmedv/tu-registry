@@ -2,6 +2,7 @@ import {
   annulApplicationSchema,
   applicationListQuerySchema,
   createApplicationSchema,
+  deleteApplicationQuerySchema,
   manualApplicationSchema,
   manualNumberCheckSchema,
   restoreApplicationSchema,
@@ -11,6 +12,7 @@ import type { RequestHandler } from 'express';
 import { kyivToday } from '../../utils/kyivDate';
 import { idParamsSchema, parseRequest } from '../../utils/parseRequest';
 import { requestContext } from '../audit/audit.service';
+import { deleteApplication } from './application.delete.service';
 import * as editService from './application.edit.service';
 import * as applicationService from './application.service';
 
@@ -80,6 +82,15 @@ export const restore: RequestHandler = async (req, res) => {
   res.json(
     await editService.restoreApplication(params.id, body.version, req.user!, requestContext(req)),
   );
+};
+
+export const remove: RequestHandler = async (req, res) => {
+  const { params, query } = parseRequest(req, {
+    params: idParamsSchema,
+    query: deleteApplicationQuerySchema,
+  });
+  await deleteApplication(params.id, query.version, req.user!.id, requestContext(req));
+  res.status(204).end();
 };
 
 export const history: RequestHandler = async (req, res) => {

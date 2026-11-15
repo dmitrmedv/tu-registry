@@ -45,8 +45,20 @@ async function insertRegistration(
   actor: Actor,
   context: RequestContext,
 ) {
+  const { objectCategoryOther, ...rest } = fields;
   const [created] = await Application.create(
-    [{ ...fields, regYear, regSeq, regDate, registrationMode: mode, createdBy: actor.id }],
+    [
+      {
+        ...rest,
+        // The wording belongs to OTHER only; a leftover from a switched category is dropped.
+        ...(fields.objectCategory === 'OTHER' && { objectCategoryOther }),
+        regYear,
+        regSeq,
+        regDate,
+        registrationMode: mode,
+        createdBy: actor.id,
+      },
+    ],
     { session },
   );
   await ApplicationChange.create(
@@ -170,6 +182,8 @@ type ListedApplication = {
   customerRepresentative?: string;
   objectAddress: string;
   objectType: ApplicationListItemDto['objectType'];
+  objectCategory: ApplicationListItemDto['objectCategory'];
+  objectCategoryOther?: string;
   registrationMode: ApplicationListItemDto['registrationMode'];
   status: ApplicationListItemDto['status'];
   createdBy: { _id: mongoose.Types.ObjectId; fullName: string } | null;
@@ -186,7 +200,7 @@ export async function listApplications(
       .skip((query.page - 1) * query.limit)
       .limit(query.limit)
       .select(
-        'regYear regSeq regDate customer customerRepresentative objectAddress objectType registrationMode status createdBy',
+        'regYear regSeq regDate customer customerRepresentative objectAddress objectType objectCategory objectCategoryOther registrationMode status createdBy',
       )
       .populate('createdBy', 'fullName')
       .lean<ListedApplication[]>(),
@@ -204,6 +218,8 @@ export async function listApplications(
       customerRepresentative: row.customerRepresentative ?? null,
       objectAddress: row.objectAddress,
       objectType: row.objectType,
+      objectCategory: row.objectCategory,
+      objectCategoryOther: row.objectCategoryOther ?? null,
       registrationMode: row.registrationMode,
       status: row.status,
       createdBy: row.createdBy

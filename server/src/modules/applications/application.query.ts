@@ -22,6 +22,7 @@ export function buildListFilter(query: ApplicationListQueryData) {
     if ('year' in query.number) filter.regYear = query.number.year;
   }
   if (query.objectType) filter.objectType = query.objectType;
+  if (query.objectCategory) filter.objectCategory = query.objectCategory;
   if (query.status) filter.status = query.status;
   if (query.createdBy) filter.createdBy = query.createdBy;
   if (query.dateFrom || query.dateTo) {

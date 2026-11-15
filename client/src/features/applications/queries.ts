@@ -57,3 +57,14 @@ export const useAnnulApplication = (id: string) =>
   useApplicationsMutation((data: AnnulApplicationInput) => applicationsApi.annul(id, data));
 export const useRestoreApplication = (id: string) =>
   useApplicationsMutation((version: number) => applicationsApi.restore(id, version));
+
+export function useDeleteApplication(id: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (version: number) => applicationsApi.remove(id, version),
+    // Marked stale without refetching: the open card would otherwise reload a deleted record
+    // and flash "not found" before the page navigates away. Lists refetch when shown again.
+    onSuccess: () =>
+      queryClient.invalidateQueries({ queryKey: applicationKeys.all, refetchType: 'none' }),
+  });
+}

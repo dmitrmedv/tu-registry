@@ -19,6 +19,7 @@ const fields = {
   phone: '0441234567',
   objectAddress: 'м. Київ, вул. Архівна, 5',
   objectType: 'DOMESTIC',
+  objectCategory: 'APARTMENT',
 };
 const backdated = { ...fields, regDate: '2025-06-10', regSeq: '15' };
 

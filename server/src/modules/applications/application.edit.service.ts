@@ -2,6 +2,7 @@ import {
   type AnnulApplicationInput,
   type ApplicationChangeDto,
   formatRegNumber,
+  OBJECT_CATEGORY_OTHER_REQUIRED,
   type UpdateApplicationData,
 } from '@tu-registry/shared';
 import type { AuthUser } from '../../types/express';
@@ -25,17 +26,20 @@ const CONTENT_FIELDS = [
   'email',
   'objectAddress',
   'objectType',
+  'objectCategory',
+  'objectCategoryOther',
+  'comment',
 ] as const;
 
 const notFound = () => ApiError.notFound('Заяву не знайдено');
-const versionConflict = () =>
+export const versionConflict = () =>
   new ApiError(
     409,
     'VERSION_CONFLICT',
     'Заяву щойно змінив інший користувач. Завантажте актуальні дані й повторіть зміни.',
   );
 
-async function loadApplication(id: string) {
+export async function loadApplication(id: string) {
   const app = await Application.findById(id);
   if (!app) throw notFound();
   return app;
@@ -66,6 +70,28 @@ async function toDto(app: ApplicationDocument) {
 
 export async function getApplication(id: string) {
   return toDto(await loadApplication(id));
+}
+
+/**
+ * Keeps the category and its wording consistent with what is stored: a category other than
+ * OTHER clears the wording, and OTHER needs one (sent now or already saved). Records migrated
+ * to OTHER without wording stay valid until someone touches the category.
+ */
+function withCategoryWording(input: UpdateApplicationData, current: ApplicationDocument) {
+  if (input.objectCategory === undefined && input.objectCategoryOther === undefined) return input;
+  const category = input.objectCategory ?? current.objectCategory;
+  if (category !== 'OTHER') return { ...input, objectCategoryOther: null };
+  const wording =
+    input.objectCategoryOther !== undefined
+      ? input.objectCategoryOther
+      : (current.objectCategoryOther ?? null);
+  if (!wording) {
+    throw new ApiError(400, 'VALIDATION_ERROR', 'Некоректні дані', {
+      formErrors: [],
+      fieldErrors: { objectCategoryOther: [OBJECT_CATEGORY_OTHER_REQUIRED] },
+    });
+  }
+  return input;
 }
 
 /**
@@ -108,12 +134,13 @@ export async function updateApplication(
   }
   if (input.version !== current.version) throw versionConflict();
 
+  const content = withCategoryWording(input, current);
   const set: Record<string, unknown> = {};
   const unset: Record<string, 1> = {};
   const changes: FieldChange[] = [];
 
   for (const field of CONTENT_FIELDS) {
-    const next = input[field];
+    const next = content[field];
     const previous = current[field] ?? null;
     if (next === undefined || next === previous) continue;
     changes.push({ field, oldValue: previous, newValue: next });

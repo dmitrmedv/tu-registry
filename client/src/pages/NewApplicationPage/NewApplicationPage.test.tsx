@@ -1,6 +1,6 @@
 import type { ApplicationDto } from '@tu-registry/shared';
 import { kyivCalendarDate } from '@tu-registry/shared';
-import { cleanup, fireEvent, screen, waitFor } from '@testing-library/react';
+import { cleanup, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { http as mock, HttpResponse } from 'msw';
 import { describe, expect, it } from 'vitest';
 import { renderApp } from '@/test/renderApp';
@@ -27,6 +27,9 @@ const created: ApplicationDto = {
   email: null,
   objectAddress: 'м. Київ, вул. Прикладна, 1',
   objectType: 'DOMESTIC',
+  objectCategory: 'RESIDENTIAL_HOUSE',
+  objectCategoryOther: null,
+  comment: null,
   registrationMode: 'AUTO',
   status: 'ACTIVE',
   createdBy: { id: employee.id, fullName: employee.fullName },
@@ -52,6 +55,7 @@ async function fillRequiredFields(user: ReturnType<typeof openPage>['user']) {
   await user.type(screen.getByLabelText('Телефон'), '(067) 123-45-67');
   await user.type(screen.getByLabelText('Адреса обʼєкта'), 'м. Київ, вул. Прикладна, 1');
   await user.selectOptions(screen.getByLabelText('Тип обʼєкта'), 'Побутовий');
+  await user.click(screen.getByRole('radio', { name: 'Житловий будинок' }));
 }
 
 describe('NewApplicationPage', () => {
@@ -71,6 +75,7 @@ describe('NewApplicationPage', () => {
     expect(await screen.findByText('Замовник: обовʼязкове поле')).toBeInTheDocument();
     expect(screen.getByText('Телефон: обовʼязкове поле')).toBeInTheDocument();
     expect(screen.getByText('Оберіть тип обʼєкта')).toBeInTheDocument();
+    expect(screen.getByText('Оберіть категорію обʼєкта')).toBeInTheDocument();
 
     await user.type(screen.getByLabelText('Телефон'), '12345');
     await user.click(screen.getByRole('button', { name: 'Зареєструвати заяву' }));
@@ -101,6 +106,7 @@ describe('NewApplicationPage', () => {
       phone: '+380671234567',
       objectAddress: 'м. Київ, вул. Прикладна, 1',
       objectType: 'DOMESTIC',
+      objectCategory: 'RESIDENTIAL_HOUSE',
     });
 
     await user.click(screen.getByRole('button', { name: 'Зареєструвати ще' }));
@@ -121,6 +127,67 @@ describe('NewApplicationPage', () => {
 
     expect(await screen.findByRole('alert')).toHaveTextContent('Внутрішня помилка сервера');
     expect(screen.getByLabelText('Замовник')).toHaveValue('ТОВ «Приклад»');
+  });
+});
+
+describe('NewApplicationPage — object category and comment', () => {
+  function captureCreate() {
+    const sent: unknown[] = [];
+    server.use(
+      mock.post('*/api/v1/applications', async ({ request }) => {
+        sent.push(await request.json());
+        return HttpResponse.json(created, { status: 201 });
+      }),
+    );
+    return sent;
+  }
+
+  it('offers the categories as buttons and asks for wording only for "other"', async () => {
+    const { user } = openPage();
+    const sent = captureCreate();
+    await screen.findByText('15т/26');
+    await fillRequiredFields(user);
+
+    const categories = screen.getByRole('group', { name: 'Категорія обʼєкта' });
+    expect(
+      within(categories)
+        .getAllByRole('radio')
+        .map((radio) => radio.closest('label')!.textContent),
+    ).toEqual([
+      'Земельна ділянка',
+      'Житловий будинок',
+      'Квартира',
+      'Нежитлове приміщення',
+      'Виробник біогазу',
+      'Інше',
+    ]);
+    expect(screen.queryByLabelText('Уточніть категорію')).not.toBeInTheDocument();
+
+    await user.click(within(categories).getByRole('radio', { name: 'Інше' }));
+    await user.click(screen.getByRole('button', { name: 'Зареєструвати заяву' }));
+    expect(await screen.findByText('Уточніть категорію обʼєкта')).toBeInTheDocument();
+    expect(sent).toHaveLength(0);
+
+    await user.type(screen.getByLabelText('Уточніть категорію'), 'Котельня');
+    await user.type(screen.getByLabelText('Коментар (необовʼязково)'), 'Документи неповні');
+    await user.click(screen.getByRole('button', { name: 'Зареєструвати заяву' }));
+
+    await screen.findByText(/Заяву зареєстровано/);
+    expect(sent[0]).toMatchObject({
+      objectCategory: 'OTHER',
+      objectCategoryOther: 'Котельня',
+      comment: 'Документи неповні',
+    });
+  });
+
+  it('moves the choice with arrow keys', async () => {
+    const { user } = openPage();
+    await screen.findByText('15т/26');
+
+    await user.click(screen.getByRole('radio', { name: 'Квартира' }));
+    await user.keyboard('{ArrowRight}');
+
+    expect(screen.getByRole('radio', { name: 'Нежитлове приміщення' })).toBeChecked();
   });
 });
 

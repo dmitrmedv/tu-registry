@@ -76,6 +76,8 @@ const applicationFields = z.object({
   // Used only with OTHER; the server drops it for any other category.
   objectCategoryOther: optionalText('Категорія', OBJECT_CATEGORY_OTHER_MAX),
   comment: optionalText('Коментар', COMMENT_MAX),
+  /** Admins choose where to register; users may only name their own (or omit it). */
+  department: departmentField.optional(),
 });
 
 type CategoryInput = { objectCategory?: ObjectCategory; objectCategoryOther?: string | null };
@@ -195,6 +197,11 @@ export type ApplicationDto = {
   updatedAt: string;
   version: number;
 };
+
+/** Admins may ask for the hint of the department they are registering into. */
+export const nextNumberQuerySchema = z.object({
+  department: z.preprocess((v) => (v === '' ? undefined : v), departmentField.optional()),
+});
 
 /** A hint for the form; the number is not reserved. */
 export type NextNumberDto = { regNumber: string; regYear: number; regSeq: number; regDate: string };

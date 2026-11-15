@@ -21,7 +21,8 @@ import { useCurrentUser } from '@/features/auth';
 import { toApiError } from '@/shared/api/apiError';
 import { useFormDraft } from '@/shared/hooks/useFormDraft';
 import { formatCalendarDate, formatDateTime } from '@/shared/lib/format';
-import { Alert, Button, CheckboxField, Spinner, TextField } from '@/shared/ui';
+import { DEPARTMENT_OPTIONS } from '@/shared/lib/labels';
+import { Alert, Button, CheckboxField, SelectField, Spinner, TextField } from '@/shared/ui';
 import { ApplicationContentFields } from './ApplicationContentFields';
 import styles from './ApplicationForm.module.scss';
 import { ManualNumberStatus } from './ManualNumberStatus';
@@ -82,6 +83,7 @@ const EMPTY_VALUES: FormValues = {
   objectCategory: '' as FormValues['objectCategory'],
   objectCategoryOther: '',
   comment: '',
+  department: undefined,
   // Every new form starts in automatic mode, also right after a manual entry.
   manual: false,
   regDate: '',
@@ -93,13 +95,19 @@ type Props = { onCreated: (app: ApplicationDto) => void };
 export function ApplicationForm({ onCreated }: Props) {
   const user = useCurrentUser();
   const canRegisterManually = hasRegistrationRights(user);
+  const chooseDepartment = user.role === 'ADMIN';
   const today = kyivCalendarDate();
-  const next = useNextNumber();
   const createAuto = useCreateApplication();
   const createManual = useCreateManualApplication();
 
+  // An admin registers into their own department unless they pick another; a user always
+  // into their own.
+  const emptyValues = useMemo<FormValues>(
+    () => ({ ...EMPTY_VALUES, department: user.department }),
+    [user.department],
+  );
   // Typed data survives a page reload; the draft belongs to this user only.
-  const draft = useFormDraft(`new-application:${user.id}`, EMPTY_VALUES);
+  const draft = useFormDraft(`new-application:${user.id}`, emptyValues);
   const [draftNoticeVisible, setDraftNoticeVisible] = useState(draft.restoredAt !== null);
 
   const form = useForm<FormValues, unknown, Submitted>({
@@ -108,6 +116,7 @@ export function ApplicationForm({ onCreated }: Props) {
     defaultValues: {
       ...draft.initialValues,
       manual: canRegisterManually && draft.initialValues.manual,
+      department: (chooseDepartment && draft.initialValues.department) || user.department,
     },
   });
   const {
@@ -119,6 +128,8 @@ export function ApplicationForm({ onCreated }: Props) {
     formState: { errors, isSubmitting },
   } = form;
   const manual = watch('manual');
+  const department = watch('department') ?? user.department;
+  const next = useNextNumber(department);
 
   useEffect(() => {
     const subscription = watch((values) => draft.save(values as FormValues));
@@ -126,13 +137,15 @@ export function ApplicationForm({ onCreated }: Props) {
   }, [watch, draft]);
 
   const discardDraft = () => {
-    reset(EMPTY_VALUES);
+    reset(emptyValues);
     draft.clear();
     setDraftNoticeVisible(false);
   };
 
   const onSubmit = handleSubmit(async (values) => {
     try {
+      // Only an admin chooses; for a user the server takes their own department anyway.
+      if (!chooseDepartment) delete values.department;
       if (values.manual) {
         const { manual: _manual, ...data } = values;
         const created = await createManual.mutateAsync(data);
@@ -178,6 +191,14 @@ export function ApplicationForm({ onCreated }: Props) {
 
         <fieldset className={styles.section}>
           <legend>Реєстрація</legend>
+          {chooseDepartment && (
+            <SelectField
+              label="Управління"
+              options={DEPARTMENT_OPTIONS}
+              hint="Заява отримає номер цього управління й буде видна його працівникам"
+              {...register('department')}
+            />
+          )}
           {canRegisterManually && (
             <CheckboxField
               variant="switch"
@@ -210,7 +231,7 @@ export function ApplicationForm({ onCreated }: Props) {
                 regDate={watch('regDate')}
                 regSeq={watch('regSeq')}
                 next={next.data}
-                department={user.department}
+                department={department}
               />
             </>
           ) : (

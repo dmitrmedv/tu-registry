@@ -61,3 +61,22 @@ test('a user sees and numbers only their department; the admin sees all', async 
   await expect(table.getByRole('cell', { name: reniCustomer })).toBeVisible();
   await expect(table.getByRole('cell', { name: 'Ренійське' }).first()).toBeVisible();
 });
+
+test('an admin registers an application into a chosen department', async ({ page }) => {
+  await apiLogin(page.request, ADMIN);
+  await page.goto('/applications/new');
+
+  await page.getByLabel('Управління').selectOption({ label: 'Ренійське' });
+  await expect(page.getByText(/^\d+т\/\d{2}-11$/)).toBeVisible(); // the next-number hint
+  const customer = uniqueName('ТОВ Рені від адміністратора');
+  await page.getByLabel('Замовник', { exact: true }).fill(customer);
+  await page.getByLabel('Телефон').fill('067 123 45 67');
+  await page.getByLabel('Населений пункт').fill('м. Рені');
+  await page.getByLabel('Адреса обʼєкта').fill('вул. Дунайська, 2');
+  await page.getByRole('radio', { name: 'Міська' }).check();
+  await page.getByRole('radio', { name: 'Побутовий', exact: true }).check();
+  await page.getByRole('radio', { name: 'Квартира' }).check();
+  await page.getByRole('button', { name: 'Зареєструвати заяву' }).click();
+
+  await expect(page.getByText('Заяву зареєстровано:')).toContainText(/\d+т\/\d{2}-11 /);
+});

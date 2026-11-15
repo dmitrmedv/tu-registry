@@ -25,7 +25,7 @@ const input = {
   objectCategory: 'RESIDENTIAL_HOUSE' as const,
 };
 
-const register = () => createApplication(input, actor, {});
+const register = () => createApplication(input, 'ODESA', actor, {});
 
 /** Pins "now" for business dates; UTC instant → see kyivDate tests for the Kyiv mapping. */
 function setNow(utc: string) {

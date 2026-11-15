@@ -16,8 +16,7 @@ import { toApplicationDto } from './application.dto';
 import { Application } from './application.model';
 import { ApplicationChange } from './applicationChange.model';
 
-/** Registers into the author's own department. */
-type Actor = { id: string; fullName: string; department: Department };
+type Actor = { id: string; fullName: string };
 
 /**
  * A committed manual registration can take the very number the counter just issued
@@ -27,6 +26,8 @@ const MAX_AUTO_ATTEMPTS = 3;
 
 type Registration = {
   fields: CreateApplicationData;
+  /** Already checked by the caller (see registrationDepartment). */
+  department: Department;
   regYear: number;
   regSeq: number;
   regDate: Date;
@@ -39,18 +40,18 @@ type Registration = {
  */
 async function insertRegistration(
   session: ClientSession,
-  { fields, regYear, regSeq, regDate, mode }: Registration,
+  { fields, department, regYear, regSeq, regDate, mode }: Registration,
   actor: Actor,
   context: RequestContext,
 ) {
-  const { objectCategoryOther, ...rest } = fields;
+  const { objectCategoryOther, department: _requested, ...rest } = fields;
   const [created] = await Application.create(
     [
       {
         ...rest,
         // The wording belongs to OTHER only; a leftover from a switched category is dropped.
         ...(fields.objectCategory === 'OTHER' && { objectCategoryOther }),
-        department: actor.department,
+        department,
         regYear,
         regSeq,
         regDate,
@@ -74,7 +75,7 @@ async function insertRegistration(
       entityId: created!._id,
       // Number and date only: customer data does not belong in the audit log.
       details: {
-        regNumber: formatRegNumber(regYear, regSeq, actor.department),
+        regNumber: formatRegNumber(regYear, regSeq, department),
         regDate: toIsoDate(regDate),
       },
     },
@@ -84,9 +85,10 @@ async function insertRegistration(
   return created!;
 }
 
-/** Today's date (Kyiv) and the next number of the year in the author's department. */
+/** Today's date (Kyiv) and the next number of the year in the department. */
 export async function createApplication(
   fields: CreateApplicationData,
+  department: Department,
   actor: Actor,
   context: RequestContext,
 ) {
@@ -95,10 +97,10 @@ export async function createApplication(
       const { year, date } = kyivToday();
       // The counter increment is part of the same transaction: no burnt numbers on failure.
       const created = await inTransaction(async (session) => {
-        const regSeq = await issueNextNumber(year, actor.department, session);
+        const regSeq = await issueNextNumber(year, department, session);
         return insertRegistration(
           session,
-          { fields, regYear: year, regSeq, regDate: date, mode: 'AUTO' },
+          { fields, department, regYear: year, regSeq, regDate: date, mode: 'AUTO' },
           actor,
           context,
         );
@@ -126,17 +128,18 @@ export function numberTaken(regNumber: string, takenOn?: Date) {
  */
 export async function createManualApplication(
   { regDate, regSeq: seq, ...fields }: ManualApplicationData,
+  department: Department,
   actor: Actor,
   context: RequestContext,
 ) {
   // The year is always the registration date's year: "14" on 2024-05-20 is "14т/24".
   const year = yearOf(regDate);
-  const formatted = formatRegNumber(year, seq, actor.department);
+  const formatted = formatRegNumber(year, seq, department);
   try {
     const created = await inTransaction(async (session) => {
       // Only for a helpful message; the unique index is what actually prevents duplicates.
       const existing = await Application.findOne({
-        department: actor.department,
+        department,
         regYear: year,
         regSeq: seq,
       })
@@ -145,7 +148,14 @@ export async function createManualApplication(
       if (existing) throw numberTaken(formatted, existing.regDate);
       return insertRegistration(
         session,
-        { fields, regYear: year, regSeq: seq, regDate: fromIsoDate(regDate), mode: 'MANUAL' },
+        {
+          fields,
+          department,
+          regYear: year,
+          regSeq: seq,
+          regDate: fromIsoDate(regDate),
+          mode: 'MANUAL',
+        },
         actor,
         context,
       );

@@ -3,18 +3,26 @@ import { LoginForm, useAuth } from '@/features/auth';
 import { Alert, FullPageSpinner } from '@/shared/ui';
 import styles from './LoginPage.module.scss';
 
-/** Only same-app paths are accepted as a return target (no open redirects). */
-function returnPath(state: unknown) {
-  const from = (state as { from?: unknown } | null)?.from;
+type ReturnState = { from?: unknown; forUser?: unknown } | null;
+
+/**
+ * Only same-app paths are accepted as a return target (no open redirects), and only for the
+ * user who was on that page when their session ended; anyone else starts at the registry.
+ */
+function returnPath(state: unknown, userId: string) {
+  const { from, forUser } = (state as ReturnState) ?? {};
+  if (typeof forUser === 'string' && forUser !== userId) return '/';
   return typeof from === 'string' && from.startsWith('/') && !from.startsWith('//') ? from : '/';
 }
 
 export function LoginPage() {
-  const { status, sessionEnded } = useAuth();
+  const { status, sessionEnded, user } = useAuth();
   const location = useLocation();
 
   if (status === 'loading') return <FullPageSpinner />;
-  if (status === 'authenticated') return <Navigate to={returnPath(location.state)} replace />;
+  if (status === 'authenticated' && user) {
+    return <Navigate to={returnPath(location.state, user.id)} replace />;
+  }
 
   return (
     <main className={styles.page}>

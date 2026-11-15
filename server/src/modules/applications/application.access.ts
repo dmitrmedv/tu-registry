@@ -1,6 +1,7 @@
 import type { Department } from '@tu-registry/shared';
 import type { AuthUser } from '../../types/express';
 import { ApiError } from '../../utils/ApiError';
+import { type RequestContext, recordAccessDenied } from '../audit/audit.service';
 
 export type Actor = Pick<AuthUser, 'id' | 'role' | 'department' | 'canManageRegistration'>;
 
@@ -21,3 +22,20 @@ export const canAccess = (
  * existence is not revealed.
  */
 export const applicationNotFound = () => ApiError.notFound('Заяву не знайдено');
+
+/**
+ * Where a new application is registered: an admin chooses (their own department by default),
+ * a user always registers into their own. Naming another department is refused and audited.
+ */
+export async function registrationDepartment(
+  actor: Pick<AuthUser, 'id' | 'role' | 'department'>,
+  requested: Department | undefined,
+  context: RequestContext,
+) {
+  if (isAdmin(actor)) return requested ?? actor.department;
+  if (requested && requested !== actor.department) {
+    await recordAccessDenied(actor.id, { department: requested, required: 'ADMIN' }, context);
+    throw ApiError.forbidden('Реєструвати заяви можна лише у своєму управлінні');
+  }
+  return actor.department;
+}

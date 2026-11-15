@@ -8,20 +8,39 @@ import { clearAllDrafts } from '@/shared/lib/draftStorage';
 import { authApi } from './api';
 import { AuthContext, type AuthContextValue, type AuthStatus } from './authContext';
 
-type State = { status: AuthStatus; user: UserDto | null; sessionEnded: boolean };
+type State = {
+  status: AuthStatus;
+  user: UserDto | null;
+  sessionEnded: boolean;
+  previousUserId: string | null;
+  signedOut: boolean;
+};
+
+const ANONYMOUS = { status: 'anonymous', user: null, previousUserId: null } as const;
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const queryClient = useQueryClient();
-  const [state, setState] = useState<State>({ status: 'loading', user: null, sessionEnded: false });
+  const [state, setState] = useState<State>({
+    status: 'loading',
+    user: null,
+    sessionEnded: false,
+    previousUserId: null,
+    signedOut: false,
+  });
+  const signedIn = (user: UserDto): State => ({
+    status: 'authenticated',
+    user,
+    sessionEnded: false,
+    previousUserId: null,
+    signedOut: false,
+  });
 
   // Restore the session from the httpOnly cookie after a page load.
   useEffect(() => {
     let active = true;
     refreshSession()
-      .then(
-        ({ user }) => active && setState({ status: 'authenticated', user, sessionEnded: false }),
-      )
-      .catch(() => active && setState({ status: 'anonymous', user: null, sessionEnded: false }));
+      .then(({ user }) => active && setState(signedIn(user)))
+      .catch(() => active && setState({ ...ANONYMOUS, sessionEnded: false, signedOut: false }));
     return () => {
       active = false;
     };
@@ -32,7 +51,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       authEvents.subscribe((event) => {
         if (event === 'session-ended') {
           queryClient.clear();
-          setState({ status: 'anonymous', user: null, sessionEnded: true });
+          setState((s) => ({
+            ...ANONYMOUS,
+            sessionEnded: true,
+            // Only they may come back to the page they were on.
+            previousUserId: s.user?.id ?? null,
+            signedOut: false,
+          }));
         } else {
           setState((s) => (s.user ? { ...s, user: { ...s.user, mustChangePassword: true } } : s));
         }
@@ -43,7 +68,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const login = useCallback(async (input: LoginInput) => {
     const { user, accessToken } = await authApi.login(input);
     tokenStore.set(accessToken);
-    setState({ status: 'authenticated', user, sessionEnded: false });
+    setState(signedIn(user));
     return user;
   }, []);
 
@@ -55,7 +80,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // Nothing from the previous user may remain: cached data and unsaved form drafts.
       queryClient.clear();
       clearAllDrafts();
-      setState({ status: 'anonymous', user: null, sessionEnded: false });
+      setState({ ...ANONYMOUS, sessionEnded: false, signedOut: true });
     }
   }, [queryClient]);
 

@@ -8,12 +8,15 @@ export const CHANGE_PASSWORD_PATH = '/change-password';
 
 /** Gate for every private route: session, then the forced password change. */
 export function ProtectedRoute() {
-  const { status, user } = useAuth();
+  const { status, user, signedOut, previousUserId } = useAuth();
   const location = useLocation();
 
   if (status === 'loading') return <FullPageSpinner />;
   if (!user) {
-    return <Navigate to="/login" replace state={{ from: location.pathname + location.search }} />;
+    // After "Вийти" the page is not remembered: whoever signs in next starts at the registry.
+    if (signedOut) return <Navigate to="/login" replace />;
+    const from = location.pathname + location.search;
+    return <Navigate to="/login" replace state={{ from, forUser: previousUserId }} />;
   }
   if (user.mustChangePassword && location.pathname !== CHANGE_PASSWORD_PATH) {
     return <Navigate to={CHANGE_PASSWORD_PATH} replace />;

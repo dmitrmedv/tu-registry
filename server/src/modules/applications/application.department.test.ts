@@ -98,6 +98,58 @@ describe('departments', () => {
     });
   });
 
+  describe('registering into a department', () => {
+    it('lets an admin choose the department, with its own counter and next-number hint', async () => {
+      const hint = await request(app)
+        .get(`${APPLICATIONS}/next-number`)
+        .query({ department: 'RENI' })
+        .set(admin.auth);
+      expect(hint.body.regNumber).toBe('1т/26-11');
+
+      const created = await registerApplication(app, admin, {
+        ...applicationFields,
+        department: 'RENI',
+      });
+      expect(created).toMatchObject({ department: 'RENI', regNumber: '1т/26-11' });
+      // Ренійське users see it; it is not Одеське's.
+      expect(await numbers(reni)).toEqual(['1т/26-11']);
+      expect(await numbers(odesa)).toEqual([]);
+
+      const manual = await request(app)
+        .post(`${APPLICATIONS}/manual`)
+        .set(admin.auth)
+        .send({ ...applicationFields, department: 'RENI', regDate: '2025-05-20', regSeq: '3' });
+      expect(manual.body.regNumber).toBe('3т/25-11');
+    });
+
+    it("registers an admin's application into their own department when none is chosen", async () => {
+      expect((await registerApplication(app, admin)).regNumber).toBe('1т/26-8');
+    });
+
+    it('refuses (and audits) a user registering into another department', async () => {
+      const res = await request(app)
+        .post(APPLICATIONS)
+        .set(odesa.auth)
+        .send({ ...applicationFields, department: 'RENI' });
+
+      expect(res.status).toBe(403);
+      expect(await Application.countDocuments()).toBe(0);
+      expect(
+        await AuditLog.exists({ action: 'ACCESS_DENIED', actor: odesa.user._id }),
+      ).toBeTruthy();
+      // Naming their own department is fine; the hint ignores another one.
+      expect(
+        (await registerApplication(app, odesa, { ...applicationFields, department: 'ODESA' }))
+          .regNumber,
+      ).toBe('1т/26-8');
+      const hint = await request(app)
+        .get(`${APPLICATIONS}/next-number`)
+        .query({ department: 'RENI' })
+        .set(odesa.auth);
+      expect(hint.body.regNumber).toBe('2т/26-8');
+    });
+  });
+
   describe('visibility', () => {
     beforeEach(async () => {
       await registerApplication(app, odesa);

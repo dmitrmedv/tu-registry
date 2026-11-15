@@ -103,6 +103,80 @@ describe('authentication flow', () => {
     expect(await screen.findByRole('heading', { name: 'Вхід до системи' })).toBeInTheDocument();
   });
 
+  it('after logging out, the next sign-in starts at the registry, not the last page', async () => {
+    server.use(
+      signedInAs(employee),
+      mock.post('*/api/v1/auth/logout', () => new HttpResponse(null, { status: 204 })),
+      mock.get('*/api/v1/applications/next-number', () =>
+        HttpResponse.json({
+          regNumber: '1т/26-8',
+          regYear: 2026,
+          regSeq: 1,
+          regDate: '2026-03-12',
+        }),
+      ),
+      mock.post('*/api/v1/auth/login', () => HttpResponse.json({ user: admin, accessToken: 't' })),
+      mock.get('*/api/v1/applications', () =>
+        HttpResponse.json({ data: [], meta: { page: 1, limit: 20, total: 0, totalPages: 1 } }),
+      ),
+      mock.get('*/api/v1/users/options', () => HttpResponse.json([])),
+    );
+    const { user, router } = renderApp('/applications/new');
+    await screen.findByRole('heading', { name: 'Нова заява' });
+
+    await user.click(screen.getByRole('button', { name: 'Вийти' }));
+    await user.type(await screen.findByLabelText('Логін'), 'admin');
+    await user.type(screen.getByLabelText('Пароль'), 'correct-password');
+    await user.click(screen.getByRole('button', { name: 'Увійти' }));
+
+    expect(await screen.findByRole('heading', { name: 'Реєстр заяв' })).toBeInTheDocument();
+    expect(router.state.location.pathname).toBe('/');
+  });
+
+  /** Signs `who` in on the users page, then lets the session end on the next request. */
+  async function expireSessionOnTheWayToAudit(who: typeof admin, nextUser: typeof admin) {
+    const emptyPage = { data: [], meta: { page: 1, limit: 50, total: 0, totalPages: 1 } };
+    server.use(
+      signedInAs(who),
+      mock.get('*/api/v1/users', () => HttpResponse.json([who])),
+      mock.get('*/api/v1/applications', () => HttpResponse.json(emptyPage)),
+      mock.get('*/api/v1/users/options', () => HttpResponse.json([])),
+    );
+    const rendered = renderApp('/users');
+    await screen.findByRole('heading', { name: 'Користувачі' });
+    // The access token is refused and refreshing fails: the session has ended on its own.
+    server.use(
+      signedOut(),
+      mock.get('*/api/v1/audit', () => apiError(401, 'TOKEN_INVALID', 'Токен недійсний')),
+      mock.post('*/api/v1/auth/login', () =>
+        HttpResponse.json({ user: nextUser, accessToken: 't' }),
+      ),
+    );
+    await rendered.router.navigate('/audit');
+    expect(await screen.findByText('Сесія завершилась. Увійдіть знову.')).toBeInTheDocument();
+    // Signing in again works; the journal answers now.
+    server.use(mock.get('*/api/v1/audit', () => HttpResponse.json(emptyPage)));
+    await rendered.user.type(screen.getByLabelText('Логін'), nextUser.login);
+    await rendered.user.type(screen.getByLabelText('Пароль'), 'correct-password');
+    await rendered.user.click(screen.getByRole('button', { name: 'Увійти' }));
+    return rendered;
+  }
+
+  it('after an expired session, returns the same user to the page they were opening', async () => {
+    const { router } = await expireSessionOnTheWayToAudit(admin, admin);
+
+    expect(await screen.findByRole('heading', { name: 'Журнал аудиту' })).toBeInTheDocument();
+    expect(router.state.location.pathname).toBe('/audit');
+  });
+
+  it('after an expired session, sends a different user to the registry', async () => {
+    const otherAdmin = makeUser({ id: 'admin2', login: 'boss2', fullName: 'Інший Адміністратор' });
+    const { router } = await expireSessionOnTheWayToAudit(admin, otherAdmin);
+
+    expect(await screen.findByRole('heading', { name: 'Реєстр заяв' })).toBeInTheDocument();
+    expect(router.state.location.pathname).toBe('/');
+  });
+
   it('hides the users section from non-admins and blocks direct access', async () => {
     server.use(signedInAs(employee));
     renderApp('/users');

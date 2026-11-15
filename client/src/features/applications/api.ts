@@ -26,7 +26,11 @@ export const applicationsApi = {
     http.post<ApplicationDto>('/applications/manual', data).then((r) => r.data),
   checkManualNumber: (params: ManualNumberCheckParams) =>
     http.get<ManualNumberCheckDto>('/applications/manual/check', { params }).then((r) => r.data),
-  nextNumber: () => http.get<NextNumberDto>('/applications/next-number').then((r) => r.data),
+  /** `department`: admins only; the server uses a user's own department regardless. */
+  nextNumber: (department: Department) =>
+    http
+      .get<NextNumberDto>('/applications/next-number', { params: { department } })
+      .then((r) => r.data),
   get: (id: string) => http.get<ApplicationDto>(`/applications/${id}`).then((r) => r.data),
   history: (id: string) =>
     http.get<ApplicationChangeDto[]>(`/applications/${id}/history`).then((r) => r.data),

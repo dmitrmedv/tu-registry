@@ -441,3 +441,67 @@ describe('NewApplicationPage — unsaved draft', () => {
     expect(screen.getByRole('button', { name: 'Зареєструвати заяву' })).toBeInTheDocument();
   });
 });
+
+describe('NewApplicationPage — department', () => {
+  const admin = makeUser({ id: 'admin1', role: 'ADMIN' });
+
+  it('lets an admin pick the department; the hint and the request follow it', async () => {
+    const hints: (string | null)[] = [];
+    const sent: unknown[] = [];
+    server.use(
+      signedInAs(admin),
+      mock.get('*/api/v1/applications/next-number', ({ request }) => {
+        const department = new URL(request.url).searchParams.get('department');
+        hints.push(department);
+        const code = department === 'RENI' ? 11 : 8;
+        return HttpResponse.json({
+          regNumber: `3т/26-${code}`,
+          regYear: 2026,
+          regSeq: 3,
+          regDate: '2026-03-12',
+        });
+      }),
+      mock.post('*/api/v1/applications', async ({ request }) => {
+        sent.push(await request.json());
+        return HttpResponse.json(
+          { ...created, department: 'RENI', regNumber: '3т/26-11' },
+          {
+            status: 201,
+          },
+        );
+      }),
+    );
+    const { user } = renderApp('/applications/new');
+
+    const department = await screen.findByLabelText('Управління');
+    expect(department).toHaveValue('ODESA'); // the admin's own by default
+    expect(await screen.findByText('3т/26-8')).toBeInTheDocument();
+
+    await user.selectOptions(department, 'Ренійське');
+    expect(await screen.findByText('3т/26-11')).toBeInTheDocument();
+    expect(hints).toContain('RENI');
+
+    await fillRequiredFields(user);
+    await user.click(screen.getByRole('button', { name: 'Зареєструвати заяву' }));
+    await screen.findByText(/Заяву зареєстровано/);
+    expect(sent[0]).toMatchObject({ department: 'RENI' });
+  });
+
+  it('gives a regular user no choice and sends no department', async () => {
+    let sentBody: Record<string, unknown> | undefined;
+    const { user } = openPage();
+    server.use(
+      mock.post('*/api/v1/applications', async ({ request }) => {
+        sentBody = (await request.json()) as Record<string, unknown>;
+        return HttpResponse.json(created, { status: 201 });
+      }),
+    );
+
+    await screen.findByText('15т/26-8');
+    expect(screen.queryByLabelText('Управління')).not.toBeInTheDocument();
+    await fillRequiredFields(user);
+    await user.click(screen.getByRole('button', { name: 'Зареєструвати заяву' }));
+    await screen.findByText(/Заяву зареєстровано/);
+    expect(sentBody).not.toHaveProperty('department');
+  });
+});

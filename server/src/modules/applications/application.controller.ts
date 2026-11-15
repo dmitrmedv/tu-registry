@@ -3,6 +3,7 @@ import {
   applicationListQuerySchema,
   createApplicationSchema,
   deleteApplicationQuerySchema,
+  nextNumberQuerySchema,
   manualApplicationSchema,
   manualNumberCheckSchema,
   restoreApplicationSchema,
@@ -10,7 +11,7 @@ import {
 } from '@tu-registry/shared';
 import type { RequestHandler } from 'express';
 import { kyivToday } from '../../utils/kyivDate';
-import { departmentScope, isAdmin } from './application.access';
+import { departmentScope, isAdmin, registrationDepartment } from './application.access';
 import { idParamsSchema, parseRequest } from '../../utils/parseRequest';
 import { requestContext } from '../audit/audit.service';
 import { deleteApplication } from './application.delete.service';
@@ -27,10 +28,13 @@ export const list: RequestHandler = async (req, res) => {
 
 export const create: RequestHandler = async (req, res) => {
   const { body } = parseRequest(req, { body: createApplicationSchema });
+  const context = requestContext(req);
+  const department = await registrationDepartment(req.user!, body.department, context);
   const application = await applicationService.createApplication(
     body,
+    department,
     req.user!,
-    requestContext(req),
+    context,
   );
   res.status(201).json(application);
 };
@@ -38,10 +42,13 @@ export const create: RequestHandler = async (req, res) => {
 export const createManual: RequestHandler = async (req, res) => {
   // "Today" for the future-date check is the server's Kyiv date, never the client's.
   const { body } = parseRequest(req, { body: manualApplicationSchema(kyivToday().iso) });
+  const context = requestContext(req);
+  const department = await registrationDepartment(req.user!, body.department, context);
   const application = await applicationService.createManualApplication(
     body,
+    department,
     req.user!,
-    requestContext(req),
+    context,
   );
   res.status(201).json(application);
 };
@@ -61,7 +68,13 @@ export const checkManualNumber: RequestHandler = async (req, res) => {
 };
 
 export const nextNumber: RequestHandler = async (req, res) => {
-  res.json(await applicationService.getNextNumber(req.user!.department));
+  const { query } = parseRequest(req, { query: nextNumberQuerySchema });
+  // Admins see the hint for the department they are registering into; users their own.
+  res.json(
+    await applicationService.getNextNumber(
+      (isAdmin(req.user!) && query.department) || req.user!.department,
+    ),
+  );
 };
 
 export const getOne: RequestHandler = async (req, res) => {

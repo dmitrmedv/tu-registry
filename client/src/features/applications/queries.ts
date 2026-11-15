@@ -1,20 +1,25 @@
-import type { AnnulApplicationInput, UpdateApplicationInput } from '@tu-registry/shared';
+import type {
+  AnnulApplicationInput,
+  Department,
+  UpdateApplicationInput,
+} from '@tu-registry/shared';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { applicationsApi, type ManualNumberCheckParams } from './api';
 
 /** Every key starts with "applications", so one invalidation refreshes lists, cards and history. */
 export const applicationKeys = {
   all: ['applications'] as const,
-  nextNumber: () => [...applicationKeys.all, 'next-number'] as const,
+  nextNumber: (department: Department) =>
+    [...applicationKeys.all, 'next-number', department] as const,
   detail: (id: string) => [...applicationKeys.all, 'detail', id] as const,
   history: (id: string) => [...applicationKeys.all, 'history', id] as const,
 };
 
 /** Changes whenever anyone registers an application, so it is never considered fresh. */
-export function useNextNumber() {
+export function useNextNumber(department: Department) {
   return useQuery({
-    queryKey: applicationKeys.nextNumber(),
-    queryFn: applicationsApi.nextNumber,
+    queryKey: applicationKeys.nextNumber(department),
+    queryFn: () => applicationsApi.nextNumber(department),
     staleTime: 0,
   });
 }

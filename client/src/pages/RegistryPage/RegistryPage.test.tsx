@@ -181,3 +181,25 @@ describe('RegistryPage', () => {
     expect(screen.getByLabelText('Замовник')).toHaveValue('');
   });
 });
+
+describe('RegistryPage — card links and status', () => {
+  it('links numbers to the card, keeping the filters, and marks annulled rows', async () => {
+    serveRegistry([row(), row({ id: 'a2', regNumber: '16т/26', status: 'ANNULLED' })]);
+    renderApp('/?customer=ТОВ');
+
+    const link = await screen.findByRole('link', { name: '15т/26' });
+    expect(link).toHaveAttribute('href', '/applications/a1');
+    const annulledRow = screen.getByRole('link', { name: '16т/26' }).closest('tr')!;
+    expect(within(annulledRow).getByText('Анульовано')).toBeInTheDocument();
+  });
+
+  it('filters by status', async () => {
+    const { last } = serveRegistry();
+    const { user } = renderApp('/');
+    await screen.findByRole('table');
+
+    await user.selectOptions(screen.getByLabelText('Статус'), 'Анульовані');
+
+    await waitFor(() => expect(last().get('status')).toBe('ANNULLED'));
+  });
+});

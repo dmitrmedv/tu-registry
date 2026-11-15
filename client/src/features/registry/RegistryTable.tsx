@@ -1,4 +1,5 @@
 import type { ApplicationListItemDto, ApplicationSort } from '@tu-registry/shared';
+import { Link, useLocation } from 'react-router';
 import { formatCalendarDate } from '@/shared/lib/format';
 import { OBJECT_TYPE_LABELS } from '@/shared/lib/labels';
 import { Badge, Table } from '@/shared/ui';
@@ -34,6 +35,8 @@ function SortableHeader({
 }
 
 export function RegistryTable({ rows, sort, onSort }: Props) {
+  // The card's "back to registry" link returns to exactly these filters.
+  const { search } = useLocation();
   return (
     <Table caption="Реєстр заяв">
       <thead>
@@ -49,13 +52,25 @@ export function RegistryTable({ rows, sort, onSort }: Props) {
       </thead>
       <tbody>
         {rows.map((row) => (
-          <tr key={row.id}>
+          <tr key={row.id} className={row.status === 'ANNULLED' ? styles.annulledRow : undefined}>
             <td className={styles.nowrap}>
-              <strong>{row.regNumber}</strong>
+              <Link
+                to={`/applications/${row.id}`}
+                state={{ registrySearch: search }}
+                className={styles.numberLink}
+              >
+                {row.regNumber}
+              </Link>
               {row.registrationMode === 'MANUAL' && (
                 <>
                   {' '}
                   <Badge>вручну</Badge>
+                </>
+              )}
+              {row.status === 'ANNULLED' && (
+                <>
+                  {' '}
+                  <Badge tone="danger">Анульовано</Badge>
                 </>
               )}
             </td>

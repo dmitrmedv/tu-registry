@@ -53,6 +53,11 @@ export function AppLayout() {
                     Користувачі
                   </NavLink>
                 )}
+                {user.role === 'ADMIN' && (
+                  <NavLink to="/audit" className={navClass} onClick={closeMenu}>
+                    Журнал
+                  </NavLink>
+                )}
               </nav>
             )}
             <div className={styles.account}>

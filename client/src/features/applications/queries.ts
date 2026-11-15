@@ -1,9 +1,13 @@
+import type { AnnulApplicationInput, UpdateApplicationInput } from '@tu-registry/shared';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { applicationsApi } from './api';
+import { applicationsApi, type ManualNumberCheckParams } from './api';
 
+/** Every key starts with "applications", so one invalidation refreshes lists, cards and history. */
 export const applicationKeys = {
   all: ['applications'] as const,
   nextNumber: () => [...applicationKeys.all, 'next-number'] as const,
+  detail: (id: string) => [...applicationKeys.all, 'detail', id] as const,
+  history: (id: string) => [...applicationKeys.all, 'history', id] as const,
 };
 
 /** Changes whenever anyone registers an application, so it is never considered fresh. */
@@ -16,12 +20,23 @@ export function useNextNumber() {
 }
 
 /** Is a manual number free? Runs only for a complete, valid date + number. */
-export function useManualNumberCheck(params: { regDate: string; regSeq: number } | null) {
+export function useManualNumberCheck(params: ManualNumberCheckParams | null) {
   return useQuery({
     queryKey: [...applicationKeys.all, 'manual-check', params] as const,
     queryFn: () => applicationsApi.checkManualNumber(params!),
     enabled: params !== null,
     staleTime: 0,
+  });
+}
+
+export function useApplication(id: string) {
+  return useQuery({ queryKey: applicationKeys.detail(id), queryFn: () => applicationsApi.get(id) });
+}
+
+export function useApplicationHistory(id: string) {
+  return useQuery({
+    queryKey: applicationKeys.history(id),
+    queryFn: () => applicationsApi.history(id),
   });
 }
 
@@ -36,3 +51,9 @@ function useApplicationsMutation<TVariables, TResult>(fn: (v: TVariables) => Pro
 export const useCreateApplication = () => useApplicationsMutation(applicationsApi.create);
 export const useCreateManualApplication = () =>
   useApplicationsMutation(applicationsApi.createManual);
+export const useUpdateApplication = (id: string) =>
+  useApplicationsMutation((data: UpdateApplicationInput) => applicationsApi.update(id, data));
+export const useAnnulApplication = (id: string) =>
+  useApplicationsMutation((data: AnnulApplicationInput) => applicationsApi.annul(id, data));
+export const useRestoreApplication = (id: string) =>
+  useApplicationsMutation((version: number) => applicationsApi.restore(id, version));

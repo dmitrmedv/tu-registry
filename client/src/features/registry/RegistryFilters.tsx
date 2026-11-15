@@ -1,4 +1,10 @@
-import { OBJECT_TYPES, type ObjectType, type UserOptionDto } from '@tu-registry/shared';
+import {
+  APPLICATION_STATUSES,
+  type ApplicationStatus,
+  OBJECT_TYPES,
+  type ObjectType,
+  type UserOptionDto,
+} from '@tu-registry/shared';
 import clsx from 'clsx';
 import { useState } from 'react';
 import { OBJECT_TYPE_LABELS } from '@/shared/lib/labels';
@@ -18,6 +24,14 @@ type Props = {
 const TYPE_OPTIONS = [
   { value: '', label: 'Усі типи' },
   ...OBJECT_TYPES.map((type) => ({ value: type, label: OBJECT_TYPE_LABELS[type] })),
+];
+
+const STATUS_OPTIONS = [
+  { value: '', label: 'Усі' },
+  ...APPLICATION_STATUSES.map((status) => ({
+    value: status,
+    label: status === 'ACTIVE' ? 'Активні' : 'Анульовані',
+  })),
 ];
 
 export function RegistryFilters({ params, update, reset, activeFilterCount, users }: Props) {
@@ -68,6 +82,12 @@ export function RegistryFilters({ params, update, reset, activeFilterCount, user
           options={TYPE_OPTIONS}
           value={params.type}
           onChange={(e) => update({ type: e.target.value as ObjectType | '' })}
+        />
+        <SelectField
+          label="Статус"
+          options={STATUS_OPTIONS}
+          value={params.status}
+          onChange={(e) => update({ status: e.target.value as ApplicationStatus | '' })}
         />
         <SelectField
           label="Користувач"

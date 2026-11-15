@@ -10,20 +10,28 @@ import { formatCalendarDate } from '@/shared/lib/format';
 import styles from './ApplicationForm.module.scss';
 import { useManualNumberCheck } from './queries';
 
-type Props = { regDate: string; regSeq: string; next: NextNumberDto | undefined };
+type Props = {
+  regDate: string;
+  regSeq: string;
+  next: NextNumberDto | undefined;
+  /** When editing: the application itself does not count as holding its number. */
+  excludeId?: string;
+};
 
 /**
  * Shows the full number the digits will become ("14" + 2024 → "14т/24") and whether it is
  * free in that year. Informational only: the server checks again when saving.
  */
-export function ManualNumberStatus({ regDate, regSeq, next }: Props) {
+export function ManualNumberStatus({ regDate, regSeq, next, excludeId }: Props) {
   const date = regDateField.safeParse(regDate);
   const seq = regSeqField.safeParse(regSeq);
   const year = date.success ? Number(date.data.slice(0, 4)) : null;
   const regNumber = year && seq.success ? formatRegNumber(year, seq.data) : null;
 
   // Ask the server only once the user pauses typing.
-  const checked = useDebouncedValue(regNumber ? { regDate: date.data!, regSeq: seq.data! } : null);
+  const checked = useDebouncedValue(
+    regNumber ? { regDate: date.data!, regSeq: seq.data!, excludeId } : null,
+  );
   const check = useManualNumberCheck(checked);
 
   if (!year) {

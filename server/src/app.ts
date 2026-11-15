@@ -1,8 +1,12 @@
+import cookieParser from 'cookie-parser';
 import express from 'express';
 import helmet from 'helmet';
 import { isDbConnected } from './config/db';
+import { env } from './config/env';
 import { errorHandler } from './middlewares/errorHandler';
 import { notFound } from './middlewares/notFound';
+import { createAuthRouter } from './modules/auth/auth.routes';
+import { userRouter } from './modules/users/user.routes';
 
 /**
  * Builds the Express app without starting it, so tests can use it via Supertest.
@@ -12,8 +16,11 @@ import { notFound } from './middlewares/notFound';
 export function createApp() {
   const app = express();
 
+  // Affects req.ip (rate limiting, audit log). Only true behind a trusted reverse proxy.
+  app.set('trust proxy', env.TRUST_PROXY);
   app.use(helmet());
   app.use(express.json({ limit: '100kb' }));
+  app.use(cookieParser());
 
   app.get('/api/health', (_req, res) => {
     const dbUp = isDbConnected();
@@ -21,6 +28,9 @@ export function createApp() {
       .status(dbUp ? 200 : 503)
       .json({ status: dbUp ? 'ok' : 'degraded', db: dbUp ? 'up' : 'down' });
   });
+
+  app.use('/api/v1/auth', createAuthRouter());
+  app.use('/api/v1/users', userRouter);
 
   app.use(notFound);
   app.use(errorHandler);

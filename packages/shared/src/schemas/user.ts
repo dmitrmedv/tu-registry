@@ -1,0 +1,48 @@
+import { z } from 'zod';
+import { ROLES, type Role } from '../enums';
+import { loginField } from './auth';
+
+export const fullNameField = z
+  .string()
+  .trim()
+  .min(2, 'ПІБ: щонайменше 2 символи')
+  .max(150, 'ПІБ: не більше 150 символів');
+
+export const createUserSchema = z
+  .object({
+    login: loginField,
+    fullName: fullNameField,
+    role: z.enum(ROLES).default('USER'),
+    canManageRegistration: z.boolean().default(false),
+  })
+  .strict();
+
+export const updateUserSchema = z
+  .object({
+    fullName: fullNameField,
+    role: z.enum(ROLES),
+    canManageRegistration: z.boolean(),
+    isActive: z.boolean(),
+  })
+  .partial()
+  .strict()
+  .refine((data) => Object.keys(data).length > 0, 'Немає змін для збереження');
+
+export type CreateUserInput = z.input<typeof createUserSchema>;
+export type UpdateUserInput = z.infer<typeof updateUserSchema>;
+
+/** User as returned by the API. Never contains password data. */
+export type UserDto = {
+  id: string;
+  login: string;
+  fullName: string;
+  role: Role;
+  canManageRegistration: boolean;
+  isActive: boolean;
+  mustChangePassword: boolean;
+  lastLoginAt: string | null;
+  createdAt: string;
+};
+
+export type AuthResponse = { user: UserDto; accessToken: string };
+export type UserWithTemporaryPassword = { user: UserDto; temporaryPassword: string };

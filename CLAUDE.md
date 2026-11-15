@@ -202,7 +202,11 @@ npm run build         # перед завершенням етапу
 
 - **Пакети:** `@tu-registry/client`, `@tu-registry/server`, `@tu-registry/shared`. Zod-схеми, enum-и, формат номера і нормалізація телефону — **лише** в `packages/shared`. Пакет підключається як вихідний TS (`exports → src/index.ts`); `tsup` вбудовує його в збірку сервера.
 - **Express 5:** помилки з `async`-обробників передаються в `errorHandler` автоматично — `asyncHandler` не потрібен.
-- **Автентифікація:** вхід за **логіном** (не email), відкритої реєстрації немає, акаунти створює адміністратор. Права (`role`, `canManageRegistration`, `isActive`) читаються з БД на кожному запиті, а не з JWT.
+- **Автентифікація:** вхід за **логіном** (не email), відкритої реєстрації немає, акаунти створює адміністратор. Права (`role`, `canManageRegistration`, `isActive`) і сесія читаються з БД на кожному запиті, а не з JWT. Деталі — `docs/ARCHITECTURE.md` §6.3.
+- **Приватні маршрути:** `requireAuth` (= `authenticate` + `requirePasswordChanged`), за потреби `requireRole('ADMIN')` з `middlewares/authenticate.ts`. Поточний користувач — `req.user`.
+- **Валідація запиту:** не middleware, а `parseRequest(req, { body, params, query })` з `utils/parseRequest.ts` на початку контролера — повертає типізовані дані зі спільних Zod-схем.
+- **Аудит:** `recordAudit({ action, actor, entityType, entityId, details }, requestContext(req))` з `modules/audit/audit.service.ts`. У `details` — ніяких паролів, токенів, даних замовників.
+- **Відповідь з користувачем:** лише через `toUserDto()` (явний перелік полів).
 - **MongoDB:** обов'язково replica set (транзакції). Локально — `npm run db:start -w server` (нативний mongod без Homebrew, дані в `~/.local/share/tu-registry/mongo`); у тестах — `MongoMemoryReplSet`. Версія MongoDB — лише в `server/src/config/mongodbVersion.ts`.
 - **Mongoose 9 + `sanitizeFilter`:** увімкнено глобально, тому оператори у фільтрах, написані в нашому коді (`$gte`, `$in`, `$ne`…), обгортаються в `mongoose.trusted({...})`, інакше запит впаде з `CastError`. Ніколи не передавати `req.query`/`req.body` у фільтр напряму.
 - **Помилки Mongoose:** `errorHandler` перетворює `ValidationError` → 400 (лише тип помилки, без введених значень), `CastError` → 400, E11000 → 409.

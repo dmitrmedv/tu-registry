@@ -1,0 +1,20 @@
+node_modules/
+dist/
+coverage/
+*.log
+.DS_Store
+
+# Environment (secrets)
+.env
+.env.*
+!.env.example
+
+# Runtime data
+uploads/
+
+# Test artifacts
+playwright-report/
+test-results/
+
+# Local Claude Code preview config (machine-specific paths)
+.claude/launch.json

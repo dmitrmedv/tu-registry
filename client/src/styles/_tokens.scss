@@ -1,0 +1,58 @@
+// Design tokens. Components use only these variables, never raw values.
+:root {
+  color-scheme: light dark;
+
+  --color-bg: #f5f6f8;
+  --color-surface: #ffffff;
+  --color-text: #1b1f24;
+  --color-text-muted: #5b6470;
+  --color-border: #d9dde3;
+  --color-primary: #1f5fbf;
+  --color-primary-hover: #194e9e;
+  --color-danger: #b42318;
+  --color-success: #1e7a3c;
+  --color-warning: #9a6700;
+
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-6: 24px;
+  --space-8: 32px;
+
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 10px;
+
+  --font-sans: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  --text-sm: 0.875rem;
+  --text-md: 1rem;
+  --text-lg: 1.25rem;
+  --text-xl: 1.5rem;
+
+  --shadow-sm: 0 1px 2px rgb(0 0 0 / 0.06);
+  --focus-ring: 0 0 0 3px rgb(31 95 191 / 0.35);
+}
+
+@mixin dark-tokens {
+  --color-bg: #121417;
+  --color-surface: #1b1e23;
+  --color-text: #e6e8eb;
+  --color-text-muted: #a0a7b1;
+  --color-border: #30353c;
+  --color-primary: #5b8fe0;
+  --color-primary-hover: #7aa5ea;
+  --color-danger: #f0776c;
+  --color-success: #5cc283;
+  --color-warning: #e0b04f;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    @include dark-tokens;
+  }
+}
+
+:root[data-theme='dark'] {
+  @include dark-tokens;
+}

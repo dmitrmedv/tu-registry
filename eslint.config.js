@@ -7,7 +7,15 @@ import globals from 'globals';
 import tseslint from 'typescript-eslint';
 
 export default defineConfig(
-  { ignores: ['**/dist/**', '**/coverage/**', '**/node_modules/**'] },
+  {
+    ignores: [
+      '**/dist/**',
+      '**/coverage/**',
+      '**/node_modules/**',
+      '**/playwright-report/**',
+      '**/test-results/**',
+    ],
+  },
   js.configs.recommended,
   tseslint.configs.recommended,
   {
@@ -22,7 +30,7 @@ export default defineConfig(
     },
   },
   {
-    files: ['server/**/*.ts', 'packages/**/*.ts', '*.js', '**/*.config.ts'],
+    files: ['server/**/*.ts', 'packages/**/*.ts', 'e2e/**/*.ts', '*.js', '**/*.config.ts'],
     languageOptions: { globals: globals.node },
   },
   {

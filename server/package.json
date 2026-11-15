@@ -14,7 +14,8 @@
     "db:start": "tsx src/scripts/devMongo.ts start",
     "db:stop": "tsx src/scripts/devMongo.ts stop",
     "db:status": "tsx src/scripts/devMongo.ts status",
-    "db:demo": "tsx --env-file=.env src/scripts/demoData.ts"
+    "db:demo": "tsx --env-file=.env src/scripts/demoData.ts",
+    "e2e:server": "tsx src/scripts/e2eServer.ts"
   },
   "dependencies": {
     "@tu-registry/shared": "^0.0.0",

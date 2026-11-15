@@ -19,12 +19,19 @@ type Props = {
 export function Dialog({ open, title, onClose, children, footer }: Props) {
   const ref = useRef<HTMLDialogElement>(null);
   const titleId = useId();
-
   useEffect(() => {
     const dialog = ref.current;
-    if (!dialog) return;
-    if (open && !dialog.open) dialog.showModal();
-    if (!open && dialog.open) dialog.close();
+    if (!dialog || !open) return;
+    const opener = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    if (!dialog.open) dialog.showModal();
+
+    return () => {
+      // Runs both when `open` turns false and when the parent unmounts the dialog. Either way
+      // React has already removed the focused content, so the browser no longer sees focus
+      // inside the dialog and does not return it to the opener by itself.
+      if (dialog.open) dialog.close();
+      opener?.focus();
+    };
   }, [open]);
 
   return (

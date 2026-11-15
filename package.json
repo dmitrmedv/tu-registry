@@ -8,13 +8,15 @@
   "workspaces": [
     "packages/*",
     "server",
-    "client"
+    "client",
+    "e2e"
   ],
   "scripts": {
     "dev": "concurrently -k -n server,client -c blue,green \"npm:dev -w server\" \"npm:dev -w client\"",
     "lint": "eslint . --max-warnings=0",
     "typecheck": "npm run typecheck --workspaces --if-present",
     "test": "npm run test --workspaces --if-present",
+    "test:e2e": "npm run test -w e2e",
     "build": "npm run build -w server && npm run build -w client",
     "format": "prettier --write .",
     "format:check": "prettier --check ."

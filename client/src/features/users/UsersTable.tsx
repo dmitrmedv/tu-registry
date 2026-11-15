@@ -1,4 +1,5 @@
-import { DEPARTMENT_NAMES, type UserDto } from '@tu-registry/shared';
+import type { UserDto } from '@tu-registry/shared';
+import { useDepartments } from '@/features/departments';
 import { formatDateTime } from '@/shared/lib/format';
 import { ROLE_LABELS } from '@/shared/lib/labels';
 import { Badge, Button, Table } from '@/shared/ui';
@@ -12,6 +13,7 @@ type Props = {
 };
 
 export function UsersTable({ users, currentUserId, onEdit, onResetPassword }: Props) {
+  const { nameOf } = useDepartments();
   return (
     <Table caption="Користувачі системи">
       <thead>
@@ -38,7 +40,7 @@ export function UsersTable({ users, currentUserId, onEdit, onResetPassword }: Pr
             <td>
               <code>{user.login}</code>
             </td>
-            <td className={styles.nowrap}>{DEPARTMENT_NAMES[user.department]}</td>
+            <td className={styles.nowrap}>{nameOf(user.department)}</td>
             <td>{ROLE_LABELS[user.role]}</td>
             <td>{user.canManageRegistration ? 'Так' : '—'}</td>
             <td>

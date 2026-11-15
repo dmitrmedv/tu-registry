@@ -2,6 +2,7 @@ import type { Department } from '@tu-registry/shared';
 import type { AuthUser } from '../../types/express';
 import { ApiError } from '../../utils/ApiError';
 import { type RequestContext, recordAccessDenied } from '../audit/audit.service';
+import { assertUsableDepartment } from '../departments/department.service';
 
 export type Actor = Pick<AuthUser, 'id' | 'role' | 'department' | 'canManageRegistration'>;
 
@@ -32,10 +33,12 @@ export async function registrationDepartment(
   requested: Department | undefined,
   context: RequestContext,
 ) {
-  if (isAdmin(actor)) return requested ?? actor.department;
-  if (requested && requested !== actor.department) {
+  if (!isAdmin(actor) && requested && requested !== actor.department) {
     await recordAccessDenied(actor.id, { department: requested, required: 'ADMIN' }, context);
     throw ApiError.forbidden('Реєструвати заяви можна лише у своєму управлінні');
   }
-  return actor.department;
+  const department = (isAdmin(actor) && requested) || actor.department;
+  // Also a user's own department: nothing new goes into an archived one.
+  await assertUsableDepartment(department);
+  return department;
 }

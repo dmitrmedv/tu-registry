@@ -1,17 +1,29 @@
-import type { UserDto } from '@tu-registry/shared';
+import { INITIAL_DEPARTMENTS, type UserDto } from '@tu-registry/shared';
 import { http, HttpResponse } from 'msw';
 import { setupServer } from 'msw/node';
 
 /**
  * Network-level mock: tests talk to the real axios client and interceptors.
- * Defaults (restored after each test): an empty registry and no users.
+ * Defaults (restored after each test): an empty registry, no users, the 14 initial departments.
  */
 export const server = setupServer(
   http.get('*/api/v1/applications', () =>
     HttpResponse.json({ data: [], meta: { page: 1, limit: 20, total: 0, totalPages: 1 } }),
   ),
   http.get('*/api/v1/users/options', () => HttpResponse.json([])),
+  http.get('*/api/v1/departments', () => HttpResponse.json(departmentsList())),
 );
+
+/** The departments as the API returns them; `usersCount`/`applicationsCount` for admins. */
+export function departmentsList(overrides: Record<string, Record<string, unknown>> = {}) {
+  return INITIAL_DEPARTMENTS.map((department) => ({
+    ...department,
+    archived: false,
+    usersCount: 0,
+    applicationsCount: 0,
+    ...overrides[department.id],
+  }));
+}
 
 export function apiError(status: number, code: string, message = code) {
   return HttpResponse.json({ error: { code, message } }, { status });

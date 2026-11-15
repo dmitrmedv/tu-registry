@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 import { ADMIN } from '../support/accounts';
-import { apiLogin, createApplication, uniqueName } from '../support/api';
+import { apiLogin, chooseSetting, createApplication, uniqueName } from '../support/api';
 
 test('a user sees and numbers only their department; the admin sees all', async ({
   page,
@@ -79,4 +79,53 @@ test('an admin registers an application into a chosen department', async ({ page
   await page.getByRole('button', { name: 'Зареєструвати заяву' }).click();
 
   await expect(page.getByText('Заяву зареєстровано:')).toContainText(/\d+т\/\d{2}-11 /);
+});
+
+test('an admin adds a department, registers into it, re-codes and archives it', async ({
+  page,
+}) => {
+  await apiLogin(page.request, ADMIN);
+  const name = uniqueName('Тестове').replace(/\s+/g, ' ');
+  const code = String(100 + Math.floor(Math.random() * 800));
+
+  await page.goto('/');
+  await chooseSetting(page, 'Управління');
+  await page.getByRole('button', { name: 'Додати управління' }).click();
+  const dialog = page.getByRole('dialog', { name: 'Нове управління' });
+  await dialog.getByLabel('Назва').fill(name);
+  await dialog.getByLabel('Код').fill(code);
+  await dialog.getByRole('button', { name: 'Додати' }).click();
+  await expect(page.getByText(`Управління «${name}» додано`)).toBeVisible();
+
+  // Register into it: the number carries its code.
+  await page.goto('/applications/new');
+  await page.getByLabel('Управління').selectOption({ label: name });
+  await page.getByLabel('Замовник', { exact: true }).fill(uniqueName('ТОВ Нове управління'));
+  await page.getByLabel('Телефон').fill('067 123 45 67');
+  await page.getByLabel('Населений пункт').fill('м. Одеса');
+  await page.getByLabel('Адреса обʼєкта').fill('вул. Нова, 1');
+  await page.getByRole('radio', { name: 'Міська' }).check();
+  await page.getByRole('radio', { name: 'Побутовий', exact: true }).check();
+  await page.getByRole('radio', { name: 'Квартира' }).check();
+  await page.getByRole('button', { name: 'Зареєструвати заяву' }).click();
+  await expect(page.getByText('Заяву зареєстровано:')).toContainText(`1т/26-${code} `);
+
+  // Re-code it: the registry shows the new number at once.
+  await page.goto('/departments');
+  await page.getByRole('button', { name: `Редагувати: ${name}` }).click();
+  const edit = page.getByRole('dialog');
+  const newCode = String(Number(code) + 1);
+  await edit.getByLabel('Код').fill(newCode);
+  await edit.getByRole('button', { name: 'Зберегти' }).click();
+  await expect(page.getByText(`Управління «${name}» збережено`)).toBeVisible();
+  await page.goto(`/?department=all&number=${encodeURIComponent(`1т/26-${newCode}`)}`);
+  await expect(page.getByRole('table', { name: 'Реєстр заяв' }).getByRole('row')).toHaveCount(2);
+
+  // Archive it: it is no longer offered for new applications.
+  await page.goto('/departments');
+  await page.getByRole('button', { name: `Архівувати: ${name}` }).click();
+  await page.getByRole('dialog').getByRole('button', { name: 'Архівувати' }).click();
+  await expect(page.getByText(`Управління «${name}» архівовано`)).toBeVisible();
+  await page.goto('/applications/new');
+  await expect(page.getByLabel('Управління').locator('option', { hasText: name })).toHaveCount(0);
 });

@@ -1,12 +1,12 @@
 import {
   type ApplicationListItemDto,
   type ApplicationSort,
-  DEPARTMENT_NAMES,
   type SortField,
 } from '@tu-registry/shared';
 import clsx from 'clsx';
 import type { MouseEvent } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router';
+import { useDepartments } from '@/features/departments';
 import { formatCalendarDate } from '@/shared/lib/format';
 import { AREA_TYPE_LABELS, formatObjectCategory, OBJECT_TYPE_LABELS } from '@/shared/lib/labels';
 import { Badge, Table } from '@/shared/ui';
@@ -78,6 +78,7 @@ export function RegistryTable({ rows, showDepartment, sort, onSort }: Props) {
   // The card's "back to registry" link returns to exactly these filters.
   const { search } = useLocation();
   const openRow = useRowOpener(search);
+  const { nameOf } = useDepartments();
   return (
     <Table caption="Реєстр заяв">
       <thead>
@@ -122,9 +123,7 @@ export function RegistryTable({ rows, showDepartment, sort, onSort }: Props) {
               )}
             </td>
             <td className={styles.nowrap}>{formatCalendarDate(row.regDate)}</td>
-            {showDepartment && (
-              <td className={styles.nowrap}>{DEPARTMENT_NAMES[row.department]}</td>
-            )}
+            {showDepartment && <td className={styles.nowrap}>{nameOf(row.department)}</td>}
             <td className={styles.wrap}>{row.customer}</td>
             <td className={styles.nowrap}>{row.settlement ?? '—'}</td>
             <td className={styles.nowrap}>{row.areaType ? AREA_TYPE_LABELS[row.areaType] : '—'}</td>

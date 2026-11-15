@@ -7,7 +7,7 @@ import {
 } from '@tu-registry/shared';
 import { useForm } from 'react-hook-form';
 import { Alert, Button, CheckboxField, Dialog, SelectField, TextField } from '@/shared/ui';
-import { DEPARTMENT_OPTIONS } from '@/shared/lib/labels';
+import { useDepartments } from '@/features/departments';
 import { DEPARTMENT_HINT, MANAGE_REGISTRATION_HINT, ROLE_OPTIONS } from './roleOptions';
 import styles from './users.module.scss';
 
@@ -23,6 +23,7 @@ type Props = {
 };
 
 export function EditUserDialog({ user, isSelf, onClose, onSubmit, error }: Props) {
+  const departments = useDepartments();
   const {
     register,
     handleSubmit,
@@ -67,13 +68,16 @@ export function EditUserDialog({ user, isSelf, onClose, onSubmit, error }: Props
       <form id={FORM_ID} onSubmit={submit} noValidate className={styles.formContents}>
         {error && <Alert variant="error">{error}</Alert>}
         <TextField label="ПІБ" error={errors.fullName?.message} {...register('fullName')} />
-        <SelectField
-          label="Управління"
-          options={DEPARTMENT_OPTIONS}
-          hint={`${DEPARTMENT_HINT}. Уже зареєстровані ним заяви лишаються у своєму управлінні.`}
-          error={errors.department?.message}
-          {...register('department')}
-        />
+        {/* Once the departments are loaded: the select must have the current value's option when it mounts. */}
+        {!departments.isPending && (
+          <SelectField
+            label="Управління"
+            options={departments.optionsWith(user.department)}
+            hint={`${DEPARTMENT_HINT}. Уже зареєстровані ним заяви лишаються у своєму управлінні.`}
+            error={errors.department?.message}
+            {...register('department')}
+          />
+        )}
         <SelectField
           label="Роль"
           options={ROLE_OPTIONS}

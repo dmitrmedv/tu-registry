@@ -7,6 +7,7 @@ import {
 import mongoose from 'mongoose';
 import { kyivDayStart, nextIsoDate } from '../../utils/kyivDate';
 import { Application } from '../applications/application.model';
+import { departmentDirectory } from '../departments/department.service';
 import { findUserSummaries } from '../users/user.service';
 import { AuditLog } from './auditLog.model';
 
@@ -46,18 +47,19 @@ export async function listAuditLogs(query: AuditListQueryData): Promise<Paginate
   const applicationIds = rows
     .filter((row) => row.entityType === 'Application' && row.entityId)
     .map((row) => String(row.entityId));
-  const [users, applications] = await Promise.all([
+  const [users, applications, departments] = await Promise.all([
     findUserSummaries(userIds),
     applicationIds.length
       ? Application.find({ _id: mongoose.trusted({ $in: applicationIds }) })
           .select('regYear regSeq department')
           .lean()
       : [],
+    departmentDirectory(),
   ]);
   const regNumbers = new Map(
     applications.map((app) => [
       String(app._id),
-      formatRegNumber(app.regYear, app.regSeq, app.department),
+      formatRegNumber(app.regYear, app.regSeq, departments.get(app.department)?.code ?? 0),
     ]),
   );
 
@@ -78,7 +80,9 @@ export async function listAuditLogs(query: AuditListQueryData): Promise<Paginate
           : entityType === 'Application'
             ? // A deleted application is gone; its entries still carry the number in details.
               (regNumbers.get(entityId) ?? detailString(row.details, 'regNumber'))
-            : (users.get(entityId)?.login ?? null),
+            : entityType === 'Department'
+              ? (departments.get(entityId)?.name ?? detailString(row.details, 'name'))
+              : (users.get(entityId)?.login ?? null),
         details: (row.details as Record<string, unknown> | undefined) ?? null,
         ip: row.ip ?? null,
       };

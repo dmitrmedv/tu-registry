@@ -9,6 +9,7 @@ import { ApiError } from '../../utils/ApiError';
 import { inTransaction, isDuplicateKey } from '../../utils/db';
 import { fromIsoDate, toIsoDate } from '../../utils/kyivDate';
 import { type RequestContext, recordAccessDenied, recordAudit } from '../audit/audit.service';
+import { assertUsableDepartment, departmentCode } from '../departments/department.service';
 import { findUserSummaries } from '../users/user.service';
 import { type Actor, applicationNotFound, canAccess, isAdmin } from './application.access';
 import { type ApplicationDocument, toApplicationDto } from './application.dto';
@@ -61,9 +62,12 @@ async function deny(
 async function toDto(app: ApplicationDocument) {
   const authorId = String(app.createdBy);
   const annulledById = app.annulment ? String(app.annulment.by) : null;
-  const names = await findUserSummaries([authorId, annulledById]);
+  const [names, code] = await Promise.all([
+    findUserSummaries([authorId, annulledById]),
+    departmentCode(app.department),
+  ]);
   const name = (id: string) => ({ id, fullName: names.get(id)?.fullName ?? '—' });
-  return toApplicationDto(app, name(authorId), annulledById ? name(annulledById) : null);
+  return toApplicationDto(app, code, name(authorId), annulledById ? name(annulledById) : null);
 }
 
 export async function getApplication(id: string, actor: Actor) {
@@ -124,8 +128,11 @@ export async function updateApplication(
     );
   }
   const newDepartment = input.department ?? current.department;
-  if (newDepartment !== current.department && !isAdmin(actor)) {
-    throw await deny(actor, current, 'ADMIN', 'Управління заяви змінює адміністратор', context);
+  if (newDepartment !== current.department) {
+    if (!isAdmin(actor)) {
+      throw await deny(actor, current, 'ADMIN', 'Управління заяви змінює адміністратор', context);
+    }
+    await assertUsableDepartment(newDepartment);
   }
   if (input.version !== current.version) throw versionConflict();
 
@@ -145,10 +152,14 @@ export async function updateApplication(
 
   const oldDate = toIsoDate(current.regDate);
   const newDate = input.regDate ?? oldDate;
-  const oldNumber = formatRegNumber(current.regYear, current.regSeq, current.department);
+  const [oldCode, newCode] = await Promise.all([
+    departmentCode(current.department),
+    departmentCode(newDepartment),
+  ]);
+  const oldNumber = formatRegNumber(current.regYear, current.regSeq, oldCode);
   const newYear = yearOf(newDate);
   const newSeq = input.regSeq ?? current.regSeq;
-  const newNumber = formatRegNumber(newYear, newSeq, newDepartment);
+  const newNumber = formatRegNumber(newYear, newSeq, newCode);
   if (newDepartment !== current.department) {
     changes.push({ field: 'department', oldValue: current.department, newValue: newDepartment });
     set.department = newDepartment;
@@ -267,7 +278,11 @@ export async function annulApplication(
         entityType: 'Application',
         entityId: current._id,
         details: {
-          regNumber: formatRegNumber(current.regYear, current.regSeq, current.department),
+          regNumber: formatRegNumber(
+            current.regYear,
+            current.regSeq,
+            await departmentCode(current.department),
+          ),
         },
       },
       context,
@@ -319,7 +334,11 @@ export async function restoreApplication(
         entityType: 'Application',
         entityId: current._id,
         details: {
-          regNumber: formatRegNumber(current.regYear, current.regSeq, current.department),
+          regNumber: formatRegNumber(
+            current.regYear,
+            current.regSeq,
+            await departmentCode(current.department),
+          ),
         },
       },
       context,

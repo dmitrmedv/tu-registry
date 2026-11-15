@@ -6,6 +6,7 @@ import {
   regSeqField,
 } from '@tu-registry/shared';
 import clsx from 'clsx';
+import { useDepartments } from '@/features/departments';
 import { useDebouncedValue } from '@/shared/hooks/useDebouncedValue';
 import { formatCalendarDate } from '@/shared/lib/format';
 import styles from './ApplicationForm.module.scss';
@@ -29,7 +30,9 @@ export function ManualNumberStatus({ regDate, regSeq, next, department, excludeI
   const date = regDateField.safeParse(regDate);
   const seq = regSeqField.safeParse(regSeq);
   const year = date.success ? Number(date.data.slice(0, 4)) : null;
-  const regNumber = year && seq.success ? formatRegNumber(year, seq.data, department) : null;
+  const code = useDepartments().codeOf(department);
+  const regNumber =
+    year && seq.success && code !== undefined ? formatRegNumber(year, seq.data, code) : null;
 
   // Ask the server only once the user pauses typing.
   const checked = useDebouncedValue(

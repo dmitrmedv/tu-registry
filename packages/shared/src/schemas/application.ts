@@ -12,7 +12,7 @@ import {
 } from '../enums';
 import type { Department } from '../departments';
 import { normalizePhone } from '../phone';
-import { departmentField } from './user';
+import { departmentField } from '../departments';
 
 const requiredText = (label: string, max: number) =>
   z

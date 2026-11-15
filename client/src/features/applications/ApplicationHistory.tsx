@@ -1,4 +1,5 @@
 import type { ApplicationChangeDto } from '@tu-registry/shared';
+import { useDepartments } from '@/features/departments';
 import { toApiError } from '@/shared/api/apiError';
 import { formatDateTime } from '@/shared/lib/format';
 import {
@@ -11,6 +12,7 @@ import styles from './ApplicationDetails.module.scss';
 import { useApplicationHistory } from './queries';
 
 function Entry({ entry }: { entry: ApplicationChangeDto }) {
+  const { nameOf } = useDepartments();
   return (
     <li className={styles.entry}>
       <div className={styles.entryHeader}>
@@ -26,12 +28,12 @@ function Entry({ entry }: { entry: ApplicationChangeDto }) {
               {change.oldValue !== null && (
                 <>
                   <span className={styles.oldValue}>
-                    {formatFieldValue(change.field, change.oldValue)}
+                    {formatFieldValue(change.field, change.oldValue, nameOf)}
                   </span>{' '}
                   →{' '}
                 </>
               )}
-              {formatFieldValue(change.field, change.newValue)}
+              {formatFieldValue(change.field, change.newValue, nameOf)}
             </li>
           ))}
         </ul>

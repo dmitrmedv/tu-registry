@@ -5,7 +5,7 @@ import type { z } from 'zod';
 import { toApiError } from '@/shared/api/apiError';
 import { Alert, Button, CheckboxField, Dialog, SelectField, TextField } from '@/shared/ui';
 import { useCreateUser } from './queries';
-import { DEPARTMENT_OPTIONS } from '@/shared/lib/labels';
+import { useDepartments } from '@/features/departments';
 import { DEPARTMENT_HINT, MANAGE_REGISTRATION_HINT, ROLE_OPTIONS } from './roleOptions';
 import styles from './users.module.scss';
 
@@ -22,6 +22,7 @@ type Props = {
 
 export function CreateUserDialog({ open, onClose, onCreated }: Props) {
   const createUser = useCreateUser();
+  const departments = useDepartments();
   const {
     register,
     handleSubmit,
@@ -82,13 +83,16 @@ export function CreateUserDialog({ open, onClose, onCreated }: Props) {
           {...register('login')}
         />
         <TextField label="ПІБ" error={errors.fullName?.message} {...register('fullName')} />
-        <SelectField
-          label="Управління"
-          options={[{ value: '', label: '— оберіть —' }, ...DEPARTMENT_OPTIONS]}
-          hint={DEPARTMENT_HINT}
-          error={errors.department?.message}
-          {...register('department')}
-        />
+        {/* Once the departments are loaded: the select must have the current value's option when it mounts. */}
+        {!departments.isPending && (
+          <SelectField
+            label="Управління"
+            options={[{ value: '', label: '— оберіть —' }, ...departments.activeOptions]}
+            hint={DEPARTMENT_HINT}
+            error={errors.department?.message}
+            {...register('department')}
+          />
+        )}
         <SelectField label="Роль" options={ROLE_OPTIONS} {...register('role')} />
         <CheckboxField
           label="Уповноважений користувач"

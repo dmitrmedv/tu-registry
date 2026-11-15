@@ -32,7 +32,7 @@ export type AuditLogDto = {
   createdAt: string;
   action: AuditAction;
   actor: { id: string; fullName: string; login: string } | null;
-  entityType: 'User' | 'Application' | null;
+  entityType: 'User' | 'Application' | 'Department' | null;
   entityId: string | null;
   /** Human-readable object: the application number or the user's login. */
   entityLabel: string | null;

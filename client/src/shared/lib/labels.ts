@@ -4,9 +4,6 @@ import {
   AREA_TYPE_LABELS,
   type AreaType,
   type AuditAction,
-  type Department,
-  DEPARTMENT_NAMES,
-  DEPARTMENTS,
   formatPhone,
   OBJECT_CATEGORY_LABELS,
   OBJECT_TYPE_LABELS,
@@ -18,12 +15,6 @@ import { formatCalendarDate } from './format';
 
 // Enum names live in @tu-registry/shared (the server sorts by them); re-exported for the UI.
 export { AREA_TYPE_LABELS, OBJECT_CATEGORY_LABELS, OBJECT_TYPE_LABELS };
-
-/** In the agreed order (the order of the codes in registration numbers). */
-export const DEPARTMENT_OPTIONS = DEPARTMENTS.map((department) => ({
-  value: department,
-  label: DEPARTMENT_NAMES[department],
-}));
 
 export const ROLE_LABELS: Record<Role, string> = {
   USER: 'Користувач',
@@ -64,6 +55,11 @@ export const AUDIT_ACTION_LABELS: Record<AuditAction, string> = {
   APPLICATION_ANNULLED: 'Анульовано заяву',
   APPLICATION_RESTORED: 'Відновлено заяву',
   APPLICATION_DELETED: 'Видалено заяву',
+  DEPARTMENT_CREATED: 'Створено управління',
+  DEPARTMENT_UPDATED: 'Змінено управління',
+  DEPARTMENT_ARCHIVED: 'Архівовано управління',
+  DEPARTMENT_RESTORED: 'Відновлено управління',
+  DEPARTMENT_DELETED: 'Видалено управління',
   ACCESS_DENIED: 'Відмовлено в доступі',
 };
 
@@ -90,7 +86,12 @@ export const APPLICATION_FIELD_LABELS: Record<string, string> = {
 };
 
 /** A stored history value, shown the way people read it ("—" for empty). */
-export function formatFieldValue(field: string, value: unknown): string {
+/** `departmentName`: departments live in the database, so their names come from the caller. */
+export function formatFieldValue(
+  field: string,
+  value: unknown,
+  departmentName?: (id: string) => string,
+): string {
   if (value === null || value === undefined || value === '') return '—';
   const text = String(value);
   switch (field) {
@@ -101,7 +102,7 @@ export function formatFieldValue(field: string, value: unknown): string {
     case 'objectType':
       return OBJECT_TYPE_LABELS[text as ObjectType] ?? text;
     case 'department':
-      return DEPARTMENT_NAMES[text as Department] ?? text;
+      return departmentName?.(text) || text;
     case 'areaType':
       return AREA_TYPE_LABELS[text as AreaType] ?? text;
     case 'objectCategory':

@@ -1,5 +1,6 @@
-import { type ApplicationDto, DEPARTMENT_NAMES, formatPhone } from '@tu-registry/shared';
+import { type ApplicationDto, formatPhone } from '@tu-registry/shared';
 import type { ReactNode } from 'react';
+import { useDepartments } from '@/features/departments';
 import { formatCalendarDate, formatDateTime } from '@/shared/lib/format';
 import { AREA_TYPE_LABELS, formatObjectCategory, OBJECT_TYPE_LABELS } from '@/shared/lib/labels';
 import styles from './ApplicationDetails.module.scss';
@@ -14,6 +15,7 @@ function Field({ label, children }: { label: string; children: ReactNode }) {
 }
 
 export function ApplicationDetails({ app }: { app: ApplicationDto }) {
+  const { nameOf } = useDepartments();
   return (
     <div className={styles.sections}>
       {app.annulment && (
@@ -31,7 +33,7 @@ export function ApplicationDetails({ app }: { app: ApplicationDto }) {
         <h2 id="registration">Реєстрація</h2>
         <dl>
           <Field label="Номер">{app.regNumber}</Field>
-          <Field label="Управління">{DEPARTMENT_NAMES[app.department]}</Field>
+          <Field label="Управління">{nameOf(app.department)}</Field>
           <Field label="Дата реєстрації">{formatCalendarDate(app.regDate)}</Field>
           <Field label="Спосіб">
             {app.registrationMode === 'MANUAL' ? 'Внесено вручну' : 'Автоматично'}

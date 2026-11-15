@@ -2,7 +2,7 @@ import { screen, within } from '@testing-library/react';
 import { http as mock, HttpResponse } from 'msw';
 import { describe, expect, it, vi } from 'vitest';
 import { renderApp } from '@/test/renderApp';
-import { apiError, makeUser, server, signedInAs } from '@/test/server';
+import { apiError, departmentsList, makeUser, server, signedInAs } from '@/test/server';
 
 const admin = makeUser();
 const ivan = makeUser({ id: 'u2', login: 'ivan', fullName: 'Іван Петренко', role: 'USER' });
@@ -141,5 +141,44 @@ describe('UsersPage', () => {
 
     expect(await within(dialog).findByText('Оберіть управління')).toBeInTheDocument();
     expect(created).not.toHaveBeenCalled();
+  });
+
+  it("keeps a user's department when the departments list arrives late", async () => {
+    const reniUser = makeUser({
+      id: 'u9',
+      login: 'reni',
+      fullName: 'Ренійський Працівник',
+      role: 'USER',
+      department: 'RENI',
+    });
+    const sent: unknown[] = [];
+    let releaseDepartments!: () => void;
+    const departmentsArrive = new Promise<void>((resolve) => (releaseDepartments = resolve));
+    server.use(
+      mock.get('*/api/v1/departments', async () => {
+        await departmentsArrive;
+        return HttpResponse.json(departmentsList());
+      }),
+      mock.patch('*/api/v1/users/:id', async ({ request }) => {
+        sent.push(await request.json());
+        return HttpResponse.json({ ...reniUser, fullName: 'Нове Імʼя' });
+      }),
+    );
+    const { user } = openUsersPage([admin, reniUser]);
+
+    await user.click(
+      await screen.findByRole('button', { name: `Редагувати: ${reniUser.fullName}` }),
+    );
+    const dialog = screen.getByRole('dialog');
+    // Not offered until the list is there, so it cannot show (and save) a wrong default.
+    expect(within(dialog).queryByLabelText('Управління')).not.toBeInTheDocument();
+    releaseDepartments();
+    expect(await within(dialog).findByLabelText('Управління')).toHaveValue('RENI');
+
+    await user.clear(within(dialog).getByLabelText('ПІБ'));
+    await user.type(within(dialog).getByLabelText('ПІБ'), 'Нове Імʼя');
+    await user.click(within(dialog).getByRole('button', { name: 'Зберегти' }));
+
+    await vi.waitFor(() => expect(sent).toEqual([{ fullName: 'Нове Імʼя' }]));
   });
 });

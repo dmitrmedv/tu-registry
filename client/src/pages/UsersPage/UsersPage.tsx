@@ -1,11 +1,11 @@
 import {
-  DEPARTMENT_NAMES,
   type UpdateUserInput,
   type UserDto,
   type UserWithTemporaryPassword,
 } from '@tu-registry/shared';
 import { useMemo, useState } from 'react';
 import { useCurrentUser } from '@/features/auth';
+import { useDepartments } from '@/features/departments';
 import {
   CreateUserDialog,
   EditUserDialog,
@@ -31,6 +31,7 @@ type DialogState =
 export function UsersPage() {
   const currentUser = useCurrentUser();
   const { data: users, isPending, isError, error, refetch } = useUsers();
+  const { nameOf } = useDepartments();
   const updateUser = useUpdateUser();
   const resetPassword = useResetPassword();
   const [search, setSearch] = useState('');
@@ -46,9 +47,9 @@ export function UsersPage() {
         (!query ||
           user.fullName.toLowerCase().includes(query) ||
           user.login.includes(query) ||
-          DEPARTMENT_NAMES[user.department].toLowerCase().includes(query)),
+          nameOf(user.department).toLowerCase().includes(query)),
     );
-  }, [users, search, showInactive]);
+  }, [users, search, showInactive, nameOf]);
 
   const saveChanges = async (user: UserDto, changes: UpdateUserInput) => {
     await updateUser.mutateAsync({ id: user.id, input: changes });

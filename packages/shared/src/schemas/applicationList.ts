@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { APPLICATION_STATUSES, AREA_TYPES, OBJECT_CATEGORIES, OBJECT_TYPES } from '../enums';
 import { parseRegNumber } from '../regNumber';
-import { departmentField } from './user';
+import { departmentField } from '../departments';
 import type { ApplicationDto } from './application';
 
 /** Every registry column can be sorted; "-field" is descending. */

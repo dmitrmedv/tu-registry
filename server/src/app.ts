@@ -7,6 +7,7 @@ import { errorHandler } from './middlewares/errorHandler';
 import { notFound } from './middlewares/notFound';
 import { applicationRouter } from './modules/applications/application.routes';
 import { auditRouter } from './modules/audit/audit.routes';
+import { departmentRouter } from './modules/departments/department.routes';
 import { createAuthRouter } from './modules/auth/auth.routes';
 import { userRouter } from './modules/users/user.routes';
 
@@ -35,6 +36,7 @@ export function createApp() {
   app.use('/api/v1/users', userRouter);
   app.use('/api/v1/applications', applicationRouter);
   app.use('/api/v1/audit', auditRouter);
+  app.use('/api/v1/departments', departmentRouter);
 
   app.use(notFound);
   app.use(errorHandler);

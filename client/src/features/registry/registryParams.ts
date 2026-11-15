@@ -7,8 +7,8 @@ import {
   AREA_TYPES,
   type AreaType,
   DEFAULT_DEPARTMENT,
+  DEPARTMENT_ID_PATTERN,
   type Department,
-  DEPARTMENTS,
   OBJECT_CATEGORIES,
   OBJECT_TYPES,
   type ObjectCategory,
@@ -107,7 +107,7 @@ export function readParams(search: URLSearchParams): RegistryParams {
     status: APPLICATION_STATUSES.includes(status) ? status : '',
     user: user === 'mine' || OBJECT_ID.test(user) ? user : 'all',
     department:
-      department === 'all' || DEPARTMENTS.includes(department as Department)
+      department === 'all' || DEPARTMENT_ID_PATTERN.test(department)
         ? department
         : DEFAULT_DEPARTMENT,
     from: date('from'),

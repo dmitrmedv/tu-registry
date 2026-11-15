@@ -1,6 +1,5 @@
 import {
   APPLICATION_STATUSES,
-  DEPARTMENTS,
   AREA_TYPES,
   COMMENT_MAX,
   OBJECT_CATEGORIES,
@@ -34,7 +33,7 @@ const applicationSchema = new Schema(
     // Calendar date in Europe/Kyiv, stored as midnight UTC of that date.
     regDate: { type: Date, required: true },
     // The author's department at registration (stage 13); the number is unique within it.
-    department: { type: String, enum: DEPARTMENTS, required: true },
+    department: { type: String, required: true },
     customer: { type: String, required: true, trim: true, maxlength: 300 },
     customerRepresentative: { type: String, trim: true, maxlength: 300 },
     // Normalized by the shared phone helper before saving.

@@ -46,7 +46,9 @@ describe('registry URL params', () => {
     expect(toApiQuery(DEFAULT_PARAMS, ADMIN).department).toBe('ODESA');
     expect(toApiQuery({ ...DEFAULT_PARAMS, department: 'all' }, ADMIN).department).toBeUndefined();
     expect(toApiQuery({ ...DEFAULT_PARAMS, department: 'RENI' }, ME).department).toBeUndefined();
-    expect(readParams(new URLSearchParams('department=unknown')).department).toBe('ODESA');
+    // Departments live in the database: any well-formed id is kept (the server decides).
+    expect(readParams(new URLSearchParams('department=NEW_1')).department).toBe('NEW_1');
+    expect(readParams(new URLSearchParams('department=bad id!')).department).toBe('ODESA');
     expect(writeParams({ ...DEFAULT_PARAMS, department: 'all' }).toString()).toBe('department=all');
   });
 });

@@ -61,7 +61,11 @@ describe('automatic numbering', () => {
     expect([first.regNumber, second.regNumber]).toEqual(['1т/26-8', '2т/26-8']);
     expect(first).toMatchObject({ registrationMode: 'AUTO', status: 'ACTIVE', createdBy: actor });
     expect(await ApplicationChange.countDocuments({ action: 'CREATED' })).toBe(2);
-    const audit = await AuditLog.findOne({ action: 'APPLICATION_CREATED', entityId: first.id });
+    // entityId is stored as an ObjectId (Mixed type: also department string ids).
+    const audit = await AuditLog.findOne({
+      action: 'APPLICATION_CREATED',
+      entityId: new Types.ObjectId(first.id),
+    });
     expect(audit?.details).toEqual({ regNumber: '1т/26-8', regDate: '2026-03-12' });
   });
 

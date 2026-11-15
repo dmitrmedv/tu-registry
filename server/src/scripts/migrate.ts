@@ -1,6 +1,7 @@
 import { connectDb, disconnectDb } from '../config/db';
 import { env } from '../config/env';
 import { logger } from '../config/logger';
+import { ensureInitialDepartments } from '../modules/departments/department.service';
 import {
   assignDefaultDepartment,
   backfillAreaType,
@@ -15,6 +16,9 @@ import {
 async function main() {
   await connectDb(env.MONGO_URI);
   try {
+    // First: everything below may refer to the initial departments.
+    const departments = await ensureInitialDepartments();
+    logger.info({ departments }, 'Initial departments added');
     const categorized = await backfillObjectCategory();
     logger.info({ categorized }, 'Applications without a category set to OTHER');
     const settled = await backfillSettlement();
@@ -24,8 +28,8 @@ async function main() {
     // After the settlements: the area type is derived from them.
     const areas = await backfillAreaType();
     logger.info({ areas }, 'Area types derived from settlements');
-    const departments = await assignDefaultDepartment();
-    logger.info(departments, 'Users and applications without a department set to Одеське');
+    const assigned = await assignDefaultDepartment();
+    logger.info(assigned, 'Users and applications without a department set to Одеське');
     const counters = await moveCountersToDefaultDepartment();
     logger.info({ counters }, 'Year counters moved to Одеське');
     const droppedIndex = await dropYearWideUniqueNumberIndex();

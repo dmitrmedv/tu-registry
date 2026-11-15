@@ -2,6 +2,7 @@ import { formatRegNumber } from '@tu-registry/shared';
 import { inTransaction } from '../../utils/db';
 import { toIsoDate } from '../../utils/kyivDate';
 import { type RequestContext, recordAudit } from '../audit/audit.service';
+import { departmentCode } from '../departments/department.service';
 import type { Actor } from './application.access';
 import { loadApplication, versionConflict } from './application.edit.service';
 import { Application } from './application.model';
@@ -20,6 +21,7 @@ export async function deleteApplication(
 ) {
   const current = await loadApplication(id, actor);
   if (version !== current.version) throw versionConflict();
+  const code = await departmentCode(current.department);
 
   await inTransaction(async (session) => {
     const { deletedCount } = await Application.deleteOne(
@@ -35,7 +37,7 @@ export async function deleteApplication(
         entityType: 'Application',
         entityId: current._id,
         details: {
-          regNumber: formatRegNumber(current.regYear, current.regSeq, current.department),
+          regNumber: formatRegNumber(current.regYear, current.regSeq, code),
           regDate: toIsoDate(current.regDate),
         },
       },

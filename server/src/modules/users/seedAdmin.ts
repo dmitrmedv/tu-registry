@@ -9,6 +9,10 @@ import {
 import { z } from 'zod';
 import { hashPassword } from '../../utils/password';
 import { AuditLog } from '../audit/auditLog.model';
+import {
+  assertUsableDepartment,
+  ensureInitialDepartments,
+} from '../departments/department.service';
 import { User } from './user.model';
 
 export type SeedAdminInput = {
@@ -47,6 +51,9 @@ export function seedAdminFromEnv(source: NodeJS.ProcessEnv): SeedAdminInput {
  */
 export async function seedAdmin(input: SeedAdminInput): Promise<'created' | 'exists'> {
   if (await User.exists({ role: 'ADMIN', isActive: true })) return 'exists';
+  // The initial departments first: the admin's department must exist.
+  await ensureInitialDepartments();
+  await assertUsableDepartment(input.department, 'SEED_ADMIN_DEPARTMENT');
 
   const admin = await User.create({
     login: input.login,

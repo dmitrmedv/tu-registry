@@ -3,7 +3,6 @@ import {
   type ApplicationSort,
   AREA_TYPE_LABELS,
   codesByLabel,
-  DEPARTMENT_NAMES,
   OBJECT_CATEGORY_LABELS,
   OBJECT_TYPE_LABELS,
   type SortField,
@@ -33,7 +32,11 @@ const TEXT_SEARCHES = [
  * Translates a validated list query into a MongoDB filter. Values are already cast (ObjectId,
  * Date), so the same filter works in find() and in an aggregation, which does not cast.
  */
-export function buildListFilter(query: ApplicationListQueryData) {
+/**
+ * `numberDepartment`: the department whose code a "15т/26-8" search names (looked up by the
+ * caller); null when no department has that code, so nothing matches.
+ */
+export function buildListFilter(query: ApplicationListQueryData, numberDepartment?: string | null) {
   const filter: Record<string, unknown> = {};
   for (const [param, field] of TEXT_SEARCHES) {
     const text = query[param];
@@ -45,11 +48,11 @@ export function buildListFilter(query: ApplicationListQueryData) {
     if ('year' in query.number) filter.regYear = query.number.year;
     // "15т/26-8" names a department; for a user it must also be their own (another
     // department's number then simply finds nothing).
-    if ('department' in query.number && query.number.department) {
+    if (numberDepartment !== undefined) {
       filter.department =
-        query.department && query.department !== query.number.department
+        numberDepartment === null || (query.department && query.department !== numberDepartment)
           ? mongoose.trusted({ $in: [] })
-          : query.number.department;
+          : numberDepartment;
     }
   }
   if (query.objectType) filter.objectType = query.objectType;
@@ -101,7 +104,6 @@ export function listSort(sort: ApplicationSort): ListSort {
 
 /** Enum codes in the alphabetical order of their names: the position is the sort key. */
 export const CODES_BY_NAME = {
-  department: codesByLabel(DEPARTMENT_NAMES),
   objectType: codesByLabel(OBJECT_TYPE_LABELS),
   objectCategory: codesByLabel(OBJECT_CATEGORY_LABELS),
   areaType: codesByLabel(AREA_TYPE_LABELS),

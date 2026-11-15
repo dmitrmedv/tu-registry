@@ -12,12 +12,8 @@ import {
 } from '@tu-registry/shared';
 import clsx from 'clsx';
 import { useState } from 'react';
-import {
-  AREA_TYPE_LABELS,
-  DEPARTMENT_OPTIONS,
-  OBJECT_CATEGORY_LABELS,
-  OBJECT_TYPE_LABELS,
-} from '@/shared/lib/labels';
+import { useDepartments } from '@/features/departments';
+import { AREA_TYPE_LABELS, OBJECT_CATEGORY_LABELS, OBJECT_TYPE_LABELS } from '@/shared/lib/labels';
 import { Button, SelectField, TextField } from '@/shared/ui';
 import styles from './registry.module.scss';
 import { isNumberSearchValid, isPeriodValid, type RegistryParams } from './registryParams';
@@ -61,11 +57,6 @@ const STATUS_OPTIONS = [
   })),
 ];
 
-const DEPARTMENT_FILTER_OPTIONS = [
-  { value: 'all', label: 'Усі управління' },
-  ...DEPARTMENT_OPTIONS,
-];
-
 export function RegistryFilters({
   params,
   showDepartment,
@@ -74,6 +65,7 @@ export function RegistryFilters({
   activeFilterCount,
   users,
 }: Props) {
+  const departments = useDepartments();
   // Open on wide screens, collapsed on phones; either way the button folds it away.
   const [open, setOpen] = useState(() => window.matchMedia?.(WIDE_SCREEN).matches ?? true);
   // Typing creates no history entries; picking a value does.
@@ -109,7 +101,7 @@ export function RegistryFilters({
         {showDepartment && (
           <SelectField
             label="Управління"
-            options={DEPARTMENT_FILTER_OPTIONS}
+            options={[{ value: 'all', label: 'Усі управління' }, ...departments.allOptions]}
             value={params.department}
             onChange={(e) => update({ department: e.target.value as Department | 'all' })}
           />

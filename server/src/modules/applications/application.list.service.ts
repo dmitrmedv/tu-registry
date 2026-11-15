@@ -1,12 +1,14 @@
 import {
   type ApplicationListItemDto,
   type ApplicationListQueryData,
+  codesByLabel,
   type Department,
   formatRegNumber,
   type Paginated,
 } from '@tu-registry/shared';
 import type mongoose from 'mongoose';
 import { toIsoDate } from '../../utils/kyivDate';
+import { departmentDirectory } from '../departments/department.service';
 import {
   buildListFilter,
   CODES_BY_NAME,
@@ -87,7 +89,7 @@ async function findComputed(
           },
           { $addFields: { sortKey: { $first: '$author.fullName' } } },
         ]
-      : [{ $addFields: { sortKey: { $indexOfArray: [CODES_BY_NAME[field], `$${field}`] } } }];
+      : [{ $addFields: { sortKey: { $indexOfArray: [await codesByName(field), `$${field}`] } } }];
   const rows = await Application.aggregate<ListedApplication>(
     [
       { $match: filter },
@@ -108,11 +110,27 @@ async function findComputed(
 }
 
 /** One page of the registry. Filtering, sorting and paging happen in the database. */
+type EnumSortField = Exclude<Extract<ListSort, { kind: 'computed' }>['field'], 'createdBy'>;
+
+/** The values of `field` in the alphabetical order of their names; departments are in the DB. */
+async function codesByName(field: EnumSortField) {
+  if (field !== 'department') return CODES_BY_NAME[field];
+  const departments = [...(await departmentDirectory()).values()];
+  return codesByLabel(Object.fromEntries(departments.map((d) => [d.id, d.name])));
+}
+
 export async function listApplications(
   query: ApplicationListQueryData,
 ): Promise<Paginated<ApplicationListItemDto>> {
+  const departments = await departmentDirectory();
+  const searchedCode =
+    query.number && 'departmentCode' in query.number ? query.number.departmentCode : undefined;
+  const numberDepartment =
+    searchedCode === undefined
+      ? undefined
+      : ([...departments.values()].find((d) => d.code === searchedCode)?.id ?? null);
   const page = {
-    filter: buildListFilter(query),
+    filter: buildListFilter(query, numberDepartment),
     skip: (query.page - 1) * query.limit,
     limit: query.limit,
   };
@@ -125,7 +143,11 @@ export async function listApplications(
   return {
     data: rows.map((row) => ({
       id: String(row._id),
-      regNumber: formatRegNumber(row.regYear, row.regSeq, row.department),
+      regNumber: formatRegNumber(
+        row.regYear,
+        row.regSeq,
+        departments.get(row.department)?.code ?? 0,
+      ),
       regYear: row.regYear,
       regSeq: row.regSeq,
       regDate: toIsoDate(row.regDate),

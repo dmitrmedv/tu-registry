@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { type Department, DEPARTMENTS } from '../departments';
+import { type Department, departmentField } from '../departments';
 import { ROLES, type Role } from '../enums';
 import { loginField } from './auth';
 
@@ -8,8 +8,6 @@ export const fullNameField = z
   .trim()
   .min(2, 'ПІБ: щонайменше 2 символи')
   .max(150, 'ПІБ: не більше 150 символів');
-
-export const departmentField = z.enum(DEPARTMENTS, { error: 'Оберіть управління' });
 
 export const createUserSchema = z
   .object({

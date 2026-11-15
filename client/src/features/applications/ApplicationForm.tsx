@@ -18,10 +18,10 @@ import {
   useForm,
 } from 'react-hook-form';
 import { useCurrentUser } from '@/features/auth';
+import { useDepartments } from '@/features/departments';
 import { toApiError } from '@/shared/api/apiError';
 import { useFormDraft } from '@/shared/hooks/useFormDraft';
 import { formatCalendarDate, formatDateTime } from '@/shared/lib/format';
-import { DEPARTMENT_OPTIONS } from '@/shared/lib/labels';
 import { Alert, Button, CheckboxField, SelectField, Spinner, TextField } from '@/shared/ui';
 import { ApplicationContentFields } from './ApplicationContentFields';
 import styles from './ApplicationForm.module.scss';
@@ -96,6 +96,7 @@ export function ApplicationForm({ onCreated }: Props) {
   const user = useCurrentUser();
   const canRegisterManually = hasRegistrationRights(user);
   const chooseDepartment = user.role === 'ADMIN';
+  const departments = useDepartments();
   const today = kyivCalendarDate();
   const createAuto = useCreateApplication();
   const createManual = useCreateManualApplication();
@@ -191,10 +192,11 @@ export function ApplicationForm({ onCreated }: Props) {
 
         <fieldset className={styles.section}>
           <legend>Реєстрація</legend>
-          {chooseDepartment && (
+          {/* Rendered once the departments are loaded: an uncontrolled select takes its value from the form when it mounts, and must have that option by then. */}
+          {chooseDepartment && !departments.isPending && (
             <SelectField
               label="Управління"
-              options={DEPARTMENT_OPTIONS}
+              options={departments.activeOptions}
               hint="Заява отримає номер цього управління й буде видна його працівникам"
               {...register('department')}
             />

@@ -10,6 +10,7 @@ import { isDuplicateKey } from '../../utils/db';
 import { generateTemporaryPassword, hashPassword } from '../../utils/password';
 import { type RequestContext, recordAudit } from '../audit/audit.service';
 import { revokeAllSessions } from '../auth/session.service';
+import { assertUsableDepartment } from '../departments/department.service';
 import { toUserDto } from './user.dto';
 import { User } from './user.model';
 
@@ -39,6 +40,7 @@ export async function createUser(
   actor: Actor,
   context: RequestContext,
 ): Promise<UserWithTemporaryPassword> {
+  await assertUsableDepartment(input.department);
   const temporaryPassword = generateTemporaryPassword();
   let user;
   try {
@@ -93,6 +95,11 @@ export async function updateUser(
     if (input.role && input.role !== user.role) {
       throw new ApiError(409, 'CANNOT_MODIFY_SELF', 'Не можна змінити власну роль');
     }
+  }
+
+  // Moving a user into an archived or missing department is refused; staying is fine.
+  if (input.department && input.department !== user.department) {
+    await assertUsableDepartment(input.department);
   }
 
   const changes = (Object.keys(input) as (keyof UpdateUserInput)[])

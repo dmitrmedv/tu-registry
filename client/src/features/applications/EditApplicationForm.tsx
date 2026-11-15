@@ -2,7 +2,6 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import {
   type ApplicationDto,
   type Department,
-  DEPARTMENT_NAMES,
   formatPhone,
   formatRegNumber,
   kyivCalendarDate,
@@ -13,9 +12,9 @@ import {
 } from '@tu-registry/shared';
 import { useState } from 'react';
 import { type FieldPath, FormProvider, useForm } from 'react-hook-form';
+import { useDepartments } from '@/features/departments';
 import { toApiError } from '@/shared/api/apiError';
 import { formatCalendarDate } from '@/shared/lib/format';
-import { DEPARTMENT_OPTIONS } from '@/shared/lib/labels';
 import { Alert, Button, ConfirmDialog, LinkButton, SelectField, TextField } from '@/shared/ui';
 import { ApplicationContentFields } from './ApplicationContentFields';
 import styles from './ApplicationForm.module.scss';
@@ -100,6 +99,7 @@ export function EditApplicationForm({
   const [conflict, setConflict] = useState(false);
   const [pending, setPending] = useState<UpdateApplicationInput | null>(null);
   const [nothingChanged, setNothingChanged] = useState(false);
+  const departments = useDepartments();
   // Outside the form schema (it describes the application's content); admins only.
   const [department, setDepartment] = useState<Department>(app.department);
 
@@ -160,13 +160,15 @@ export function EditApplicationForm({
   });
 
   const newDate = pending?.regDate ?? app.regDate;
-  const newNumber = pending
-    ? formatRegNumber(
-        Number(String(newDate).slice(0, 4)),
-        Number(pending.regSeq ?? app.regSeq),
-        pending.department ?? app.department,
-      )
-    : null;
+  const newCode = departments.codeOf(pending?.department ?? app.department);
+  const newNumber =
+    pending && newCode !== undefined
+      ? formatRegNumber(
+          Number(String(newDate).slice(0, 4)),
+          Number(pending.regSeq ?? app.regSeq),
+          newCode,
+        )
+      : null;
 
   return (
     <FormProvider {...form}>
@@ -196,7 +198,7 @@ export function EditApplicationForm({
               {canChangeDepartment && (
                 <SelectField
                   label="Управління"
-                  options={DEPARTMENT_OPTIONS}
+                  options={departments.optionsWith(app.department)}
                   hint="Номер отримає код нового управління й має бути там вільним"
                   value={department}
                   onChange={(e) => setDepartment(e.target.value as Department)}
@@ -264,8 +266,8 @@ export function EditApplicationForm({
               {pending.department && (
                 <>
                   <br />
-                  Управління: {DEPARTMENT_NAMES[app.department]} →{' '}
-                  {DEPARTMENT_NAMES[pending.department]}
+                  Управління: {departments.nameOf(app.department)} →{' '}
+                  {departments.nameOf(pending.department)}
                 </>
               )}
             </p>

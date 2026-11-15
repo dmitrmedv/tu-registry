@@ -15,6 +15,8 @@ const USER_FIELD_LABELS: Record<string, string> = {
   isActive: 'активний',
 };
 
+const DEPARTMENT_FIELD_LABELS: Record<string, string> = { name: 'назва', code: 'код' };
+
 const text = (value: unknown) => (value === null || value === undefined ? '' : String(value));
 
 /** A short, human-readable summary of an entry's details for the journal table. */
@@ -33,6 +35,21 @@ export function describeDetails(entry: AuditLogDto): string {
     case 'USER_DEACTIVATED': {
       const changes = Array.isArray(d.changes) ? (d.changes as { field: string }[]) : [];
       return changes.map((c) => USER_FIELD_LABELS[c.field] ?? c.field).join(', ');
+    }
+    case 'DEPARTMENT_CREATED':
+    case 'DEPARTMENT_ARCHIVED':
+    case 'DEPARTMENT_RESTORED':
+    case 'DEPARTMENT_DELETED':
+      return d.code !== undefined ? `код ${text(d.code)}` : '';
+    case 'DEPARTMENT_UPDATED': {
+      const changes = Array.isArray(d.changes)
+        ? (d.changes as { field: string; from: unknown; to: unknown }[])
+        : [];
+      return changes
+        .map(
+          (c) => `${DEPARTMENT_FIELD_LABELS[c.field] ?? c.field}: ${text(c.from)} → ${text(c.to)}`,
+        )
+        .join(', ');
     }
     case 'APPLICATION_DELETED':
       return d.regDate ? `заява від ${formatCalendarDate(text(d.regDate))}` : '';

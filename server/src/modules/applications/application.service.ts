@@ -11,6 +11,7 @@ import { ApiError } from '../../utils/ApiError';
 import { inTransaction, isDuplicateKey } from '../../utils/db';
 import { fromIsoDate, kyivToday, toIsoDate } from '../../utils/kyivDate';
 import { type RequestContext, recordAudit } from '../audit/audit.service';
+import { departmentCode } from '../departments/department.service';
 import { issueNextNumber, peekNextNumber } from '../numbering/numbering.service';
 import { toApplicationDto } from './application.dto';
 import { Application } from './application.model';
@@ -28,6 +29,8 @@ type Registration = {
   fields: CreateApplicationData;
   /** Already checked by the caller (see registrationDepartment). */
   department: Department;
+  /** The department's code, for the number. */
+  code: number;
   regYear: number;
   regSeq: number;
   regDate: Date;
@@ -40,7 +43,7 @@ type Registration = {
  */
 async function insertRegistration(
   session: ClientSession,
-  { fields, department, regYear, regSeq, regDate, mode }: Registration,
+  { fields, department, code, regYear, regSeq, regDate, mode }: Registration,
   actor: Actor,
   context: RequestContext,
 ) {
@@ -75,7 +78,7 @@ async function insertRegistration(
       entityId: created!._id,
       // Number and date only: customer data does not belong in the audit log.
       details: {
-        regNumber: formatRegNumber(regYear, regSeq, department),
+        regNumber: formatRegNumber(regYear, regSeq, code),
         regDate: toIsoDate(regDate),
       },
     },
@@ -92,6 +95,7 @@ export async function createApplication(
   actor: Actor,
   context: RequestContext,
 ) {
+  const code = await departmentCode(department);
   for (let attempt = 1; ; attempt++) {
     try {
       const { year, date } = kyivToday();
@@ -100,12 +104,12 @@ export async function createApplication(
         const regSeq = await issueNextNumber(year, department, session);
         return insertRegistration(
           session,
-          { fields, department, regYear: year, regSeq, regDate: date, mode: 'AUTO' },
+          { fields, department, code, regYear: year, regSeq, regDate: date, mode: 'AUTO' },
           actor,
           context,
         );
       });
-      return toApplicationDto(created, actor);
+      return toApplicationDto(created, code, actor);
     } catch (error) {
       if (isDuplicateKey(error) && attempt < MAX_AUTO_ATTEMPTS) continue;
       throw error;
@@ -134,7 +138,8 @@ export async function createManualApplication(
 ) {
   // The year is always the registration date's year: "14" on 2024-05-20 is "14т/24".
   const year = yearOf(regDate);
-  const formatted = formatRegNumber(year, seq, department);
+  const code = await departmentCode(department);
+  const formatted = formatRegNumber(year, seq, code);
   try {
     const created = await inTransaction(async (session) => {
       // Only for a helpful message; the unique index is what actually prevents duplicates.
@@ -151,6 +156,7 @@ export async function createManualApplication(
         {
           fields,
           department,
+          code,
           regYear: year,
           regSeq: seq,
           regDate: fromIsoDate(regDate),
@@ -160,7 +166,7 @@ export async function createManualApplication(
         context,
       );
     });
-    return toApplicationDto(created, actor);
+    return toApplicationDto(created, code, actor);
   } catch (error) {
     // A concurrent registration took the number between the check and the insert.
     if (isDuplicateKey(error)) throw numberTaken(formatted);
@@ -183,7 +189,7 @@ export async function checkManualNumber(
     ...(excludeId && { _id: mongoose.trusted({ $ne: excludeId }) }),
   }).select('regDate');
   return {
-    regNumber: formatRegNumber(year, seq, department),
+    regNumber: formatRegNumber(year, seq, await departmentCode(department)),
     available: !existing,
     takenOn: existing ? toIsoDate(existing.regDate) : null,
   };
@@ -193,7 +199,7 @@ export async function getNextNumber(department: Department) {
   const { year, iso } = kyivToday();
   const regSeq = await peekNextNumber(year, department);
   return {
-    regNumber: formatRegNumber(year, regSeq, department),
+    regNumber: formatRegNumber(year, regSeq, await departmentCode(department)),
     regYear: year,
     regSeq,
     regDate: iso,

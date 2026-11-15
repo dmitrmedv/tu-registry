@@ -1,8 +1,8 @@
 import clsx from 'clsx';
-import { DEPARTMENT_NAMES } from '@tu-registry/shared';
 import { useEffect, useRef } from 'react';
 import { NavLink, Outlet } from 'react-router';
 import { CHANGE_PASSWORD_PATH, useAuth, useCurrentUser } from '@/features/auth';
+import { useDepartments } from '@/features/departments';
 import { ROLE_LABELS } from '@/shared/lib/labels';
 import { type MenuItem, MenuButton } from '@/shared/ui';
 import styles from './AppLayout.module.scss';
@@ -38,12 +38,14 @@ export function AppLayout() {
   // Until the temporary password is replaced, only the password page is reachable.
   const restricted = user.mustChangePassword;
   const headerRef = useHeaderHeightVariable();
+  const { nameOf } = useDepartments();
 
   const settings: MenuItem[] = [
     ...(!restricted && user.role === 'ADMIN'
       ? [
           { label: 'Користувачі', to: '/users' },
           { label: 'Журнал', to: '/audit' },
+          { label: 'Управління', to: '/departments' },
         ]
       : []),
     ...(!restricted ? [{ label: 'Змінити пароль', to: CHANGE_PASSWORD_PATH }] : []),
@@ -62,7 +64,7 @@ export function AppLayout() {
             <p className={styles.userLine}>
               <span className={styles.userName}>{user.fullName}</span> — {ROLE_LABELS[user.role]}
             </p>
-            <p className={styles.department}>{DEPARTMENT_NAMES[user.department]} управління</p>
+            <p className={styles.department}>{nameOf(user.department)} управління</p>
           </div>
           <div className={styles.navRow}>
             {!restricted && (

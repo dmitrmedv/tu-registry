@@ -10,6 +10,7 @@ function EntityCell({ entry }: { entry: AuditLogDto }) {
   if (!entry.entityId || !entry.entityLabel) return <>—</>;
   // The application no longer exists: its number, but no link to a missing card.
   if (entry.action === 'APPLICATION_DELETED') return <>Заява {entry.entityLabel}</>;
+  if (entry.entityType === 'Department') return <>Управління {entry.entityLabel}</>;
   if (entry.entityType === 'Application') {
     return <Link to={`/applications/${entry.entityId}`}>Заява {entry.entityLabel}</Link>;
   }

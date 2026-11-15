@@ -6,14 +6,16 @@ export type ApplicationDocument = InstanceType<typeof Application>;
 type Author = { id: string; fullName: string };
 
 /** The only way an application leaves the server: an explicit list of fields. */
+/** `departmentCode`: the current code of the application's department (it goes into the number). */
 export function toApplicationDto(
   app: ApplicationDocument,
+  departmentCode: number,
   author: Author,
   annulledBy: Author | null = null,
 ): ApplicationDto {
   return {
     id: app.id as string,
-    regNumber: formatRegNumber(app.regYear, app.regSeq, app.department),
+    regNumber: formatRegNumber(app.regYear, app.regSeq, departmentCode),
     regYear: app.regYear,
     regSeq: app.regSeq,
     regDate: toIsoDate(app.regDate),

@@ -41,7 +41,8 @@ describe('header', () => {
       await within(banner).findByText('Інженеров Інженер Інженерович', { exact: false }),
     ).toBeInTheDocument();
     expect(banner).toHaveTextContent('Інженеров Інженер Інженерович — Користувач');
-    expect(banner).toHaveTextContent('Роздільнянське управління');
+    // The department's name comes from the departments list, loaded separately.
+    expect(await within(banner).findByText('Роздільнянське управління')).toBeInTheDocument();
     expect(within(banner).getByRole('link', { name: 'Реєстр заяв на ТУ' })).toHaveAttribute(
       'href',
       '/',
@@ -60,7 +61,7 @@ describe('header', () => {
     const { user, router } = open(admin);
 
     await user.click(await settingsButton());
-    expect(menuItems()).toEqual(['Користувачі', 'Журнал', 'Змінити пароль', 'Вийти']);
+    expect(menuItems()).toEqual(['Користувачі', 'Журнал', 'Управління', 'Змінити пароль', 'Вийти']);
     await user.click(screen.getByRole('menuitem', { name: 'Журнал' }));
 
     expect(router.state.location.pathname).toBe('/audit');

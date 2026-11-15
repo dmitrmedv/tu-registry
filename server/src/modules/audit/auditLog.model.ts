@@ -9,7 +9,8 @@ const auditLogSchema = new Schema(
     actor: { type: Schema.Types.ObjectId, ref: 'User', default: null },
     action: { type: String, enum: AUDIT_ACTIONS, required: true },
     entityType: String,
-    entityId: Schema.Types.ObjectId,
+    // An ObjectId (users, applications) or a department's string id ("ODESA").
+    entityId: Schema.Types.Mixed,
     details: Schema.Types.Mixed,
     ip: String,
     userAgent: { type: String, maxlength: 500 },

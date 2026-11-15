@@ -29,6 +29,9 @@ const editApplicationPage = lazyPage(() =>
 const usersPage = lazyPage(() =>
   import('@/pages/UsersPage').then((m) => ({ default: m.UsersPage })),
 );
+const departmentsPage = lazyPage(() =>
+  import('@/pages/DepartmentsPage').then((m) => ({ default: m.DepartmentsPage })),
+);
 const auditPage = lazyPage(() =>
   import('@/pages/AuditPage').then((m) => ({ default: m.AuditPage })),
 );
@@ -52,6 +55,7 @@ export const routes: RouteObject[] = [
             children: [
               { path: '/users', element: usersPage },
               { path: '/audit', element: auditPage },
+              { path: '/departments', element: departmentsPage },
             ],
           },
         ],

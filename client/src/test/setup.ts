@@ -1,7 +1,27 @@
 import '@testing-library/jest-dom/vitest';
 import { cleanup } from '@testing-library/react';
-import { afterEach } from 'vitest';
+import { afterAll, afterEach, beforeAll } from 'vitest';
+import { tokenStore } from '@/shared/api/tokenStore';
+import { server } from './server';
+
+// jsdom does not implement modal dialogs; emulate the parts our Dialog relies on.
+if (!HTMLDialogElement.prototype.showModal) {
+  HTMLDialogElement.prototype.showModal = function showModal(this: HTMLDialogElement) {
+    this.open = true;
+  };
+  HTMLDialogElement.prototype.close = function close(this: HTMLDialogElement) {
+    this.open = false;
+    this.dispatchEvent(new Event('close'));
+  };
+}
+
+// Any request without a handler fails the test instead of silently hitting the network.
+beforeAll(() => server.listen({ onUnhandledFrame: 'error' }));
 
 afterEach(() => {
   cleanup();
+  server.resetHandlers();
+  tokenStore.set(null);
 });
+
+afterAll(() => server.close());

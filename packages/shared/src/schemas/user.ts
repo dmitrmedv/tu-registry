@@ -17,18 +17,22 @@ export const createUserSchema = z
   })
   .strict();
 
-export const updateUserSchema = z
+/** All editable fields; the edit form uses it whole, the API accepts any subset. */
+export const editUserFormSchema = z
   .object({
     fullName: fullNameField,
     role: z.enum(ROLES),
     canManageRegistration: z.boolean(),
     isActive: z.boolean(),
   })
+  .strict();
+
+export const updateUserSchema = editUserFormSchema
   .partial()
-  .strict()
   .refine((data) => Object.keys(data).length > 0, 'Немає змін для збереження');
 
 export type CreateUserInput = z.input<typeof createUserSchema>;
+export type EditUserFormValues = z.infer<typeof editUserFormSchema>;
 export type UpdateUserInput = z.infer<typeof updateUserSchema>;
 
 /** User as returned by the API. Never contains password data. */

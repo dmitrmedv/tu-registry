@@ -33,16 +33,31 @@ export const loginSchema = z
   })
   .strict();
 
-export const changePasswordSchema = z
-  .object({
-    currentPassword: z.string().min(1, 'Вкажіть поточний пароль').max(200),
-    newPassword: passwordField,
-  })
+const changePasswordFields = z.object({
+  currentPassword: z.string().min(1, 'Вкажіть поточний пароль').max(200),
+  newPassword: passwordField,
+});
+
+const newPasswordDiffers = (data: { currentPassword: string; newPassword: string }) =>
+  data.newPassword !== data.currentPassword;
+const newPasswordDiffersIssue = {
+  path: ['newPassword'],
+  message: 'Новий пароль має відрізнятися від поточного',
+};
+
+export const changePasswordSchema = changePasswordFields
   .strict()
-  .refine((data) => data.newPassword !== data.currentPassword, {
-    path: ['newPassword'],
-    message: 'Новий пароль має відрізнятися від поточного',
+  .refine(newPasswordDiffers, newPasswordDiffersIssue);
+
+/** Client form: the API schema plus a confirmation field that never leaves the browser. */
+export const changePasswordFormSchema = changePasswordFields
+  .extend({ confirmPassword: z.string().min(1, 'Повторіть новий пароль') })
+  .refine(newPasswordDiffers, newPasswordDiffersIssue)
+  .refine((data) => data.confirmPassword === data.newPassword, {
+    path: ['confirmPassword'],
+    message: 'Паролі не збігаються',
   });
 
 export type LoginInput = z.infer<typeof loginSchema>;
 export type ChangePasswordInput = z.infer<typeof changePasswordSchema>;
+export type ChangePasswordFormValues = z.infer<typeof changePasswordFormSchema>;

@@ -207,6 +207,10 @@ npm run build         # перед завершенням етапу
 - **Валідація запиту:** не middleware, а `parseRequest(req, { body, params, query })` з `utils/parseRequest.ts` на початку контролера — повертає типізовані дані зі спільних Zod-схем.
 - **Аудит:** `recordAudit({ action, actor, entityType, entityId, details }, requestContext(req))` з `modules/audit/audit.service.ts`. У `details` — ніяких паролів, токенів, даних замовників.
 - **Відповідь з користувачем:** лише через `toUserDto()` (явний перелік полів).
+- **Frontend — HTTP:** лише `http` з `shared/api/http.ts` (Bearer з `tokenStore`, спільний refresh на 401, події `authEvents`). Помилки для UI — `toApiError()`. Access-токен ніколи не потрапляє в localStorage.
+- **Frontend — авторизація:** `useAuth()` / `useCurrentUser()` з `features/auth`; приватні маршрути — під `ProtectedRoute`, розділи за роллю — `RequireRole`. Маршрути описані в `app/routes.tsx`.
+- **Frontend — UI:** базові компоненти лише з `@/shared/ui`. `Dialog` керується тільки пропом `open` (нативна подія `close` ігнорується навмисно — див. коментар у компоненті). Важливі дії — через `ConfirmDialog`.
+- **Frontend — тести:** `renderApp(path)` з `src/test/renderApp.tsx` рендерить увесь застосунок; мережа — MSW (`src/test/server.ts`: `signedInAs`, `signedOut`, `apiError`, `makeUser`). У MSW 3 опція — `onUnhandledFrame`, і запит без обробника лише логується, тож кожен тест явно оголошує потрібні обробники.
 - **MongoDB:** обов'язково replica set (транзакції). Локально — `npm run db:start -w server` (нативний mongod без Homebrew, дані в `~/.local/share/tu-registry/mongo`); у тестах — `MongoMemoryReplSet`. Версія MongoDB — лише в `server/src/config/mongodbVersion.ts`.
 - **Mongoose 9 + `sanitizeFilter`:** увімкнено глобально, тому оператори у фільтрах, написані в нашому коді (`$gte`, `$in`, `$ne`…), обгортаються в `mongoose.trusted({...})`, інакше запит впаде з `CastError`. Ніколи не передавати `req.query`/`req.body` у фільтр напряму.
 - **Помилки Mongoose:** `errorHandler` перетворює `ValidationError` → 400 (лише тип помилки, без введених значень), `CastError` → 400, E11000 → 409.

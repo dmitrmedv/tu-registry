@@ -1,0 +1,37 @@
+// Shared page layouts used inside AppLayout.
+.narrow {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  max-width: 440px;
+}
+
+.wide {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+
+  h1 {
+    margin: 0;
+  }
+}
+
+.muted {
+  margin: 0;
+  color: var(--color-text-muted);
+}
+
+// Pages rendered outside AppLayout (errors, 404).
+.standalone {
+  composes: narrow;
+  margin: 0 auto;
+  padding: var(--space-8) var(--space-4);
+}

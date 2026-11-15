@@ -5,6 +5,7 @@ import { isDbConnected } from './config/db';
 import { env } from './config/env';
 import { errorHandler } from './middlewares/errorHandler';
 import { notFound } from './middlewares/notFound';
+import { applicationRouter } from './modules/applications/application.routes';
 import { createAuthRouter } from './modules/auth/auth.routes';
 import { userRouter } from './modules/users/user.routes';
 
@@ -31,6 +32,7 @@ export function createApp() {
 
   app.use('/api/v1/auth', createAuthRouter());
   app.use('/api/v1/users', userRouter);
+  app.use('/api/v1/applications', applicationRouter);
 
   app.use(notFound);
   app.use(errorHandler);

@@ -1,6 +1,6 @@
 import type { AuditAction } from '@tu-registry/shared';
 import type { Request } from 'express';
-import type { Types } from 'mongoose';
+import type { ClientSession, Types } from 'mongoose';
 import { AuditLog } from './auditLog.model';
 
 export type RequestContext = { ip?: string; userAgent?: string };
@@ -18,11 +18,14 @@ type AuditEntry = {
   details?: Record<string, unknown>;
 };
 
-export async function recordAudit(entry: AuditEntry, context: RequestContext = {}) {
-  await AuditLog.create({
-    ...entry,
-    actor: entry.actor ?? null,
-    ip: context.ip,
-    userAgent: context.userAgent,
-  });
+/** Pass `session` to make the audit entry part of a transaction (written only on commit). */
+export async function recordAudit(
+  entry: AuditEntry,
+  context: RequestContext = {},
+  session?: ClientSession,
+) {
+  await AuditLog.create(
+    [{ ...entry, actor: entry.actor ?? null, ip: context.ip, userAgent: context.userAgent }],
+    { session },
+  );
 }

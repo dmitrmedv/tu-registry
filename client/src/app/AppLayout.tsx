@@ -45,6 +45,9 @@ export function AppLayout() {
                 <NavLink to="/" end className={navClass} onClick={closeMenu}>
                   Реєстр
                 </NavLink>
+                <NavLink to="/applications/new" className={navClass} onClick={closeMenu}>
+                  Нова заява
+                </NavLink>
                 {user.role === 'ADMIN' && (
                   <NavLink to="/users" className={navClass} onClick={closeMenu}>
                     Користувачі

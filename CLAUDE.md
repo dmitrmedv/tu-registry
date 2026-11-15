@@ -216,7 +216,8 @@ npm run build         # перед завершенням етапу
 - **Помилки Mongoose:** `errorHandler` перетворює `ValidationError` → 400 (лише тип помилки, без введених значень), `CastError` → 400, E11000 → 409.
 - **Тести з БД:** `useTestDb()` з `src/test/db.ts` — окрема база на файл у спільному `MongoMemoryReplSet` (та сама версія, що й локальна БД).
 - **Нумерація:** номер `Nт/РР` видає **тільки** модуль `server/src/modules/numbering`. Ніде більше номер не обчислюється.
-- **Дати:** «сьогодні» і рік рахуються в `Europe/Kyiv`. `regDate` зберігається як опівніч UTC відповідної календарної дати.
+- **Дати:** «сьогодні» і рік рахуються в `Europe/Kyiv` — лише через `kyivToday()` (`server/src/utils/kyivDate.ts`), а «зараз» — через `clock.now()` (у тестах `vi.spyOn(clock, 'now')`, не fake timers). `regDate` зберігається як опівніч UTC календарної дати, в API — рядок `YYYY-MM-DD`; на клієнті показується через `formatCalendarDate()` без `new Date()`.
+- **Номер і телефон:** формат/розбір номера — лише `formatRegNumber`/`parseRegNumber`, телефон — `normalizePhone`/`formatPhone` з `packages/shared`.
 - **Порти (dev):** client 5173, server 4000 (`API_PORT`, не `PORT` — загальну назву перехоплюють інші інструменти). Vite проксує `/api` → 4000, тому CORS не налаштовується.
 - **Обмеження версій (Node 22.12 на машині розробника):** ESLint 9, jsdom 27, tsup 8, TypeScript 6.0 (верхня межа typescript-eslint), React Router 7. Не оновлювати мажорні версії без оновлення Node.
 - **TypeScript 6:** `types` за замовчуванням порожній — потрібні типи вказуються явно в кожному `tsconfig.json`.

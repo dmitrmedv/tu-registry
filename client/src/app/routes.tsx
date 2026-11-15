@@ -3,6 +3,7 @@ import { CHANGE_PASSWORD_PATH, ProtectedRoute, RequireRole } from '@/features/au
 import { ChangePasswordPage } from '@/pages/ChangePasswordPage';
 import { HomePage } from '@/pages/HomePage';
 import { LoginPage } from '@/pages/LoginPage';
+import { NewApplicationPage } from '@/pages/NewApplicationPage';
 import { NotFoundPage } from '@/pages/NotFoundPage';
 import { RouteErrorPage } from '@/pages/RouteErrorPage';
 import { UsersPage } from '@/pages/UsersPage';
@@ -18,6 +19,7 @@ export const routes: RouteObject[] = [
         element: <AppLayout />,
         children: [
           { index: true, element: <HomePage /> },
+          { path: '/applications/new', element: <NewApplicationPage /> },
           { path: CHANGE_PASSWORD_PATH, element: <ChangePasswordPage /> },
           {
             element: <RequireRole role="ADMIN" />,

@@ -92,12 +92,9 @@ test('registers an application with a scan of the documents and opens it from th
     .getByRole('table', { name: 'Реєстр заяв' })
     .getByRole('cell', { name: customer })
     .click();
-  const panel = page.getByRole('region', { name: 'Скан пакета документів' });
-  await expect(panel).toContainText('Пакет документів.pdf');
-
   const [pdfTab] = await Promise.all([
     context.waitForEvent('page'),
-    panel.getByRole('button', { name: 'Переглянути' }).click(),
+    page.getByRole('button', { name: 'Переглянути скан' }).click(),
   ]);
   // A real Chrome shows the PDF in the tab; the headless shell used in tests has no PDF viewer
   // and turns it into a download. Either way, the tab must receive the PDF itself.

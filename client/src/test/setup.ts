@@ -15,6 +15,18 @@ if (!HTMLDialogElement.prototype.showModal) {
   };
 }
 
+// jsdom's Blob has no text() (every browser does); the scan request reads its error body with it.
+if (!Blob.prototype.text) {
+  Blob.prototype.text = function text(this: Blob) {
+    return new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result as string);
+      reader.onerror = () => reject(reader.error);
+      reader.readAsText(this);
+    });
+  };
+}
+
 // jsdom has no layout or scrolling; the registry scrolls to the top when the page changes.
 window.scrollTo = vi.fn() as typeof window.scrollTo;
 

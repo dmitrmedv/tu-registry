@@ -109,12 +109,6 @@ export function RegistryTable({ rows, showDepartment, sort, onSort }: Props) {
               >
                 {row.regNumber}
               </Link>
-              {row.registrationMode === 'MANUAL' && (
-                <>
-                  {' '}
-                  <Badge>вручну</Badge>
-                </>
-              )}
               {row.status === 'ANNULLED' && (
                 <>
                   {' '}

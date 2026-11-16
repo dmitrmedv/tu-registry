@@ -9,12 +9,13 @@ import {
   canEdit,
   DeleteDialog,
   canRestore,
+  openScan,
   useApplication,
   useRestoreApplication,
 } from '@/features/applications';
 import { useCurrentUser } from '@/features/auth';
 import { toApiError } from '@/shared/api/apiError';
-import { Alert, Badge, Button, ConfirmDialog, LinkButton, Spinner } from '@/shared/ui';
+import { Alert, Badge, Button, ConfirmDialog, Icon, LinkButton, Spinner } from '@/shared/ui';
 import pageStyles from '../page.module.scss';
 import type { RegistryPageState } from '../RegistryPage/RegistryPage';
 import styles from './ApplicationPage.module.scss';
@@ -31,6 +32,7 @@ export function ApplicationPage() {
   const restore = useRestoreApplication(id);
   const [dialog, setDialog] = useState<'annul' | 'restore' | 'delete' | null>(null);
   const [restoreError, setRestoreError] = useState<string>();
+  const [scanError, setScanError] = useState<string>();
 
   const registry = { pathname: '/', search: state?.registrySearch ?? '' };
   const backLink = (
@@ -63,6 +65,14 @@ export function ApplicationPage() {
     setDialog(null);
     setRestoreError(undefined);
   };
+  const viewScan = async () => {
+    setScanError(undefined);
+    try {
+      await openScan(app.id, app.scan!.name);
+    } catch (e) {
+      setScanError(`Не вдалося відкрити скан: ${toApiError(e).message}`);
+    }
+  };
   const confirmRestore = async () => {
     try {
       await restore.mutateAsync(app.version);
@@ -82,19 +92,33 @@ export function ApplicationPage() {
           {app.status === 'ANNULLED' && <Badge tone="danger">Анульовано</Badge>}
         </div>
         <div className={styles.actions}>
+          {app.scan && (
+            <Button onClick={viewScan} title={app.scan.name}>
+              <Icon name="eye" />
+              Переглянути скан
+            </Button>
+          )}
           {canEdit(app, user) && (
             <LinkButton to={`/applications/${app.id}/edit`} state={state} variant="primary">
+              <Icon name="pencil" />
               Редагувати
             </LinkButton>
           )}
           {canAnnul(app, user) && (
             <Button variant="danger" onClick={() => setDialog('annul')}>
+              <Icon name="ban" />
               Анулювати
             </Button>
           )}
-          {canRestore(app, user) && <Button onClick={() => setDialog('restore')}>Відновити</Button>}
+          {canRestore(app, user) && (
+            <Button onClick={() => setDialog('restore')}>
+              <Icon name="restore" />
+              Відновити
+            </Button>
+          )}
           {canDelete(app, user) && (
             <Button variant="danger" onClick={() => setDialog('delete')}>
+              <Icon name="trash" />
               Видалити
             </Button>
           )}
@@ -102,6 +126,7 @@ export function ApplicationPage() {
       </div>
 
       {state?.notice && <Alert variant="success">{state.notice}</Alert>}
+      {scanError && <Alert variant="error">{scanError}</Alert>}
 
       <ApplicationDetails app={app} />
 

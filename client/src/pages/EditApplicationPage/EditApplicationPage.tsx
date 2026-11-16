@@ -51,7 +51,7 @@ export function EditApplicationPage() {
       <div className={pageStyles.withSide}>
         <div className={pageStyles.side}>
           {/* Scan changes are saved at once and do not touch the form's unsaved edits. */}
-          <ScanPanel app={app} editable />
+          <ScanPanel app={app} />
         </div>
         <EditApplicationForm
           // A new version (after a conflict reload) rebuilds the form from fresh data.

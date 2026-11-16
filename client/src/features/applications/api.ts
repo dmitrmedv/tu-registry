@@ -9,6 +9,7 @@ import type {
   NextNumberDto,
   UpdateApplicationInput,
 } from '@tu-registry/shared';
+import { isAxiosError } from 'axios';
 import { http } from '@/shared/api/http';
 
 export type ManualNumberCheckParams = {
@@ -57,6 +58,20 @@ export const applicationsApi = {
   removeScan: (id: string) =>
     http.delete<ApplicationDto>(`/applications/${id}/scan`).then((r) => r.data),
   /** Fetched with the access token (it lives in memory, so a plain link cannot carry it). */
-  scanFile: (id: string) =>
-    http.get<Blob>(`/applications/${id}/scan`, { responseType: 'blob' }).then((r) => r.data),
+  scanFile: async (id: string) => {
+    try {
+      return (await http.get<Blob>(`/applications/${id}/scan`, { responseType: 'blob' })).data;
+    } catch (error) {
+      // With responseType 'blob' the JSON error body arrives as a Blob too: read it back so
+      // toApiError() can show the server's message.
+      if (isAxiosError(error) && error.response?.data instanceof Blob) {
+        try {
+          error.response.data = JSON.parse(await error.response.data.text());
+        } catch {
+          error.response.data = undefined;
+        }
+      }
+      throw error;
+    }
+  },
 };

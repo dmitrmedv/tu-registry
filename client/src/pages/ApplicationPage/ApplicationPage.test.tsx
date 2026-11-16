@@ -4,7 +4,7 @@ import { http as mock, HttpResponse } from 'msw';
 import { describe, expect, it, vi } from 'vitest';
 import { makeApplication, makeChange } from '@/test/fixtures';
 import { renderApp } from '@/test/renderApp';
-import { makeUser, server, signedInAs } from '@/test/server';
+import { apiError, makeUser, server, signedInAs } from '@/test/server';
 
 const owner = makeUser({
   id: 'owner000000000000000001',
@@ -242,7 +242,7 @@ describe('ApplicationPage — scan', () => {
     },
   });
 
-  it('describes the scan and opens it in a new tab', async () => {
+  it('opens the scan in a new tab from the button before «Редагувати»', async () => {
     const tab = { location: { href: '' }, close: vi.fn() };
     const open = vi.spyOn(window, 'open').mockReturnValue(tab as unknown as Window);
     const createUrl = vi.fn(() => 'blob:scan');
@@ -257,23 +257,44 @@ describe('ApplicationPage — scan', () => {
       ),
     );
 
-    const panel = await screen.findByRole('region', { name: 'Скан пакета документів' });
-    expect(panel).toHaveTextContent('Скан заяви.pdf');
-    expect(panel).toHaveTextContent('3,0 МБ · Олена Коваль');
-    // The card only shows it; changes are on the edit page.
-    expect(within(panel).queryByRole('button', { name: 'Видалити скан' })).not.toBeInTheDocument();
+    const view = await screen.findByRole('button', { name: 'Переглянути скан' });
+    const edit = screen.getByRole('link', { name: 'Редагувати' });
+    expect(view.compareDocumentPosition(edit) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    // Changes to the scan are on the edit page only.
+    expect(
+      screen.queryByRole('region', { name: 'Скан пакета документів' }),
+    ).not.toBeInTheDocument();
 
-    await user.click(within(panel).getByRole('button', { name: 'Переглянути' }));
+    await user.click(view);
 
     await vi.waitFor(() => expect(tab.location.href).toBe('blob:scan'));
     expect(open).toHaveBeenCalledWith('', '_blank');
     open.mockRestore();
   });
 
-  it('says when there is no scan', async () => {
+  it('has no view button when there is no scan', async () => {
     openCard(owner);
 
-    const panel = await screen.findByRole('region', { name: 'Скан пакета документів' });
-    expect(panel).toHaveTextContent('Скан не додано.');
+    await screen.findByRole('link', { name: 'Редагувати' });
+    expect(screen.queryByRole('button', { name: 'Переглянути скан' })).not.toBeInTheDocument();
+  });
+
+  it('says when the scan cannot be opened', async () => {
+    const tab = { location: { href: '' }, close: vi.fn() };
+    const open = vi.spyOn(window, 'open').mockReturnValue(tab as unknown as Window);
+    const { user } = openCard(owner, withScan);
+    server.use(
+      mock.get('*/api/v1/applications/:id/scan', () =>
+        apiError(404, 'SCAN_NOT_FOUND', 'Скан не знайдено'),
+      ),
+    );
+
+    await user.click(await screen.findByRole('button', { name: 'Переглянути скан' }));
+
+    expect(
+      await screen.findByText('Не вдалося відкрити скан: Скан не знайдено'),
+    ).toBeInTheDocument();
+    expect(tab.close).toHaveBeenCalled();
+    open.mockRestore();
   });
 });

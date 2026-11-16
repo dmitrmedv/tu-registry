@@ -79,7 +79,8 @@ describe('RegistryPage', () => {
     expect(within(rows[1]!).getByText('12.03.2026')).toBeInTheDocument();
     expect(within(rows[1]!).getByText('—')).toBeInTheDocument(); // no representative
     expect(within(rows[1]!).getByText('Житловий будинок')).toBeInTheDocument();
-    expect(within(rows[2]!).getByText('вручну')).toBeInTheDocument();
+    // How it was registered is on the card, not in the table.
+    expect(within(rows[2]!).queryByText('вручну')).not.toBeInTheDocument();
     expect(within(rows[2]!).getByText('Інше: Котельня')).toBeInTheDocument();
     expect(last().get('createdBy')).toBeNull();
     expect(last().get('sort')).toBe('-regDate');

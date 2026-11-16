@@ -4,7 +4,6 @@ import { useDepartments } from '@/features/departments';
 import { formatCalendarDate, formatDateTime } from '@/shared/lib/format';
 import { AREA_TYPE_LABELS, formatObjectCategory, OBJECT_TYPE_LABELS } from '@/shared/lib/labels';
 import styles from './ApplicationDetails.module.scss';
-import { ScanPanel } from './ScanPanel';
 
 function Field({ label, children }: { label: string; children: ReactNode }) {
   return (
@@ -77,9 +76,6 @@ export function ApplicationDetails({ app }: { app: ApplicationDto }) {
           <p className={styles.comment}>{app.comment}</p>
         </section>
       )}
-      <div className={styles.wide}>
-        <ScanPanel app={app} />
-      </div>
     </div>
   );
 }

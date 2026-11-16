@@ -4,6 +4,7 @@ export { ApplicationForm } from './ApplicationForm';
 export { ApplicationHistory } from './ApplicationHistory';
 export { DeleteDialog } from './DeleteDialog';
 export { EditApplicationForm } from './EditApplicationForm';
+export { openScan } from './openScan';
 export { ScanDropzone } from './ScanDropzone';
 export { ScanPanel } from './ScanPanel';
 export {

@@ -2,20 +2,14 @@ import { type ApplicationDto, formatFileSize } from '@tu-registry/shared';
 import { useState } from 'react';
 import { toApiError } from '@/shared/api/apiError';
 import { formatDateTime } from '@/shared/lib/format';
-import { Alert, Button, ConfirmDialog } from '@/shared/ui';
+import { Alert, Button, ConfirmDialog, Icon } from '@/shared/ui';
 import { openScan } from './openScan';
 import { useRemoveScan, useUploadScan } from './queries';
 import { ScanDropzone } from './ScanDropzone';
 import styles from './ScanPanel.module.scss';
 
-type Props = {
-  app: ApplicationDto;
-  /** Adding, replacing and removing (the edit page); the card only shows and opens it. */
-  editable?: boolean;
-};
-
-/** The application's scanned documents: what is stored, opening it, and (when editing) changes. */
-export function ScanPanel({ app, editable = false }: Props) {
+/** The application's scanned documents on the edit page: what is stored, opening and changing it. */
+export function ScanPanel({ app }: { app: ApplicationDto }) {
   const upload = useUploadScan();
   const remove = useRemoveScan();
   const [progress, setProgress] = useState<number | null>(null);
@@ -71,26 +65,24 @@ export function ScanPanel({ app, editable = false }: Props) {
           </p>
           <div className={styles.actions}>
             <Button size="sm" onClick={view}>
+              <Icon name="eye" />
               Переглянути
             </Button>
-            {editable && (
-              <Button size="sm" onClick={() => setConfirmRemove(true)}>
-                Видалити скан
-              </Button>
-            )}
+            <Button size="sm" onClick={() => setConfirmRemove(true)}>
+              <Icon name="trash" />
+              Видалити скан
+            </Button>
           </div>
         </div>
       ) : (
         <p className={styles.meta}>Скан не додано.</p>
       )}
-      {editable && (
-        <ScanDropzone
-          file={null}
-          onChange={replace}
-          chooseLabel={scan ? 'Замінити файл' : 'Обрати файл'}
-          disabled={progress !== null}
-        />
-      )}
+      <ScanDropzone
+        file={null}
+        onChange={replace}
+        chooseLabel={scan ? 'Замінити файл' : 'Обрати файл'}
+        disabled={progress !== null}
+      />
       {progress !== null && (
         <p role="status" className={styles.meta}>
           Завантаження скану… {progress}%

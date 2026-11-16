@@ -508,7 +508,7 @@ POST   /api/v1/auth/login            POST /api/v1/auth/refresh      POST /api/v1
 GET    /api/v1/auth/me               POST /api/v1/auth/change-password
 
 GET    /api/v1/applications          ?page&limit&sort=<стовпчик>|-<стовпчик>&q
-                                     &objectType&objectCategory&areaType&createdBy&status&dateFrom&dateTo
+                                     &objectType&objectCategory&areaType&createdBy&stage&engineer&dateFrom&dateTo
 POST   /api/v1/applications          (manual: true → regDate, regNumber; потрібне право)
 GET    /api/v1/applications/next-number      (підказка для форми, не резервує номер)
 GET    /api/v1/applications/:id
@@ -520,8 +520,56 @@ PUT    /api/v1/applications/:id/scan          multipart, поле scan (PDF ≤ 
 GET    /api/v1/applications/:id/scan          PDF, inline, Cache-Control: private, no-store
 DELETE /api/v1/applications/:id/scan
 GET    /api/v1/applications/:id/history
+GET    /api/v1/applications/:id/processing    стан, строки, хронологія (етап 17.5)
+GET|POST            /api/v1/applications/:id/responses             (етап 17.3)
+PATCH               /api/v1/applications/:id/responses/:rid        { version, … }
+POST                /api/v1/applications/:id/responses/:rid/cancel  { reason, version }
+POST                /api/v1/applications/:id/responses/:rid/restore (ADMIN)
+PUT|GET             /api/v1/applications/:id/responses/:rid/scan[?file=<id>]
+GET|POST|PATCH|…    /api/v1/applications/:id/technical-conditions…  те саме для ТУ (етап 17.4)
+GET    /api/v1/engineers?department&active   POST /api/v1/engineers   PATCH /api/v1/engineers/:id (ADMIN)
+GET    /api/v1/calendar?year   POST /api/v1/calendar   PATCH|DELETE /api/v1/calendar/:date (ADMIN)
 
 GET    /api/v1/users                 (ADMIN)   POST /api/v1/users
 PATCH  /api/v1/users/:id             (ADMIN)   POST /api/v1/users/:id/reset-password
 GET    /api/v1/audit                 (ADMIN)
 ```
+
+---
+
+## 10. Модуль опрацювання заяв (етап 17) — підсумок
+
+> Статус: **реалізовано**, етапи 17.1–17.7 (2026-11-16). Рішення — 22–29 у §0; дані — §3.6–3.9, `applications.processing`; правила — §5.9, §5.10.
+
+### 10.1 Відповідність перевірок §13 технічного завдання
+
+| № | Перевірка | Автоматичні тести |
+|---|---|---|
+| 1 | ТУ без попередньої відповіді | server `technicalConditions.routes.test.ts` («records technical conditions without any response»), `processing.routes.test.ts` («needs no response once technical conditions came without one»); E2E `processingJourney.spec.ts` (другий тест) |
+| 2 | Створення відповіді | server `response.routes.test.ts`; client `ResponsesSection.test.tsx`; E2E `responses.spec.ts` |
+| 3 | ТУ після відповіді | server `technicalConditions.routes.test.ts` («follows a response whose documents came»); E2E `technicalConditions.spec.ts`, `processingJourney.spec.ts` |
+| 4 | Кілька відповідей на заяву | server `response.routes.test.ts` («keeps several responses in date order»); E2E `processingJourney.spec.ts` |
+| 5 | Історія опрацювання | server `processing.routes.test.ts` («lays out the timeline…»); client `ProcessingSection.test.tsx`; E2E `technicalConditions.spec.ts`, `processingJourney.spec.ts` |
+| 6 | 5 робочих днів для відповіді | server `workingDays.test.ts`, `calendar.routes.test.ts`, `processing.routes.test.ts`; E2E `processingJourney.spec.ts` («3 робочі дні з 5», «6 … з 5, перевищено на 1») |
+| 7 | 10 робочих днів для ТУ | server `workingDays.test.ts` («keeps technical conditions on the last day in time…»), `technicalConditions.routes.test.ts`; E2E `processingJourney.spec.ts` («10 з 10», без робочої суботи — «9 з 10») |
+| 8 | Субота й неділя | server `workingDays.test.ts` («skips the weekend»); E2E `processingJourney.spec.ts` |
+| 9 | Додаткові вихідні | server `workingDays.test.ts`, `calendar.routes.test.ts`, `processing.routes.test.ts` («counts by the calendar»); E2E `processingJourney.spec.ts` |
+| 10 | Робочий день на вихідний | server `workingDays.test.ts` («counts a Saturday the administrator made a working day»); E2E `processingJourney.spec.ts` (видалення винятку змінює число в картці) |
+| 11 | Ручна дата реєстрації | server `workingDays.test.ts`, `processing.routes.test.ts` («works for a back-dated application…»); E2E `processingJourney.spec.ts` (заява внесена вручну 03.11.2025) |
+| 12 | Деактивація інженера без втрати історії | server `engineer.routes.test.ts`, `response.routes.test.ts` («keeps the name and the choice of an engineer deactivated…»), `technicalConditions.routes.test.ts`; E2E `processingJourney.spec.ts` |
+| 13 | Доступ до документів | server: «hides another department’s application…» у `response.routes`, `technicalConditions.routes`; «is hidden from another department» у `processing.routes`; «keeps a user in their department…» у `application.registry`; скани — `response.scan.test.ts`; E2E `processingJourney.spec.ts` (404 на картку, `/processing`, документи, скан; реєстр — 0) |
+| 14 | Наявна реєстрація без порушень | увесь набір: shared, server, client, 21 E2E-сценарій (`registration`, `registry`, `lifecycle`, `departments` …) |
+
+### 10.2 Розгортання
+
+1. Оновити код і залежності, зібрати (`npm run build`).
+2. `npm run db:migrate -w server` — заповнює зведення `processing` у наявних заявах (ідемпотентно; повторний запуск також виправляє розбіжності).
+3. За потреби вказати `PROCESSING_START_DATE=YYYY-MM-DD` у `server/.env`: заяви, зареєстровані раніше, не показуватимуть попереджень про прострочення.
+4. Адміністратор: «Налаштування → Інженери» — інженери кожного управління; «Налаштування → Календар» — свята, додаткові вихідні й робочі суботи.
+5. Резервна копія: база й тека `UPLOADS_DIR` (скани відповідей і ТУ — разом зі сканами заяв, включно з попередніми версіями).
+
+### 10.3 Залишкові питання
+
+- Межа витрат газу — 100 000 м³/год (`GAS_FLOW_MAX`), припущення; змінюється однією константою.
+- Сортування реєстру за номерами документів, інженером і витратами газу — без індексу (§5.7); при зростанні обсягу — додати індекси.
+- Перелік станів розширюється в `PROCESSING_STAGES` і `stageOf()`; кожен новий стан треба додати до фільтра реєстру й назв (`labels.ts`).

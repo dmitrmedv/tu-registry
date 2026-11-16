@@ -1,5 +1,3 @@
-import { SCAN_NAME_MAX } from '@tu-registry/shared';
-import path from 'node:path';
 import type { Types } from 'mongoose';
 import { ApiError } from '../../utils/ApiError';
 import { clock } from '../../utils/clock';
@@ -8,11 +6,16 @@ import {
   deleteScanFile,
   looksLikePdf,
   removeFile,
+  scanDisplayName,
   scanPath,
   storeScan,
 } from '../scans/scan.storage';
 import type { Actor } from './application.access';
-import { getApplication, loadApplication } from './application.edit.service';
+import {
+  getApplication,
+  loadApplication,
+  loadEditableApplication,
+} from './application.edit.service';
 import { Application } from './application.model';
 import { ApplicationChange } from './applicationChange.model';
 
@@ -24,23 +27,7 @@ type UploadedFile = { path: string; originalname: string; size: number };
  * Scans do not bump the application's version: they never conflict with an edit of its fields.
  */
 export async function assertScanEditable(id: string, actor: Actor) {
-  const app = await loadApplication(id, actor);
-  if (app.status === 'ANNULLED') {
-    throw new ApiError(
-      409,
-      'APPLICATION_ANNULLED',
-      'Анульовану заяву не можна змінювати. Спершу її має відновити адміністратор.',
-    );
-  }
-  return app;
-}
-
-/** The user's file name, made safe to show: no path, no control characters, bounded. */
-function displayName(originalName: string) {
-  const base = path.posix.basename(originalName.replace(/\\/g, '/'));
-  // eslint-disable-next-line no-control-regex -- removing control characters is the point
-  const clean = base.replace(/[\u0000-\u001f\u007f]/g, '').trim();
-  return (clean || 'скан.pdf').slice(0, SCAN_NAME_MAX);
+  return loadEditableApplication(id, actor);
 }
 
 async function recordScanChange(
@@ -77,7 +64,7 @@ export async function attachScan(id: string, file: UploadedFile, actor: Actor) {
     if (!(await looksLikePdf(file.path))) {
       throw new ApiError(400, 'SCAN_NOT_PDF', 'Файл не є PDF-документом');
     }
-    const name = displayName(file.originalname);
+    const name = scanDisplayName(file.originalname);
     const fileId = await storeScan(file.path);
     try {
       await recordScanChange(

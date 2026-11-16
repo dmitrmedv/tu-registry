@@ -26,3 +26,9 @@ export const canAnnul = (app: Application, user: User) => isActive(app) && works
 export const canRestore = (app: Application, user: User) => !isActive(app) && isAdmin(user);
 
 export const canDelete = (_app: Application, user: User) => isAdmin(user);
+
+/** Responses and technical conditions: added, edited and cancelled like the application. */
+export const canManageDocuments = canEdit;
+
+/** A cancelled response or technical conditions come back by an admin's decision. */
+export const canRestoreDocument = (app: Application, user: User) => isActive(app) && isAdmin(user);

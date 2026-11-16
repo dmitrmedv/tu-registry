@@ -194,7 +194,7 @@ project/
 { actor (ObjectId | null), action, entityType, entityId, details (без паролів і токенів), ip, userAgent, createdAt }
 ```
 
-Дії: `LOGIN_SUCCESS`, `LOGIN_FAILED`, `LOGOUT`, `PASSWORD_CHANGED`, `USER_CREATED`, `USER_UPDATED`, `USER_DEACTIVATED`, `PASSWORD_RESET`, `APPLICATION_CREATED`, `APPLICATION_MANUAL_CREATED`, `REG_NUMBER_CHANGED`, `REG_DATE_CHANGED`, `APPLICATION_ANNULLED`, `APPLICATION_RESTORED`, `ENGINEER_CREATED`, `ENGINEER_UPDATED`, `ENGINEER_DEACTIVATED`, `CALENDAR_DAY_CREATED`, `CALENDAR_DAY_UPDATED`, `CALENDAR_DAY_DELETED`, `ACCESS_DENIED`.
+Дії: `LOGIN_SUCCESS`, `LOGIN_FAILED`, `LOGOUT`, `PASSWORD_CHANGED`, `USER_CREATED`, `USER_UPDATED`, `USER_DEACTIVATED`, `PASSWORD_RESET`, `APPLICATION_CREATED`, `APPLICATION_MANUAL_CREATED`, `REG_NUMBER_CHANGED`, `REG_DATE_CHANGED`, `APPLICATION_ANNULLED`, `APPLICATION_RESTORED`, `ENGINEER_CREATED`, `ENGINEER_UPDATED`, `ENGINEER_DEACTIVATED`, `CALENDAR_DAY_CREATED`, `CALENDAR_DAY_UPDATED`, `CALENDAR_DAY_DELETED`, `RESPONSE_CREATED`, `RESPONSE_UPDATED`, `RESPONSE_CANCELLED`, `RESPONSE_RESTORED`, `ACCESS_DENIED`.
 
 API для зміни чи видалення записів журналу немає. Індекс `{ createdAt: -1 }`.
 
@@ -224,7 +224,28 @@ API: `GET /engineers?department=&active=` — будь-хто (користув�
 
 API: `GET /calendar?year=`, `POST /calendar`, `PATCH /calendar/:date` (`kind`, `description`; дата — ключ, не змінюється), `DELETE /calendar/:date`. Історія змін — у журналі аудиту: `CALENDAR_DAY_CREATED`, `CALENDAR_DAY_UPDATED` (було → стало), `CALENDAR_DAY_DELETED`.
 
-### 3.8 `refreshSessions`
+### 3.8 `applicationResponses` (етап 17.3)
+
+Відповіді на заяву, коли ТУ одразу підготувати не можна. На заяву — скільки завгодно; жодна не закриває заяву.
+
+| Поле | Тип | Примітка |
+|---|---|---|
+| applicationId | ObjectId → Application | |
+| outgoingNumber | String ≤ 50 | номер вихідного |
+| responseDate | Date (опівніч UTC) | не раніше дати реєстрації, не в майбутньому |
+| engineer, engineerName | ObjectId → Engineer, String | активний інженер управління заяви; ПІБ — знімок на момент вибору. Уже обраного (навіть деактивованого) можна лишити при редагуванні |
+| documentsReceivedAt | Date (опівніч UTC) | замовник доніс документи після цієї відповіді; не раніше відповіді, не в майбутньому; можна прибрати |
+| scan, previousScans | опис PDF, масив описів | поточний скан і **замінені** (файли не видаляються) |
+| cancellation | `{ reason, at, by }` | скасування замість видалення; відновлює адміністратор |
+| createdBy, updatedBy, version | | `version` — оптимістичне блокування, як у заяви |
+
+Індекс `{ applicationId: 1, responseDate: 1, createdAt: 1 }`.
+
+API (вкладене в заяву, права — як на редагування заяви; чужа заява — 404, анульована — 409): `GET/POST /applications/:id/responses`, `PATCH …/:rid` (`version` + будь-які поля, `documentsReceivedAt: null` прибирає дату), `POST …/:rid/cancel` (`reason`, `version`), `POST …/:rid/restore` (адміністратор), `PUT …/:rid/scan` (multipart, як скан заяви; заміна відкладає попередній у `previousScans`), `GET …/:rid/scan[?file=<id>]`. У відповіді API — `workingDays` від реєстрації до дати відповіді за поточним календарем.
+
+Аудит: `RESPONSE_CREATED`, `RESPONSE_UPDATED` (змінені поля; для скану — лише факт заміни, без назви файлу), `RESPONSE_CANCELLED` (без тексту причини), `RESPONSE_RESTORED`. У деталях — номер заяви, номер і дата відповіді; даних замовника немає. Видалення заяви видаляє її відповіді (у транзакції) і всі їхні файли (після коміту).
+
+### 3.9 `refreshSessions`
 
 `{ userId, tokenHash (SHA-256), expiresAt, revokedAt, createdAt }`. TTL-індекс на `expiresAt` автоматично прибирає прострочені сесії.
 
@@ -367,6 +388,9 @@ session.withTransaction(async () => {
 | Довідник інженерів (додавання, ПІБ, деактивація) | ❌ | ❌ | ✅ |
 | Список інженерів для вибору в документах | свого управління | свого управління | усі |
 | Календар робочих днів (винятки, історія в журналі) | ❌ | ❌ | ✅ |
+| Перегляд відповідей і їхніх сканів | свого управління | свого управління | усі |
+| Додавання, редагування, «документи надійшли», скасування відповіді (не для анульованих заяв) | свого управління | свого управління | усі |
+| Відновлення скасованої відповіді | ❌ | ❌ | ✅ |
 | Видалення заяви назавжди | ❌ | ❌ | ✅ |
 | Керування акаунтами (створення, права, деактивація, скидання пароля) | ❌ | ❌ | ✅ |
 | Журнал аудиту | ❌ | ❌ | ✅ |

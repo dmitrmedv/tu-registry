@@ -5,6 +5,7 @@ import {
   requireRole,
 } from '../../middlewares/authenticate';
 import { uploadScan } from '../../middlewares/upload';
+import { responseRouter } from '../responses/response.routes';
 import * as controller from './application.controller';
 
 export const applicationRouter = Router();
@@ -28,3 +29,4 @@ applicationRouter.delete('/:id/scan', controller.deleteScan);
 applicationRouter.get('/:id/scan', controller.downloadScan);
 applicationRouter.post('/:id/annul', controller.annul);
 applicationRouter.post('/:id/restore', requireRole('ADMIN'), controller.restore);
+applicationRouter.use('/:id/responses', responseRouter);

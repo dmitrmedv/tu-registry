@@ -1,4 +1,4 @@
-import type { ApplicationChangeDto, ApplicationDto } from '@tu-registry/shared';
+import type { ApplicationChangeDto, ApplicationDto, ResponseDto } from '@tu-registry/shared';
 
 /** A realistic application as the API returns it; override what a test cares about. */
 export function makeApplication(overrides: Partial<ApplicationDto> = {}): ApplicationDto {
@@ -47,6 +47,25 @@ export function makeChange(overrides: Partial<ApplicationChangeDto> = {}): Appli
     changedAt: '2026-03-12T09:00:00.000Z',
     changedBy: { id: 'owner000000000000000001', fullName: 'Олена Коваль' },
     changes: [],
+    ...overrides,
+  };
+}
+
+export function makeResponse(overrides: Partial<ResponseDto> = {}): ResponseDto {
+  return {
+    id: 'resp0000000000000000001',
+    applicationId: 'app00000000000000000001',
+    outgoingNumber: '125/01-15',
+    responseDate: '2026-03-16',
+    engineer: { id: 'e00000000000000000000001', fullName: 'Бойко Андрій' },
+    documentsReceivedAt: null,
+    workingDays: 2,
+    scan: null,
+    previousScans: [],
+    cancellation: null,
+    createdBy: { id: 'owner000000000000000001', fullName: 'Олена Коваль' },
+    createdAt: '2026-03-16T09:00:00.000Z',
+    version: 1,
     ...overrides,
   };
 }

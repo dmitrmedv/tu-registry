@@ -18,6 +18,7 @@ import { requestContext } from '../audit/audit.service';
 import { deleteApplication } from './application.delete.service';
 import { listApplications } from './application.list.service';
 import * as editService from './application.edit.service';
+import { sendScanFile } from '../scans/sendScan';
 import * as scanService from './application.scan.service';
 import * as applicationService from './application.service';
 
@@ -136,32 +137,9 @@ export const deleteScan: RequestHandler = async (req, res) => {
   res.json(await scanService.removeScan(params.id, req.user!));
 };
 
-/** RFC 6266: an ASCII fallback plus the real (Ukrainian) name, opened in the browser. */
-function inlineDisposition(name: string) {
-  const ascii = name.replace(/[^\x20-\x7e]|["\\]/g, '_');
-  return `inline; filename="${ascii}"; filename*=UTF-8''${encodeURIComponent(name)}`;
-}
-
 export const downloadScan: RequestHandler = async (req, res, next) => {
   const { params } = parseRequest(req, { params: idParamsSchema });
-  const scan = await scanService.scanFile(params.id, req.user!);
-  res.sendFile(
-    scan.path,
-    {
-      headers: {
-        'Content-Type': 'application/pdf',
-        'Content-Disposition': inlineDisposition(scan.name),
-        // Customer documents: never kept by shared caches.
-        'Cache-Control': 'private, no-store',
-      },
-    },
-    (error?: NodeJS.ErrnoException) => {
-      if (!error) return;
-      next(
-        error.code === 'ENOENT' ? ApiError.notFound('Файл скану не знайдено') : (error as Error),
-      );
-    },
-  );
+  sendScanFile(res, next, await scanService.scanFile(params.id, req.user!));
 };
 
 export const history: RequestHandler = async (req, res) => {

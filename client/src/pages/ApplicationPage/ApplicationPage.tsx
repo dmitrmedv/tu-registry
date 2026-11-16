@@ -14,6 +14,7 @@ import {
   useRestoreApplication,
 } from '@/features/applications';
 import { useCurrentUser } from '@/features/auth';
+import { ResponsesSection } from '@/features/responses';
 import { toApiError } from '@/shared/api/apiError';
 import { Alert, Badge, Button, ConfirmDialog, Icon, LinkButton, Spinner } from '@/shared/ui';
 import pageStyles from '../page.module.scss';
@@ -129,6 +130,7 @@ export function ApplicationPage() {
       {scanError && <Alert variant="error">{scanError}</Alert>}
 
       <ApplicationDetails app={app} />
+      <ResponsesSection app={app} />
 
       <h2 className={styles.historyTitle}>Історія змін</h2>
       <ApplicationHistory applicationId={app.id} />

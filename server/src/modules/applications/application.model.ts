@@ -6,30 +6,17 @@ import {
   OBJECT_CATEGORY_OTHER_MAX,
   OBJECT_TYPES,
   REGISTRATION_MODES,
-  SCAN_MAX_BYTES,
-  SCAN_NAME_MAX,
   SETTLEMENT_MAX,
 } from '@tu-registry/shared';
 import { type HydratedDocument, type InferSchemaType, Schema, model } from 'mongoose';
 import { toJSONTransform } from '../../utils/toJSON';
+import { scanRecordSchema } from '../scans/scanRecord.schema';
 
 const annulmentSchema = new Schema(
   {
     reason: { type: String, required: true, trim: true, maxlength: 500 },
     at: { type: Date, required: true },
     by: { type: Schema.Types.ObjectId, ref: 'User', required: true },
-  },
-  { _id: false },
-);
-
-// The scanned documents: the file is on disk (modules/scans), only its description is here.
-const scanSchema = new Schema(
-  {
-    fileId: { type: String, required: true },
-    name: { type: String, required: true, trim: true, maxlength: SCAN_NAME_MAX },
-    size: { type: Number, required: true, min: 1, max: SCAN_MAX_BYTES },
-    uploadedAt: { type: Date, required: true },
-    uploadedBy: { type: Schema.Types.ObjectId, ref: 'User', required: true },
   },
   { _id: false },
 );
@@ -68,7 +55,7 @@ const applicationSchema = new Schema(
     registrationMode: { type: String, enum: REGISTRATION_MODES, required: true },
     status: { type: String, enum: APPLICATION_STATUSES, default: 'ACTIVE', required: true },
     annulment: { type: annulmentSchema, default: undefined },
-    scan: { type: scanSchema, default: undefined },
+    scan: { type: scanRecordSchema, default: undefined },
     createdBy: { type: Schema.Types.ObjectId, ref: 'User', required: true },
     updatedBy: { type: Schema.Types.ObjectId, ref: 'User' },
     // Optimistic concurrency for edits: updateOne({ _id, version }, { $inc: { version: 1 } }).

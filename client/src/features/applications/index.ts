@@ -13,6 +13,8 @@ export {
   canDelete,
   canEdit,
   canEditRegistration,
+  canManageDocuments,
   canRestore,
+  canRestoreDocument,
 } from './permissions';
 export { useApplication, useRestoreApplication, useUploadScan } from './queries';

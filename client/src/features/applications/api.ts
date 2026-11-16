@@ -9,8 +9,8 @@ import type {
   NextNumberDto,
   UpdateApplicationInput,
 } from '@tu-registry/shared';
-import { isAxiosError } from 'axios';
 import { http } from '@/shared/api/http';
+import { fetchPdf } from '@/shared/lib/pdf';
 
 export type ManualNumberCheckParams = {
   regDate: string;
@@ -57,21 +57,6 @@ export const applicationsApi = {
   },
   removeScan: (id: string) =>
     http.delete<ApplicationDto>(`/applications/${id}/scan`).then((r) => r.data),
-  /** Fetched with the access token (it lives in memory, so a plain link cannot carry it). */
-  scanFile: async (id: string) => {
-    try {
-      return (await http.get<Blob>(`/applications/${id}/scan`, { responseType: 'blob' })).data;
-    } catch (error) {
-      // With responseType 'blob' the JSON error body arrives as a Blob too: read it back so
-      // toApiError() can show the server's message.
-      if (isAxiosError(error) && error.response?.data instanceof Blob) {
-        try {
-          error.response.data = JSON.parse(await error.response.data.text());
-        } catch {
-          error.response.data = undefined;
-        }
-      }
-      throw error;
-    }
-  },
+  /** Fetched with the access token (see fetchPdf). */
+  scanFile: (id: string) => fetchPdf(`/applications/${id}/scan`),
 };

@@ -25,6 +25,22 @@ test('every page fits a 375 px phone screen', async ({ page }, testInfo) => {
     comment: 'Довгий коментар без пробілів: ' + 'ДокументиПоданоНеповністю'.repeat(4),
   });
 
+  // A response with a long number, so the card's «Відповіді» is measured too.
+  const engineer = await page.request.post('/api/v1/engineers', {
+    headers,
+    data: { fullName: uniqueName('Довгоіменний Інженер Перевірки Переносу'), department: 'ODESA' },
+  });
+  const today = new Date().toLocaleDateString('en-CA', { timeZone: 'Europe/Kyiv' });
+  const response = await page.request.post(`/api/v1/applications/${id}/responses`, {
+    headers,
+    data: {
+      outgoingNumber: '12345/01-15/2026-ДОВГИЙ-НОМЕР-ВИХІДНОГО',
+      responseDate: today,
+      engineer: ((await engineer.json()) as { id: string }).id,
+    },
+  });
+  expect(response.ok(), await response.text()).toBe(true);
+
   const pages: [string, string][] = [
     ['/', 'Реєстр заяв'],
     ['/applications/new', 'Нова заява'],

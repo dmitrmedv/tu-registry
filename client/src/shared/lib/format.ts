@@ -20,3 +20,18 @@ export function formatCalendarDate(isoDate: string) {
   const [year, month, day] = isoDate.split('-');
   return `${day}.${month}.${year}`;
 }
+
+/** Ukrainian plural: pluralUk(4, ['день', 'дні', 'днів']) → 'дні'. */
+export function pluralUk(n: number, [one, few, many]: readonly [string, string, string]) {
+  const abs = Math.abs(n);
+  const lastTwo = abs % 100;
+  const last = abs % 10;
+  if (lastTwo >= 11 && lastTwo <= 14) return many;
+  if (last === 1) return one;
+  if (last >= 2 && last <= 4) return few;
+  return many;
+}
+
+/** "1 робочий день", "4 робочі дні", "5 робочих днів". */
+export const workingDaysLabel = (n: number) =>
+  `${n} ${pluralUk(n, ['робочий день', 'робочі дні', 'робочих днів'])}`;

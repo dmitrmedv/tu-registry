@@ -3,6 +3,7 @@ import { inTransaction } from '../../utils/db';
 import { toIsoDate } from '../../utils/kyivDate';
 import { type RequestContext, recordAudit } from '../audit/audit.service';
 import { departmentCode } from '../departments/department.service';
+import { ApplicationResponse } from '../responses/response.model';
 import { deleteScanFile } from '../scans/scan.storage';
 import type { Actor } from './application.access';
 import { loadApplication, versionConflict } from './application.edit.service';
@@ -10,7 +11,8 @@ import { Application } from './application.model';
 import { ApplicationChange } from './applicationChange.model';
 
 /**
- * Admin only (enforced by the route). Removes the application with its change history; the
+ * Admin only (enforced by the route). Removes the application with its change history and
+ * its responses (with every scan they ever had); the
  * number becomes free for manual entry (the automatic counter never goes back). The audit
  * entry keeps the number and date only — customer data does not belong in the audit log.
  */
@@ -23,6 +25,15 @@ export async function deleteApplication(
   const current = await loadApplication(id, actor);
   if (version !== current.version) throw versionConflict();
   const code = await departmentCode(current.department);
+  const responses = await ApplicationResponse.find({ applicationId: current._id })
+    .select('scan previousScans')
+    .lean();
+  const files = [
+    ...(current.scan ? [current.scan.fileId] : []),
+    ...responses.flatMap((response) =>
+      [response.scan, ...response.previousScans].flatMap((scan) => (scan ? [scan.fileId] : [])),
+    ),
+  ];
 
   await inTransaction(async (session) => {
     const { deletedCount } = await Application.deleteOne(
@@ -31,6 +42,7 @@ export async function deleteApplication(
     );
     if (deletedCount === 0) throw versionConflict();
     await ApplicationChange.deleteMany({ applicationId: current._id }, { session });
+    await ApplicationResponse.deleteMany({ applicationId: current._id }, { session });
     await recordAudit(
       {
         action: 'APPLICATION_DELETED',
@@ -46,6 +58,6 @@ export async function deleteApplication(
       session,
     );
   });
-  // After the commit: a failed deletion must not lose the file of a still existing application.
-  if (current.scan) await deleteScanFile(current.scan.fileId);
+  // After the commit: a failed deletion must not lose the files of a still existing application.
+  await Promise.all(files.map(deleteScanFile));
 }

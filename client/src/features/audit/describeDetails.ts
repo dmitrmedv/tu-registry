@@ -16,6 +16,13 @@ const USER_FIELD_LABELS: Record<string, string> = {
   isActive: 'активний',
 };
 
+const RESPONSE_FIELD_LABELS: Record<string, string> = {
+  outgoingNumber: 'номер',
+  responseDate: 'дата',
+  engineer: 'інженер',
+  documentsReceivedAt: 'документи надійшли',
+};
+
 const ENGINEER_FIELD_LABELS: Record<string, string> = { fullName: 'ПІБ' };
 
 const DEPARTMENT_FIELD_LABELS: Record<string, string> = { name: 'назва', code: 'код' };
@@ -80,6 +87,28 @@ export function describeDetails(entry: AuditLogDto): string {
           ? (CALENDAR_DAY_KIND_LABELS[value as CalendarDayKind] ?? text(value))
           : text(value);
       return changes.map((c) => `${show(c.field, c.from)} → ${show(c.field, c.to)}`).join(', ');
+    }
+    case 'RESPONSE_CREATED':
+      return d.responseDate ? `від ${formatCalendarDate(text(d.responseDate))}` : '';
+    case 'RESPONSE_UPDATED': {
+      const changes = Array.isArray(d.changes)
+        ? (d.changes as { field: string; from: unknown; to: unknown }[])
+        : [];
+      const show = (field: string, value: unknown) =>
+        value === null || value === undefined
+          ? '—'
+          : field === 'responseDate' || field === 'documentsReceivedAt'
+            ? formatCalendarDate(text(value))
+            : text(value);
+      return changes
+        .map((c) =>
+          c.field === 'scan'
+            ? c.from
+              ? 'замінено скан'
+              : 'додано скан'
+            : `${RESPONSE_FIELD_LABELS[c.field] ?? c.field}: ${show(c.field, c.from)} → ${show(c.field, c.to)}`,
+        )
+        .join(', ');
     }
     case 'APPLICATION_DELETED':
       return d.regDate ? `заява від ${formatCalendarDate(text(d.regDate))}` : '';

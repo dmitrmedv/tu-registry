@@ -47,6 +47,22 @@ export async function loadApplication(id: string, actor: Actor) {
   return app;
 }
 
+/**
+ * The application, if the actor may change it or its documents (scan, responses, technical
+ * conditions): visible to them and not annulled.
+ */
+export async function loadEditableApplication(id: string, actor: Actor) {
+  const app = await loadApplication(id, actor);
+  if (app.status === 'ANNULLED') {
+    throw new ApiError(
+      409,
+      'APPLICATION_ANNULLED',
+      'Анульовану заяву не можна змінювати. Спершу її має відновити адміністратор.',
+    );
+  }
+  return app;
+}
+
 /** Audits the refusal (outside any transaction, so it is kept) and returns the 403. */
 async function deny(
   actor: Actor,

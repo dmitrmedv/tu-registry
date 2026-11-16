@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { mkdir, open, rename, rm } from 'node:fs/promises';
 import path from 'node:path';
+import { SCAN_NAME_MAX } from '@tu-registry/shared';
 import { env } from '../../config/env';
 
 /**
@@ -51,4 +52,12 @@ export async function removeFile(file: string) {
 
 export async function deleteScanFile(fileId: string) {
   await removeFile(scanPath(fileId));
+}
+
+/** The user's file name, made safe to show: no path, no control characters, bounded. */
+export function scanDisplayName(originalName: string) {
+  const base = path.posix.basename(originalName.replace(/\\/g, '/'));
+  // eslint-disable-next-line no-control-regex -- removing control characters is the point
+  const clean = base.replace(/[\u0000-\u001f\u007f]/g, '').trim();
+  return (clean || 'скан.pdf').slice(0, SCAN_NAME_MAX);
 }

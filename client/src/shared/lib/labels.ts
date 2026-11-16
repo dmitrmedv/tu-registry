@@ -67,6 +67,10 @@ export const AUDIT_ACTION_LABELS: Record<AuditAction, string> = {
   CALENDAR_DAY_CREATED: 'Додано день у календар',
   CALENDAR_DAY_UPDATED: 'Змінено день календаря',
   CALENDAR_DAY_DELETED: 'Видалено день з календаря',
+  RESPONSE_CREATED: 'Додано відповідь на заяву',
+  RESPONSE_UPDATED: 'Змінено відповідь на заяву',
+  RESPONSE_CANCELLED: 'Скасовано відповідь на заяву',
+  RESPONSE_RESTORED: 'Відновлено відповідь на заяву',
   ACCESS_DENIED: 'Відмовлено в доступі',
 };
 

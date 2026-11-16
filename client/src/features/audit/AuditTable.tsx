@@ -11,6 +11,14 @@ function EntityCell({ entry }: { entry: AuditLogDto }) {
   // The application no longer exists: its number, but no link to a missing card.
   if (entry.action === 'APPLICATION_DELETED') return <>Заява {entry.entityLabel}</>;
   if (entry.entityType === 'Department') return <>Управління {entry.entityLabel}</>;
+  if (entry.entityType === 'ApplicationResponse') {
+    const applicationId = entry.details?.applicationId;
+    return typeof applicationId === 'string' ? (
+      <Link to={`/applications/${applicationId}`}>Відповідь {entry.entityLabel}</Link>
+    ) : (
+      <>Відповідь {entry.entityLabel}</>
+    );
+  }
   if (entry.entityType === 'CalendarDay') return <>{formatCalendarDate(entry.entityLabel)}</>;
   if (entry.entityType === 'Engineer') return <>Інженер {entry.entityLabel}</>;
   if (entry.entityType === 'Application') {

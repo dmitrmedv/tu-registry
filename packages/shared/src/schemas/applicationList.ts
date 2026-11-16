@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { APPLICATION_STATUSES, AREA_TYPES, OBJECT_CATEGORIES, OBJECT_TYPES } from '../enums';
-import { parseRegNumber } from '../regNumber';
+import { parseRegNumberSearch } from '../regNumber';
 import { departmentField } from '../departments';
 import type { ApplicationDto } from './application';
 
@@ -44,8 +44,7 @@ export const regNumberSearchField = z.preprocess(
     .trim()
     .max(20)
     .transform((value, ctx) => {
-      if (/^\d+$/.test(value) && Number(value) > 0) return { seq: Number(value) };
-      const parsed = parseRegNumber(value);
+      const parsed = parseRegNumberSearch(value);
       if (!parsed) {
         ctx.addIssue({ code: 'custom', message: 'Номер: 15, 15т/26 або 15т/26-8' });
         return z.NEVER;
@@ -60,6 +59,11 @@ export const applicationListQuerySchema = z
     page: z.coerce.number().int().min(1).default(1),
     limit: z.coerce.number().int().min(10).max(100).default(20),
     sort: z.preprocess(emptyToUndefined, z.enum(APPLICATION_SORTS).default('-regDate')),
+    /**
+     * One search box: a substring of the customer, representative, settlement, address or
+     * comment, or a registration number (see parseRegNumberSearch).
+     */
+    q: searchText,
     customer: searchText,
     settlement: searchText,
     address: searchText,

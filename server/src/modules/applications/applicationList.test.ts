@@ -16,6 +16,9 @@ type Seed = Partial<{
   regSeq: number;
   regDate: string;
   customer: string;
+  customerRepresentative: string;
+  settlement: string;
+  comment: string;
   objectAddress: string;
   objectType: 'DOMESTIC' | 'NON_DOMESTIC';
   objectCategory: ObjectCategory;
@@ -37,6 +40,9 @@ async function seed(rows: Seed[]) {
         regSeq: row.regSeq ?? i + 1,
         regDate: new Date(`${regDate}T00:00:00Z`),
         customer: row.customer ?? `Замовник ${i + 1}`,
+        customerRepresentative: row.customerRepresentative ?? null,
+        settlement: row.settlement ?? 'м. Одеса',
+        comment: row.comment ?? null,
         phone: '+380671234567',
         objectAddress: row.objectAddress ?? `вул. Тестова, ${i + 1}`,
         objectType: row.objectType ?? 'DOMESTIC',
@@ -152,6 +158,61 @@ describe('applications registry list', () => {
     });
   });
 
+  describe('single search box (q)', () => {
+    it('looks in the customer, representative, settlement, address and comment', async () => {
+      await seed([
+        { customer: 'ТОВ «Сонце»' },
+        { customerRepresentative: 'Сонцев Петро' },
+        { settlement: 'с. Сонячне' },
+        { objectAddress: 'вул. Сонячна, 1' },
+        { comment: 'Подав СОНЦЕВ особисто' },
+        { customer: 'ФОП Іванов' },
+      ]);
+
+      const res = await list({ q: 'сон', sort: 'regNumber' });
+
+      expect(numbers(res)).toEqual(['1т/26-8', '2т/26-8', '3т/26-8', '4т/26-8', '5т/26-8']);
+    });
+
+    it('finds a number and the same digits in the text, either way', async () => {
+      await seed([
+        { regSeq: 15 },
+        { regSeq: 3, objectAddress: 'вул. Шевченка, 15' },
+        { regSeq: 4 },
+        { regSeq: 15, regYear: 2025, regDate: '2025-02-01' },
+      ]);
+
+      expect(numbers(await list({ q: '15', sort: 'regNumber' }))).toEqual([
+        '15т/25-8',
+        '3т/26-8',
+        '15т/26-8',
+      ]);
+      expect(numbers(await list({ q: ' 15т/26-8 ' }))).toEqual(['15т/26-8']);
+      expect(numbers(await list({ q: '15т/26' }))).toEqual(['15т/26-8']);
+      // A number of a department that does not exist finds nothing.
+      expect((await list({ q: '15т/26-99' })).body.meta.total).toBe(0);
+    });
+
+    it('treats regex characters literally', async () => {
+      await seed([{ customer: 'ТОВ (Альфа)' }, { customer: 'ТОВ Альфа' }]);
+
+      expect((await list({ q: '(Альфа)' })).body.meta.total).toBe(1);
+      expect((await list({ q: '.*' })).body.meta.total).toBe(0);
+    });
+
+    it('narrows the other filters instead of widening them', async () => {
+      await seed([
+        { customer: 'ТОВ Сонце', objectType: 'DOMESTIC' },
+        { customer: 'ТОВ Сонце', objectType: 'NON_DOMESTIC' },
+        { customer: 'ТОВ Місяць', objectType: 'NON_DOMESTIC' },
+      ]);
+
+      expect((await list({ q: 'сонце', objectType: 'NON_DOMESTIC' })).body.meta.total).toBe(1);
+      // And works with a computed-key sort, which filters in an aggregation.
+      expect((await list({ q: 'сонце', sort: 'objectType' })).body.meta.total).toBe(2);
+    });
+  });
+
   describe('filters', () => {
     it('by object type and by author', async () => {
       await seed([
@@ -202,6 +263,7 @@ describe('applications registry list', () => {
     { limit: 1000 },
     { sort: 'phone' },
     { number: 'abc' },
+    { q: 'я'.repeat(201) },
     { createdBy: 'x' },
     { dateFrom: '2026-03-10', dateTo: '2026-03-01' },
   ])('rejects invalid query %j', async (query) => {

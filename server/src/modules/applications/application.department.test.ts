@@ -160,6 +160,8 @@ describe('departments', () => {
       expect(await numbers(odesa)).toEqual(['1т/26-8']);
       expect(await numbers(odesa, { department: 'RENI' })).toEqual(['1т/26-8']);
       expect(await numbers(odesa, { number: '1т/26-11' })).toEqual([]);
+      expect(await numbers(odesa, { q: '1т/26-11' })).toEqual([]);
+      expect(await numbers(odesa, { q: '1' })).toEqual(['1т/26-8']);
       expect(await numbers(reni)).toEqual(['1т/26-11']);
     });
 
@@ -167,6 +169,8 @@ describe('departments', () => {
       expect((await numbers(admin, { sort: 'regNumber' })).sort()).toEqual(['1т/26-11', '1т/26-8']);
       expect(await numbers(admin, { department: 'RENI' })).toEqual(['1т/26-11']);
       expect(await numbers(admin, { number: '1т/26-8' })).toEqual(['1т/26-8']);
+      expect(await numbers(admin, { q: '1т/26-11' })).toEqual(['1т/26-11']);
+      expect(await numbers(admin, { q: '1т/26-11', department: 'ODESA' })).toEqual([]);
       expect(await numbers(admin, { number: '1т/26' })).toHaveLength(2);
     });
 

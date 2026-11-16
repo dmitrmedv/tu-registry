@@ -149,9 +149,15 @@ describe('settlement, area type and the registry search and sort', () => {
 
     it('uses an index for every text and date sort instead of sorting in memory', async () => {
       await Promise.all(allModels.map((model) => model.syncIndexes()));
-      // An admin's "all departments" view, and a user's (always one department).
-      for (const department of [undefined, 'ODESA' as const]) {
-        const filter = buildListFilter({ page: 1, limit: 20, sort: 'customer', department });
+      // An admin's "all departments" view, and a user's (always one department); with and
+      // without the search box, whose substring match cannot use an index itself.
+      for (const [department, q] of [
+        [undefined, undefined],
+        ['ODESA', undefined],
+        [undefined, '15'],
+        ['ODESA', '15'],
+      ] as const) {
+        const filter = buildListFilter({ page: 1, limit: 20, sort: 'customer', department, q });
         for (const field of [
           'regNumber',
           'regDate',
@@ -173,8 +179,8 @@ describe('settlement, area type and the registry search and sort', () => {
                 }
               ).queryPlanner.winningPlan,
             );
-            expect(explained, `${sort} ${department}`).toContain('IXSCAN');
-            expect(explained, `${sort} ${department}`).not.toContain('"stage":"SORT"');
+            expect(explained, `${sort} ${department} ${q}`).toContain('IXSCAN');
+            expect(explained, `${sort} ${department} ${q}`).not.toContain('"stage":"SORT"');
           }
         }
       }

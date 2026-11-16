@@ -25,3 +25,15 @@ export function parseRegNumber(
   const departmentCode = Number(match[3]);
   return departmentCode >= 1 ? { year, seq, departmentCode } : null;
 }
+
+export type RegNumberSearch = { seq: number; year?: number; departmentCode?: number };
+
+/**
+ * A number as people search for it: "15" — number 15 in any year, "15т/26" — in any
+ * department, "15т/26-8" — that exact number. Null when the text is not a number.
+ */
+export function parseRegNumberSearch(input: string): RegNumberSearch | null {
+  const value = input.trim();
+  if (/^\d{1,6}$/.test(value)) return Number(value) > 0 ? { seq: Number(value) } : null;
+  return parseRegNumber(value);
+}

@@ -11,6 +11,7 @@ import { toIsoDate } from '../../utils/kyivDate';
 import { departmentDirectory } from '../departments/department.service';
 import {
   buildListFilter,
+  searchedDepartmentCodes,
   CODES_BY_NAME,
   type ListSort,
   listSort,
@@ -123,14 +124,14 @@ export async function listApplications(
   query: ApplicationListQueryData,
 ): Promise<Paginated<ApplicationListItemDto>> {
   const departments = await departmentDirectory();
-  const searchedCode =
-    query.number && 'departmentCode' in query.number ? query.number.departmentCode : undefined;
-  const numberDepartment =
-    searchedCode === undefined
-      ? undefined
-      : ([...departments.values()].find((d) => d.code === searchedCode)?.id ?? null);
+  const numberDepartments = new Map(
+    searchedDepartmentCodes(query).map((code) => [
+      code,
+      [...departments.values()].find((d) => d.code === code)?.id ?? null,
+    ]),
+  );
   const page = {
-    filter: buildListFilter(query, numberDepartment),
+    filter: buildListFilter(query, numberDepartments),
     skip: (query.page - 1) * query.limit,
     limit: query.limit,
   };

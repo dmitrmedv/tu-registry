@@ -1,4 +1,4 @@
-import { useCallback, useMemo } from 'react';
+import { useCallback, useEffect, useMemo, useRef } from 'react';
 import { useSearchParams } from 'react-router';
 
 type ListParams = { page: number };
@@ -24,24 +24,36 @@ export function useListParams<T extends ListParams>({
   const [search, setSearch] = useSearchParams();
   const params = useMemo(() => read(search), [read, search]);
 
+  // The URL as last written. Two changes in one moment (a chip removed, then a select changed)
+  // happen before a re-render, and the router hands both the same, older URL: each would undo
+  // the other. Building on this instead keeps both. Caught up with every navigation.
+  const latest = useRef(search);
+  useEffect(() => {
+    latest.current = search;
+  }, [search]);
+
+  const navigate = useCallback(
+    (next: URLSearchParams, replace?: boolean) => {
+      latest.current = next;
+      setSearch(next, { replace });
+    },
+    [setSearch],
+  );
+
   const update = useCallback(
     (patch: Partial<T>, options: { replace?: boolean } = {}) => {
-      setSearch((previous) => write({ ...read(previous), page: 1, ...patch }), {
-        replace: options.replace,
-      });
+      navigate(write({ ...read(latest.current), page: 1, ...patch }), options.replace);
     },
-    [read, write, setSearch],
+    [read, write, navigate],
   );
 
   const reset = useCallback(() => {
-    setSearch((previous) => {
-      const current = read(previous);
-      const kept = Object.fromEntries(keepOnReset.map((key) => [key, current[key]]));
-      return write({ ...defaults, ...kept });
-    });
+    const current = read(latest.current);
+    const kept = Object.fromEntries(keepOnReset.map((key) => [key, current[key]]));
+    navigate(write({ ...defaults, ...kept }));
     // keepOnReset is a static list per caller.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [read, write, defaults, setSearch]);
+  }, [read, write, defaults, navigate]);
 
   return { params, update, reset };
 }

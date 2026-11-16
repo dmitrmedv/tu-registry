@@ -63,8 +63,8 @@ test('the registry shows, sorts, filters and searches by responses and technical
   await page.getByLabel('Стан').selectOption({ label: 'Відповідь надана' });
   await expect(table.getByRole('row')).toHaveCount(2);
   await expect(table.getByRole('row').nth(1)).toContainText(`${prefix} відповідь`);
+  // Removing one filter and choosing another right after: both apply (no wait in between).
   await page.getByRole('button', { name: 'Прибрати фільтр «Стан: Відповідь надана»' }).click();
-  await expect(table.getByRole('row')).toHaveCount(4);
   await page.getByLabel('Інженер').selectOption({ label: engineerName });
   await expect(table.getByRole('row')).toHaveCount(3);
   await expect(rowOf(`${prefix} без документів`)).toHaveCount(0);

@@ -117,10 +117,7 @@ describe('departments API', () => {
       expect(res.body).toMatchObject({ id: 'RENI', code: 111 });
       const card = await request(app).get(`${APPLICATIONS}/${created.id}`).set(reni.auth);
       expect(card.body.regNumber).toBe('1т/26-111');
-      const found = await request(app)
-        .get(APPLICATIONS)
-        .query({ number: '1т/26-111' })
-        .set(admin.auth);
+      const found = await request(app).get(APPLICATIONS).query({ q: '1т/26-111' }).set(admin.auth);
       expect(found.body.meta.total).toBe(1);
       const audit = await AuditLog.findOne({ action: 'DEPARTMENT_UPDATED' }).lean();
       expect(audit?.details).toMatchObject({ changes: [{ field: 'code', from: 11, to: 111 }] });

@@ -118,7 +118,7 @@ test('an admin adds a department, registers into it, re-codes and archives it', 
   await edit.getByLabel('Код').fill(newCode);
   await edit.getByRole('button', { name: 'Зберегти' }).click();
   await expect(page.getByText(`Управління «${name}» збережено`)).toBeVisible();
-  await page.goto(`/?department=all&number=${encodeURIComponent(`1т/26-${newCode}`)}`);
+  await page.goto(`/?department=all&q=${encodeURIComponent(`1т/26-${newCode}`)}`);
   await expect(page.getByRole('table', { name: 'Реєстр заяв' }).getByRole('row')).toHaveCount(2);
 
   // Archive it: it is no longer offered for new applications.

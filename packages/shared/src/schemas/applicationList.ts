@@ -1,6 +1,5 @@
 import { z } from 'zod';
 import { APPLICATION_STATUSES, AREA_TYPES, OBJECT_CATEGORIES, OBJECT_TYPES } from '../enums';
-import { parseRegNumberSearch } from '../regNumber';
 import { departmentField } from '../departments';
 import type { ApplicationDto } from './application';
 
@@ -32,28 +31,6 @@ const searchText = z.preprocess(
   z.string().trim().max(200, 'Не більше 200 символів').optional(),
 );
 
-/**
- * Number search: "15т/26-8" finds that exact number, "15т/26" — number 15 of 2026 in any
- * department, "15" — number 15 in any year.
- * Shared so the browser can flag a bad value before asking the server.
- */
-export const regNumberSearchField = z.preprocess(
-  emptyToUndefined,
-  z
-    .string()
-    .trim()
-    .max(20)
-    .transform((value, ctx) => {
-      const parsed = parseRegNumberSearch(value);
-      if (!parsed) {
-        ctx.addIssue({ code: 'custom', message: 'Номер: 15, 15т/26 або 15т/26-8' });
-        return z.NEVER;
-      }
-      return parsed;
-    })
-    .optional(),
-);
-
 export const applicationListQuerySchema = z
   .object({
     page: z.coerce.number().int().min(1).default(1),
@@ -64,12 +41,6 @@ export const applicationListQuerySchema = z
      * comment, or a registration number (see parseRegNumberSearch).
      */
     q: searchText,
-    customer: searchText,
-    settlement: searchText,
-    address: searchText,
-    customerRepresentative: searchText,
-    comment: searchText,
-    number: regNumberSearchField,
     /** Admins choose; for users the server always uses their own department. */
     department: z.preprocess(emptyToUndefined, departmentField.optional()),
     objectType: z.preprocess(emptyToUndefined, z.enum(OBJECT_TYPES).optional()),

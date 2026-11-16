@@ -1,5 +1,4 @@
 import {
-  APPLICATION_STATUSES,
   type ApplicationStatus,
   AREA_TYPES,
   type AreaType,
@@ -10,17 +9,15 @@ import {
   type ObjectType,
   type UserOptionDto,
 } from '@tu-registry/shared';
-import clsx from 'clsx';
 import { useState } from 'react';
 import { useCurrentUser } from '@/features/auth';
 import { useDepartments } from '@/features/departments';
 import { AREA_TYPE_LABELS, OBJECT_CATEGORY_LABELS, OBJECT_TYPE_LABELS } from '@/shared/lib/labels';
-import { Button, SelectField, TextField } from '@/shared/ui';
+import { Button, ChoiceField, SelectField } from '@/shared/ui';
+import { PeriodField } from './PeriodField';
 import styles from './registry.module.scss';
-import { isNumberSearchValid, isPeriodValid, type RegistryParams } from './registryParams';
+import { countMoreFilters, isPeriodValid, type RegistryParams } from './registryParams';
 import { SearchField } from './SearchField';
-
-const WIDE_SCREEN = '(min-width: 768px)';
 
 type Props = {
   params: RegistryParams;
@@ -50,13 +47,22 @@ const AREA_OPTIONS = [
   ...AREA_TYPES.map((area) => ({ value: area, label: AREA_TYPE_LABELS[area] })),
 ];
 
+const STATUS_LABELS: Record<ApplicationStatus, string> = {
+  ACTIVE: 'Активні',
+  ANNULLED: 'Анульовані',
+};
 const STATUS_OPTIONS = [
   { value: '', label: 'Усі' },
-  ...APPLICATION_STATUSES.map((status) => ({
-    value: status,
-    label: status === 'ACTIVE' ? 'Активні' : 'Анульовані',
-  })),
+  { value: 'ACTIVE', label: STATUS_LABELS.ACTIVE },
+  { value: 'ANNULLED', label: STATUS_LABELS.ANNULLED },
 ];
+
+/** Ready-made views: they set the author and status filters and leave the rest alone. */
+const QUICK_VIEWS = [
+  { label: 'Усі', patch: { user: 'all', status: '' } },
+  { label: 'Мої', patch: { user: 'mine', status: '' } },
+  { label: 'Анульовані', patch: { user: 'all', status: 'ANNULLED' } },
+] as const satisfies { label: string; patch: Partial<RegistryParams> }[];
 
 export function RegistryFilters({
   params,
@@ -68,41 +74,46 @@ export function RegistryFilters({
 }: Props) {
   const departments = useDepartments();
   const me = useCurrentUser();
-  // Open on wide screens, collapsed on phones; either way the button folds it away.
-  const [open, setOpen] = useState(() => window.matchMedia?.(WIDE_SCREEN).matches ?? true);
-  // Typing creates no history entries; picking a value does.
-  const commitText =
-    (key: 'customer' | 'settlement' | 'address' | 'representative' | 'comment' | 'number') =>
-    (value: string) =>
-      update({ [key]: value }, { replace: true });
+  const [moreOpen, setMoreOpen] = useState(false);
+  // An old link may carry the signed-in user's id instead of "mine".
+  const user = params.user === me.id ? 'mine' : params.user;
+  const moreCount = countMoreFilters(params);
 
   // "Мої заяви" already means the signed-in user: their own name would be the same filter twice.
+  const others = (users ?? []).filter((u) => u.id !== me.id);
   const userOptions = [
     { value: 'all', label: 'Усі користувачі' },
     { value: 'mine', label: 'Мої заяви' },
-    ...(users ?? [])
-      .filter((u) => u.id !== me.id)
-      .map((u) => ({
-        value: u.id,
-        label: u.isActive ? u.fullName : `${u.fullName} (деактивований)`,
-      })),
+    ...others.map((u) => ({
+      value: u.id,
+      label: u.isActive ? u.fullName : `${u.fullName} (деактивований)`,
+    })),
   ];
+  const userName = (id: string) =>
+    id === 'mine' ? 'Мої заяви' : (others.find((u) => u.id === id)?.fullName ?? 'обраний');
+
+  // What is set behind «Ще фільтри», visible (and removable) while the panel is folded.
+  const chips = [
+    params.type && { label: `Тип: ${OBJECT_TYPE_LABELS[params.type]}`, clear: { type: '' } },
+    params.category && {
+      label: `Категорія: ${OBJECT_CATEGORY_LABELS[params.category]}`,
+      clear: { category: '' },
+    },
+    params.area && { label: `Місцевість: ${AREA_TYPE_LABELS[params.area]}`, clear: { area: '' } },
+    params.status && { label: `Статус: ${STATUS_LABELS[params.status]}`, clear: { status: '' } },
+    user !== 'all' && { label: `Користувач: ${userName(user)}`, clear: { user: 'all' } },
+  ].filter((chip) => !!chip) as { label: string; clear: Partial<RegistryParams> }[];
 
   return (
     <section className={styles.filters} aria-label="Фільтри">
-      <Button
-        className={styles.filtersToggle}
-        aria-expanded={open}
-        aria-controls="registry-filters"
-        onClick={() => setOpen((v) => !v)}
-      >
-        Фільтри{activeFilterCount > 0 && ` (${activeFilterCount})`}
-      </Button>
-
-      <div
-        id="registry-filters"
-        className={clsx(styles.filterPanel, open && styles.filterPanelOpen)}
-      >
+      <div className={styles.mainFilters}>
+        <SearchField
+          className={styles.search}
+          label="Пошук"
+          placeholder="Номер, замовник, адреса, представник, коментар"
+          value={params.q}
+          onCommit={(q) => update({ q }, { replace: true })}
+        />
         {showDepartment && (
           <SelectField
             label="Управління"
@@ -111,30 +122,24 @@ export function RegistryFilters({
             onChange={(e) => update({ department: e.target.value as Department | 'all' })}
           />
         )}
-        <SearchField label="Замовник" value={params.customer} onCommit={commitText('customer')} />
-        <SearchField
-          label="Населений пункт"
-          value={params.settlement}
-          onCommit={commitText('settlement')}
+        <PeriodField
+          from={params.from}
+          to={params.to}
+          error={isPeriodValid(params) ? undefined : 'Кінець періоду раніше за початок'}
+          onChange={(period) => update(period)}
         />
-        <SearchField label="Адреса" value={params.address} onCommit={commitText('address')} />
-        <SearchField
-          label="Представник замовника"
-          value={params.representative}
-          onCommit={commitText('representative')}
-        />
-        <SearchField label="Коментар" value={params.comment} onCommit={commitText('comment')} />
-        <SearchField
-          label="Номер"
-          placeholder="15 або 15т/26-8"
-          value={params.number}
-          onCommit={commitText('number')}
-          error={
-            params.number && !isNumberSearchValid(params.number)
-              ? 'Номер: 15, 15т/26 або 15т/26-8'
-              : undefined
-          }
-        />
+        <Button
+          className={styles.moreToggle}
+          aria-expanded={moreOpen}
+          aria-controls="registry-more-filters"
+          onClick={() => setMoreOpen((v) => !v)}
+        >
+          Ще фільтри{moreCount > 0 && ` (${moreCount})`}
+          <span aria-hidden="true">{moreOpen ? '▴' : '▾'}</span>
+        </Button>
+      </div>
+
+      <div id="registry-more-filters" className={styles.moreFilters} hidden={!moreOpen}>
         <SelectField
           label="Тип обʼєкта"
           options={TYPE_OPTIONS}
@@ -147,14 +152,16 @@ export function RegistryFilters({
           value={params.category}
           onChange={(e) => update({ category: e.target.value as ObjectCategory | '' })}
         />
-        <SelectField
-          label="Місцевість"
+        <ChoiceField
+          legend="Місцевість"
+          name="registry-area"
           options={AREA_OPTIONS}
           value={params.area}
           onChange={(e) => update({ area: e.target.value as AreaType | '' })}
         />
-        <SelectField
-          label="Статус"
+        <ChoiceField
+          legend="Статус"
+          name="registry-status"
           options={STATUS_OPTIONS}
           value={params.status}
           onChange={(e) => update({ status: e.target.value as ApplicationStatus | '' })}
@@ -162,29 +169,50 @@ export function RegistryFilters({
         <SelectField
           label="Користувач"
           options={userOptions}
-          value={params.user === me.id ? 'mine' : params.user}
+          value={user}
           onChange={(e) => update({ user: e.target.value })}
         />
-        <TextField
-          label="Дата з"
-          type="date"
-          value={params.from}
-          max={params.to || undefined}
-          onChange={(e) => update({ from: e.target.value })}
-        />
-        <TextField
-          label="Дата по"
-          type="date"
-          value={params.to}
-          min={params.from || undefined}
-          error={isPeriodValid(params) ? undefined : 'Кінець періоду раніше за початок'}
-          onChange={(e) => update({ to: e.target.value })}
-        />
-        <div className={styles.resetCell}>
-          <Button variant="ghost" onClick={reset} disabled={activeFilterCount === 0}>
-            Скинути фільтри
-          </Button>
+      </div>
+
+      <div className={styles.filterSummary}>
+        <div className={styles.quickViews} role="group" aria-label="Швидкий вибір">
+          {QUICK_VIEWS.map((view) => {
+            const active = user === view.patch.user && params.status === view.patch.status;
+            return (
+              <Button
+                key={view.label}
+                size="sm"
+                variant={active ? 'primary' : 'ghost'}
+                aria-pressed={active}
+                onClick={() => update(view.patch)}
+              >
+                {view.label}
+              </Button>
+            );
+          })}
         </div>
+        {chips.length > 0 && (
+          <ul className={styles.chips} aria-label="Активні фільтри">
+            {chips.map((chip) => (
+              <li key={chip.label} className={styles.chip}>
+                {chip.label}
+                <button
+                  type="button"
+                  className={styles.chipRemove}
+                  aria-label={`Прибрати фільтр «${chip.label}»`}
+                  onClick={() => update(chip.clear)}
+                >
+                  ×
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+        {activeFilterCount > 0 && (
+          <Button size="sm" variant="ghost" onClick={reset}>
+            Скинути все
+          </Button>
+        )}
       </div>
     </section>
   );

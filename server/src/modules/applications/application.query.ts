@@ -22,14 +22,6 @@ function contains(text: string) {
   return mongoose.trusted({ $regex: escapeRegex(text), $options: 'i' });
 }
 
-const TEXT_SEARCHES = [
-  ['customer', 'customer'],
-  ['settlement', 'settlement'],
-  ['address', 'objectAddress'],
-  ['customerRepresentative', 'customerRepresentative'],
-  ['comment', 'comment'],
-] as const;
-
 /** The single search box looks in these fields (and at the number, when it reads as one). */
 const QUICK_SEARCH_FIELDS = [
   'customer',
@@ -39,33 +31,28 @@ const QUICK_SEARCH_FIELDS = [
   'comment',
 ] as const;
 
-/**
- * Departments named by the codes in a number search ("15т/26-8" → code 8): code → id, or null
- * when no department has that code. Looked up by the caller, which reads the directory.
- */
-export type NumberDepartments = ReadonlyMap<number, string | null>;
-
-/** The codes a list query names in its number searches, for the caller to look up. */
-export function searchedDepartmentCodes(query: ApplicationListQueryData) {
-  const numbers = [query.number, query.q ? parseRegNumberSearch(query.q) : null];
-  return numbers.flatMap((n) => (n?.departmentCode === undefined ? [] : [n.departmentCode]));
+/** The search box read as a registration number, if it is one. */
+export function searchedNumber(query: ApplicationListQueryData) {
+  return query.q ? parseRegNumberSearch(query.q) : null;
 }
 
 /**
- * Conditions for one number search. "15т/26-8" names a department; for a user it must also be
- * their own (another department's number then simply finds nothing).
+ * Conditions for a number search. "15т/26-8" names a department (`numberDepartment`, looked up
+ * by the caller; null when no department has that code). For a user it must also be their own:
+ * another department's number then simply finds nothing.
  */
 function numberConditions(
   number: RegNumberSearch,
-  departments: NumberDepartments,
+  numberDepartment: string | null | undefined,
   scope: string | undefined,
 ) {
   const conditions: Record<string, unknown> = { regSeq: number.seq };
   if (number.year !== undefined) conditions.regYear = number.year;
   if (number.departmentCode !== undefined) {
-    const named = departments.get(number.departmentCode) ?? null;
     conditions.department =
-      named === null || (scope && scope !== named) ? mongoose.trusted({ $in: [] }) : named;
+      !numberDepartment || (scope && scope !== numberDepartment)
+        ? mongoose.trusted({ $in: [] })
+        : numberDepartment;
   }
   return conditions;
 }
@@ -74,26 +61,17 @@ function numberConditions(
  * Translates a validated list query into a MongoDB filter. Values are already cast (ObjectId,
  * Date), so the same filter works in find() and in an aggregation, which does not cast.
  */
-export function buildListFilter(
-  query: ApplicationListQueryData,
-  departments: NumberDepartments = new Map(),
-) {
+export function buildListFilter(query: ApplicationListQueryData, numberDepartment?: string | null) {
   const filter: Record<string, unknown> = {};
-  for (const [param, field] of TEXT_SEARCHES) {
-    const text = query[param];
-    if (text) filter[field] = contains(text);
-  }
   if (query.department) filter.department = query.department;
-  if (query.number)
-    Object.assign(filter, numberConditions(query.number, departments, query.department));
   if (query.q) {
     const text = contains(query.q);
     const anyOf: Record<string, unknown>[] = QUICK_SEARCH_FIELDS.map((field) => ({
       [field]: text,
     }));
     // "15" is both number 15 and "вул. Шевченка, 15": either matches.
-    const number = parseRegNumberSearch(query.q);
-    if (number) anyOf.push(numberConditions(number, departments, query.department));
+    const number = searchedNumber(query);
+    if (number) anyOf.push(numberConditions(number, numberDepartment, query.department));
     filter.$or = anyOf;
   }
   if (query.objectType) filter.objectType = query.objectType;

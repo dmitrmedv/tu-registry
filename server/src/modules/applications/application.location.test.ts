@@ -57,7 +57,7 @@ describe('settlement, area type and the registry search and sort', () => {
     );
   });
 
-  it('searches settlement, address, representative and comment; filters by area', async () => {
+  it('finds settlement, address, representative and comment by the search box; filters by area', async () => {
     await register({
       customer: 'А',
       settlement: 'м. Бровари',
@@ -72,12 +72,12 @@ describe('settlement, area type and the registry search and sort', () => {
       customerRepresentative: 'Коваль Олена',
     });
 
-    expect(await customers({ settlement: 'бровар' })).toEqual(['А']);
-    expect(await customers({ address: 'садова' })).toEqual(['А']);
-    expect(await customers({ customerRepresentative: 'петренко' })).toEqual(['А']);
-    expect(await customers({ comment: 'довідка' })).toEqual(['А']);
+    expect(await customers({ q: 'бровар' })).toEqual(['А']);
+    expect(await customers({ q: 'садова' })).toEqual(['А']);
+    expect(await customers({ q: 'петренко' })).toEqual(['А']);
+    expect(await customers({ q: 'довідка' })).toEqual(['А']);
     expect(await customers({ areaType: 'RURAL' })).toEqual(['Б']);
-    expect(await customers({ comment: 'довідка', areaType: 'RURAL' })).toEqual([]);
+    expect(await customers({ q: 'довідка', areaType: 'RURAL' })).toEqual([]);
   });
 
   it('records area changes in the history', async () => {

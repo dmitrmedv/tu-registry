@@ -25,7 +25,7 @@ test('registers an application under the next number and finds it in the registr
   expect(regNumber).toMatch(/^\d+т\/\d{2}-8$/); // the admin is in Одеське (code 8)
 
   await page.getByRole('link', { name: 'Реєстр заяв на ТУ' }).click();
-  await page.getByRole('searchbox', { name: 'Замовник', exact: true }).fill(customer);
+  await page.getByRole('searchbox', { name: 'Пошук' }).fill(customer);
 
   const table = page.getByRole('table', { name: 'Реєстр заяв' });
   await expect(table.getByRole('row')).toHaveCount(2); // header + the new application
@@ -33,9 +33,8 @@ test('registers an application under the next number and finds it in the registr
   await expect(table.getByRole('cell', { name: 'Житловий будинок' })).toBeVisible();
   await expect(table.getByRole('cell', { name: 'Міська' })).toBeVisible();
 
-  // The comment is searchable too; a click anywhere on the row opens the card.
-  await page.getByRole('searchbox', { name: 'Замовник', exact: true }).fill('');
-  await page.getByRole('searchbox', { name: 'Коментар' }).fill('Подано особисто');
+  // The same box finds it by number; a click anywhere on the row opens the card.
+  await page.getByRole('searchbox', { name: 'Пошук' }).fill(regNumber);
   await expect(table.getByRole('row')).toHaveCount(2);
   await table.getByRole('cell', { name: customer }).click();
   await expect(page.getByRole('heading', { name: `Заява ${regNumber}` })).toBeVisible();
@@ -87,7 +86,7 @@ test('registers an application with a scan of the documents and opens it from th
 
   await expect(page.getByText('Скан «Пакет документів.pdf» (1 КБ) додано.')).toBeVisible();
 
-  await page.goto(`/?customer=${encodeURIComponent(customer)}`);
+  await page.goto(`/?q=${encodeURIComponent(customer)}`);
   await page
     .getByRole('table', { name: 'Реєстр заяв' })
     .getByRole('cell', { name: customer })

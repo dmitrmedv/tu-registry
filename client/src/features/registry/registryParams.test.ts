@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { DEFAULT_PARAMS, readParams, toApiQuery, writeParams } from './registryParams';
+import {
+  countMoreFilters,
+  DEFAULT_PARAMS,
+  readParams,
+  toApiQuery,
+  writeParams,
+} from './registryParams';
 
 const ME = { id: 'aaaaaaaaaaaaaaaaaaaaaaaa', role: 'USER' as const };
 const ADMIN = { id: 'bbbbbbbbbbbbbbbbbbbbbbbb', role: 'ADMIN' as const };
@@ -17,13 +23,13 @@ describe('registry URL params', () => {
   it('round-trips through the URL and omits defaults', () => {
     const params = {
       ...DEFAULT_PARAMS,
-      customer: 'ТОВ',
+      q: 'ТОВ',
       page: 2,
       category: 'APARTMENT' as const,
       user: 'mine',
     };
     expect(writeParams(params).toString()).toBe(
-      `page=2&customer=${encodeURIComponent('ТОВ')}&category=APARTMENT&user=mine`,
+      `page=2&q=${encodeURIComponent('ТОВ')}&category=APARTMENT&user=mine`,
     );
     expect(readParams(writeParams(params))).toEqual(params);
   });
@@ -33,13 +39,30 @@ describe('registry URL params', () => {
     expect(toApiQuery(DEFAULT_PARAMS, ME).sort).toBe('-regDate');
   });
 
-  it('maps "mine" to the current user and leaves out invalid inputs', () => {
+  it('maps "mine" to the current user and leaves out a period in the wrong order', () => {
     const query = toApiQuery(
-      { ...DEFAULT_PARAMS, user: 'mine', number: 'abc', from: '2026-03-10', to: '2026-03-01' },
+      { ...DEFAULT_PARAMS, user: 'mine', q: 'abc', from: '2026-03-10', to: '2026-03-01' },
       ME,
     );
-    expect(query).toMatchObject({ createdBy: ME.id, number: undefined, dateFrom: '2026-03-10' });
+    expect(query).toMatchObject({ createdBy: ME.id, q: 'abc', dateFrom: '2026-03-10' });
     expect(query.dateTo).toBeUndefined();
+  });
+
+  it('forgets the per-field searches of old links', () => {
+    expect(readParams(new URLSearchParams('customer=ТОВ&number=15'))).toEqual(DEFAULT_PARAMS);
+  });
+
+  it('counts what is set behind «Ще фільтри»', () => {
+    expect(countMoreFilters(DEFAULT_PARAMS)).toBe(0);
+    expect(
+      countMoreFilters({
+        ...DEFAULT_PARAMS,
+        q: 'x',
+        from: '2026-01-01',
+        area: 'URBAN',
+        user: 'mine',
+      }),
+    ).toBe(2);
   });
 
   it("sends an admin's department (Одеське by default, none for «all»); never a user's", () => {

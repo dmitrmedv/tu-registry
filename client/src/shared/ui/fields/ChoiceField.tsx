@@ -10,6 +10,8 @@ type Props = Omit<InputHTMLAttributes<HTMLInputElement>, 'type' | 'value'> & {
   options: readonly Option[];
   error?: string;
   hint?: string;
+  /** The chosen option, when the field is controlled (outside React Hook Form). */
+  value?: string;
   ref?: Ref<HTMLInputElement>;
 };
 
@@ -18,7 +20,17 @@ type Props = Omit<InputHTMLAttributes<HTMLInputElement>, 'type' | 'value'> & {
  * arrow keys move the choice and screen readers announce "radio, 2 of 6". Spread
  * react-hook-form's register(...) into it like into any input.
  */
-export function ChoiceField({ legend, options, error, hint, id, className, ref, ...rest }: Props) {
+export function ChoiceField({
+  legend,
+  options,
+  error,
+  hint,
+  value,
+  id,
+  className,
+  ref,
+  ...rest
+}: Props) {
   const ids = useFieldIds(id, Boolean(hint), Boolean(error));
   return (
     <fieldset
@@ -33,6 +45,7 @@ export function ChoiceField({ legend, options, error, hint, id, className, ref, 
               ref={ref}
               type="radio"
               value={option.value}
+              checked={value === undefined ? undefined : option.value === value}
               aria-invalid={error ? true : undefined}
               {...rest}
             />

@@ -1,7 +1,7 @@
 import type { ApplicationListItemDto } from '@tu-registry/shared';
 import { screen, waitFor, within } from '@testing-library/react';
 import { http as mock, HttpResponse } from 'msw';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { renderApp } from '@/test/renderApp';
 import { makeUser, server, signedInAs } from '@/test/server';
 
@@ -54,6 +54,9 @@ function serveRegistry(rows: ApplicationListItemDto[] = [row()], totalPages = 1)
   const last = () => requests.at(-1)!;
   return { requests, last };
 }
+
+const openMoreFilters = async (user: { click: (element: Element) => Promise<void> }) =>
+  user.click(await screen.findByRole('button', { name: /^Ще фільтри/ }));
 
 describe('RegistryPage', () => {
   it("shows everyone's applications by default, newest first", async () => {
@@ -109,26 +112,40 @@ describe('RegistryPage', () => {
     expect(screen.getAllByRole('link', { name: 'Нова заява' })).toHaveLength(1);
   });
 
-  it('applies a text filter after typing pauses and starts from page 1', async () => {
+  it('searches from one box after typing pauses and starts from page 1', async () => {
     const { last } = serveRegistry();
     const { user, router } = renderApp('/?page=3');
     await screen.findByRole('table');
 
-    await user.type(screen.getByLabelText('Замовник'), 'Приклад');
+    await user.type(screen.getByRole('searchbox', { name: 'Пошук' }), 'Приклад');
 
-    await waitFor(() => expect(last().get('customer')).toBe('Приклад'));
+    await waitFor(() => expect(last().get('q')).toBe('Приклад'));
     expect(last().get('page')).toBe('1');
-    expect(router.state.location.search).toBe(`?customer=${encodeURIComponent('Приклад')}`);
+    expect(router.state.location.search).toBe(`?q=${encodeURIComponent('Приклад')}`);
+  });
+
+  it('sends a number or anything else as is: the server reads it either way', async () => {
+    const { last } = serveRegistry();
+    const { user } = renderApp('/');
+    await screen.findByRole('table');
+
+    await user.type(screen.getByRole('searchbox', { name: 'Пошук' }), '15т/26-8');
+
+    await waitFor(() => expect(last().get('q')).toBe('15т/26-8'));
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
   });
 
   it('restores filters from the URL', async () => {
     const { last } = serveRegistry();
 
-    renderApp('/?customer=ТОВ&type=NON_DOMESTIC&user=all&from=2026-01-01&to=2026-03-31');
+    renderApp('/?q=ТОВ&type=NON_DOMESTIC&user=all&from=2026-01-01&to=2026-03-31');
 
     await screen.findByRole('table');
-    expect(screen.getByLabelText('Замовник')).toHaveValue('ТОВ');
+    expect(screen.getByRole('searchbox', { name: 'Пошук' })).toHaveValue('ТОВ');
+    expect(screen.getByLabelText('Період')).toHaveValue('custom');
+    expect(screen.getByLabelText('Дата з')).toHaveValue('2026-01-01');
     expect(screen.getByLabelText('Тип обʼєкта')).toHaveValue('NON_DOMESTIC');
+    expect(screen.getByRole('button', { name: 'Ще фільтри (1)' })).toBeInTheDocument();
     expect(last().get('objectType')).toBe('NON_DOMESTIC');
     expect(last().get('createdBy')).toBeNull();
     expect(last().get('dateFrom')).toBe('2026-01-01');
@@ -137,7 +154,8 @@ describe('RegistryPage', () => {
 
   it('does not list my own name next to «Мої заяви»; an old link with my id shows «Мої заяви»', async () => {
     const { last } = serveRegistry();
-    renderApp(`/?user=${me.id}`);
+    const { user } = renderApp(`/?user=${me.id}`);
+    await openMoreFilters(user);
     await screen.findByRole('option', { name: 'Іван Петренко' });
 
     const author = screen.getByLabelText('Користувач');
@@ -152,6 +170,7 @@ describe('RegistryPage', () => {
   it('filters by a colleague and by all users', async () => {
     const { last } = serveRegistry();
     const { user } = renderApp('/');
+    await openMoreFilters(user);
     await screen.findByRole('option', { name: 'Іван Петренко' });
 
     await user.selectOptions(screen.getByLabelText('Користувач'), 'Іван Петренко');
@@ -194,17 +213,6 @@ describe('RegistryPage', () => {
     expect(window.scrollTo).toHaveBeenLastCalledWith({ top: 0 });
   });
 
-  it('flags a malformed number and does not send it', async () => {
-    const { last } = serveRegistry();
-    const { user } = renderApp('/');
-    await screen.findByRole('table');
-
-    await user.type(screen.getByLabelText('Номер'), 'abc');
-
-    expect(await screen.findByText('Номер: 15, 15т/26 або 15т/26-8')).toBeInTheDocument();
-    expect(last().get('number')).toBeNull();
-  });
-
   it('invites to register when I have no applications yet', async () => {
     const { last } = serveRegistry([]);
     const { user } = renderApp('/?user=mine');
@@ -217,7 +225,7 @@ describe('RegistryPage', () => {
 
   it('offers to reset filters when nothing matches, keeping the sort order', async () => {
     const { last } = serveRegistry([]);
-    const { user, router } = renderApp('/?customer=Немає&sort=regNumber');
+    const { user, router } = renderApp('/?q=Немає&sort=regNumber');
 
     expect(await screen.findByText('Нічого не знайдено за вказаними умовами.')).toBeInTheDocument();
     await user.click(
@@ -227,16 +235,16 @@ describe('RegistryPage', () => {
       ),
     );
 
-    await waitFor(() => expect(last().get('customer')).toBeNull());
+    await waitFor(() => expect(last().get('q')).toBeNull());
     expect(router.state.location.search).toBe('?sort=regNumber');
-    expect(screen.getByLabelText('Замовник')).toHaveValue('');
+    expect(screen.getByRole('searchbox', { name: 'Пошук' })).toHaveValue('');
   });
 });
 
 describe('RegistryPage — card links and status', () => {
   it('links numbers to the card, keeping the filters, and marks annulled rows', async () => {
     serveRegistry([row(), row({ id: 'a2', regNumber: '16т/26-8', status: 'ANNULLED' })]);
-    renderApp('/?customer=ТОВ');
+    renderApp('/?q=ТОВ');
 
     const link = await screen.findByRole('link', { name: '15т/26-8' });
     expect(link).toHaveAttribute('href', '/applications/a1');
@@ -276,27 +284,96 @@ describe('RegistryPage — card links and status', () => {
     selection.mockRestore();
   });
 
-  it('searches by settlement, representative and comment, and filters by area', async () => {
+  it('filters by area and status with buttons and shows them as removable chips', async () => {
     const { last } = serveRegistry();
     const { user, router } = renderApp('/');
     await screen.findByRole('table');
+    await openMoreFilters(user);
 
-    await user.type(screen.getByLabelText('Населений пункт'), 'Бровари');
-    await user.type(screen.getByLabelText('Представник замовника'), 'Петренко');
-    await user.type(screen.getByLabelText('Коментар'), 'довідка');
-    await user.selectOptions(screen.getByLabelText('Місцевість'), 'Сільська');
+    await user.click(screen.getByRole('radio', { name: 'Сільська' }));
+    await user.click(screen.getByRole('radio', { name: 'Активні' }));
 
     await waitFor(() =>
-      expect(Object.fromEntries(last())).toMatchObject({
-        settlement: 'Бровари',
-        customerRepresentative: 'Петренко',
-        comment: 'довідка',
-        areaType: 'RURAL',
-      }),
+      expect(Object.fromEntries(last())).toMatchObject({ areaType: 'RURAL', status: 'ACTIVE' }),
     );
-    // The URL keeps them, so a reload or the card's back link restores the same list.
-    expect(router.state.location.search).toContain('representative=');
     expect(router.state.location.search).toContain('area=RURAL');
+    expect(screen.getByRole('button', { name: /^Ще фільтри \(2\)/ })).toBeInTheDocument();
+    const chips = screen.getByRole('list', { name: 'Активні фільтри' });
+    expect(
+      within(chips)
+        .getAllByRole('listitem')
+        .map((chip) => chip.textContent),
+    ).toEqual(['Місцевість: Сільська×', 'Статус: Активні×']);
+
+    await user.click(
+      screen.getByRole('button', { name: 'Прибрати фільтр «Місцевість: Сільська»' }),
+    );
+
+    await waitFor(() => expect(last().get('areaType')).toBeNull());
+    expect(
+      within(screen.getByRole('group', { name: 'Місцевість' })).getByRole('radio', { name: 'Усі' }),
+    ).toBeChecked();
+    expect(last().get('status')).toBe('ACTIVE');
+  });
+
+  it('switches quick views, keeping the other filters', async () => {
+    const { last } = serveRegistry();
+    const { user } = renderApp('/?type=DOMESTIC');
+    await screen.findByRole('table');
+    const views = screen.getByRole('group', { name: 'Швидкий вибір' });
+    expect(within(views).getByRole('button', { name: 'Усі' })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    );
+
+    await user.click(within(views).getByRole('button', { name: 'Мої' }));
+    await waitFor(() => expect(last().get('createdBy')).toBe(me.id));
+    expect(within(views).getByRole('button', { name: 'Мої' })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    );
+
+    await user.click(within(views).getByRole('button', { name: 'Анульовані' }));
+    await waitFor(() => expect(last().get('status')).toBe('ANNULLED'));
+    expect(last().get('createdBy')).toBeNull();
+    expect(last().get('objectType')).toBe('DOMESTIC');
+  });
+
+  it('chooses a ready period in Kyiv time, or any dates by hand', async () => {
+    // 23:30 UTC on Sunday 15 March is already Monday 16 March in Kyiv.
+    vi.useFakeTimers({ now: new Date('2026-03-15T23:30:00Z'), toFake: ['Date'] });
+    const { last } = serveRegistry();
+    const { user } = renderApp('/');
+    await screen.findByRole('table');
+    const period = screen.getByLabelText('Період');
+
+    await user.selectOptions(period, 'Сьогодні');
+    await waitFor(() => expect(last().get('dateFrom')).toBe('2026-03-16'));
+    expect(last().get('dateTo')).toBe('2026-03-16');
+
+    await user.selectOptions(period, 'Цей тиждень');
+    await waitFor(() => expect(last().get('dateFrom')).toBe('2026-03-16'));
+    expect(last().get('dateTo')).toBeNull();
+    expect(period).toHaveValue('week');
+
+    await user.selectOptions(period, 'Цей рік');
+    await waitFor(() => expect(last().get('dateFrom')).toBe('2026-01-01'));
+
+    await user.selectOptions(period, 'Довільний…');
+    // The dates stay open while being filled in, even if they match a ready period.
+    await user.clear(screen.getByLabelText('Дата з'));
+    await user.type(screen.getByLabelText('Дата з'), '2026-03-16');
+    await user.type(screen.getByLabelText('Дата по'), '2026-03-16');
+    await waitFor(() => expect(last().get('dateTo')).toBe('2026-03-16'));
+    expect(screen.getByLabelText('Дата по')).toBeInTheDocument();
+
+    // Clearing a date by hand keeps the inputs; «Будь-коли» or a reset closes them.
+    await user.clear(screen.getByLabelText('Дата з'));
+    await user.clear(screen.getByLabelText('Дата по'));
+    expect(screen.getByLabelText('Дата з')).toBeInTheDocument();
+    await user.selectOptions(period, 'Будь-коли');
+    await waitFor(() => expect(last().get('dateFrom')).toBeNull());
+    expect(screen.queryByLabelText('Дата з')).not.toBeInTheDocument();
   });
 
   it('sorts every column: names from А first, a second click reverses', async () => {
@@ -319,16 +396,17 @@ describe('RegistryPage — card links and status', () => {
     await waitFor(() => expect(last().get('sort')).toBe('areaType'));
   });
 
-  it('folds the filter panel away and back', async () => {
+  it('keeps the rarer filters folded until asked', async () => {
     serveRegistry();
     const { user } = renderApp('/');
     await screen.findByRole('table');
-    const toggle = screen.getByRole('button', { name: /^Фільтри/ });
+    const toggle = screen.getByRole('button', { name: /^Ще фільтри/ });
 
-    // jsdom has no media queries: the panel starts open, as on a wide screen.
-    expect(toggle).toHaveAttribute('aria-expanded', 'true');
-    await user.click(toggle);
     expect(toggle).toHaveAttribute('aria-expanded', 'false');
+    expect(screen.queryByRole('combobox', { name: 'Категорія' })).not.toBeInTheDocument();
+    await user.click(toggle);
+    expect(toggle).toHaveAttribute('aria-expanded', 'true');
+    expect(screen.getByRole('combobox', { name: 'Категорія' })).toBeVisible();
   });
 
   it('shows an admin Одеське by default and lets them pick all departments', async () => {
@@ -358,6 +436,7 @@ describe('RegistryPage — card links and status', () => {
     const { last } = serveRegistry();
     const { user } = renderApp('/');
     await screen.findByRole('table');
+    await openMoreFilters(user);
 
     await user.selectOptions(screen.getByLabelText('Категорія'), 'Виробник біогазу');
 
@@ -368,9 +447,14 @@ describe('RegistryPage — card links and status', () => {
     const { last } = serveRegistry();
     const { user } = renderApp('/');
     await screen.findByRole('table');
+    await openMoreFilters(user);
 
-    await user.selectOptions(screen.getByLabelText('Статус'), 'Анульовані');
+    await user.click(screen.getByRole('radio', { name: 'Анульовані' }));
 
     await waitFor(() => expect(last().get('status')).toBe('ANNULLED'));
   });
+});
+
+afterEach(() => {
+  vi.useRealTimers();
 });

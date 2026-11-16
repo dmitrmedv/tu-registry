@@ -121,43 +121,6 @@ describe('applications registry list', () => {
     });
   });
 
-  describe('search', () => {
-    it('finds customers by substring, case-insensitively, including Cyrillic', async () => {
-      await seed([{ customer: 'ТОВ «ПРИКЛАД»' }, { customer: 'ФОП Іванов' }]);
-
-      const res = await list({ customer: 'приклад' });
-
-      expect(res.body.data.map((r: { customer: string }) => r.customer)).toEqual(['ТОВ «ПРИКЛАД»']);
-    });
-
-    it('treats regex characters in the search literally', async () => {
-      await seed([{ customer: 'ТОВ (Альфа)' }, { customer: 'ТОВ Альфа' }]);
-
-      expect((await list({ customer: '(Альфа)' })).body.meta.total).toBe(1);
-      expect((await list({ customer: '.*' })).body.meta.total).toBe(0);
-    });
-
-    it('searches by address', async () => {
-      await seed([{ objectAddress: 'м. Київ, вул. Шевченка, 15' }, { objectAddress: 'м. Львів' }]);
-
-      expect((await list({ address: 'шевченка' })).body.meta.total).toBe(1);
-    });
-
-    it('searches by a full number or by digits in any year', async () => {
-      await seed([
-        { regSeq: 15, regDate: '2026-02-01' },
-        { regSeq: 15, regYear: 2025, regDate: '2025-02-01' },
-        { regSeq: 16, regDate: '2026-02-01' },
-      ]);
-
-      expect(numbers(await list({ number: '15т/26-8' }))).toEqual(['15т/26-8']);
-      expect(numbers(await list({ number: '15', sort: 'regNumber' }))).toEqual([
-        '15т/25-8',
-        '15т/26-8',
-      ]);
-    });
-  });
-
   describe('single search box (q)', () => {
     it('looks in the customer, representative, settlement, address and comment', async () => {
       await seed([
@@ -208,6 +171,8 @@ describe('applications registry list', () => {
       ]);
 
       expect((await list({ q: 'сонце', objectType: 'NON_DOMESTIC' })).body.meta.total).toBe(1);
+      // The per-field searches of earlier versions are gone: such a parameter changes nothing.
+      expect((await list({ customer: 'Місяць' })).body.meta.total).toBe(3);
       // And works with a computed-key sort, which filters in an aggregation.
       expect((await list({ q: 'сонце', sort: 'objectType' })).body.meta.total).toBe(2);
     });
@@ -262,7 +227,6 @@ describe('applications registry list', () => {
     { page: 0 },
     { limit: 1000 },
     { sort: 'phone' },
-    { number: 'abc' },
     { q: 'я'.repeat(201) },
     { createdBy: 'x' },
     { dateFrom: '2026-03-10', dateTo: '2026-03-01' },

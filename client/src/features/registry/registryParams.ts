@@ -14,7 +14,6 @@ import {
   type ObjectCategory,
   type ObjectType,
   PAGE_SIZES,
-  regNumberSearchField,
   type Role,
 } from '@tu-registry/shared';
 
@@ -23,12 +22,8 @@ export type RegistryParams = {
   page: number;
   limit: number;
   sort: ApplicationSort;
-  customer: string;
-  settlement: string;
-  address: string;
-  representative: string;
-  comment: string;
-  number: string;
+  /** The single search box: text in the main fields or a registration number. */
+  q: string;
   type: ObjectType | '';
   category: ObjectCategory | '';
   area: AreaType | '';
@@ -45,12 +40,7 @@ export const DEFAULT_PARAMS: RegistryParams = {
   page: 1,
   limit: 20,
   sort: '-regDate',
-  customer: '',
-  settlement: '',
-  address: '',
-  representative: '',
-  comment: '',
-  number: '',
+  q: '',
   type: '',
   category: '',
   area: '',
@@ -61,20 +51,7 @@ export const DEFAULT_PARAMS: RegistryParams = {
   to: '',
 };
 
-const FILTER_KEYS = [
-  'customer',
-  'settlement',
-  'address',
-  'representative',
-  'comment',
-  'number',
-  'type',
-  'category',
-  'area',
-  'status',
-  'from',
-  'to',
-] as const;
+const FILTER_KEYS = ['q', 'type', 'category', 'area', 'status', 'from', 'to'] as const;
 const OBJECT_ID = /^[a-f\d]{24}$/i;
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -95,12 +72,7 @@ export function readParams(search: URLSearchParams): RegistryParams {
     page: Number.isInteger(page) && page >= 1 ? page : 1,
     limit: (PAGE_SIZES as readonly number[]).includes(limit) ? limit : DEFAULT_PARAMS.limit,
     sort: APPLICATION_SORTS.includes(sort) ? sort : DEFAULT_PARAMS.sort,
-    customer: text('customer'),
-    settlement: text('settlement'),
-    address: text('address'),
-    representative: text('representative'),
-    comment: text('comment'),
-    number: text('number'),
+    q: text('q'),
     type: OBJECT_TYPES.includes(type) ? type : '',
     category: OBJECT_CATEGORIES.includes(category) ? category : '',
     area: AREA_TYPES.includes(area) ? area : '',
@@ -124,6 +96,12 @@ export function writeParams(params: RegistryParams) {
   return search;
 }
 
+/** Filters behind «Ще фільтри»: the button shows how many of them are set. */
+export function countMoreFilters(params: RegistryParams) {
+  const set = [params.type, params.category, params.area, params.status].filter(Boolean).length;
+  return set + (params.user !== 'all' ? 1 : 0);
+}
+
 export function countActiveFilters(params: RegistryParams) {
   const department = params.department !== DEFAULT_DEPARTMENT ? 1 : 0;
   return (
@@ -131,10 +109,6 @@ export function countActiveFilters(params: RegistryParams) {
     (params.user !== 'all' ? 1 : 0) +
     department
   );
-}
-
-export function isNumberSearchValid(value: string) {
-  return regNumberSearchField.safeParse(value).success;
 }
 
 /** Period in the wrong order: the end is ignored until fixed. */
@@ -151,13 +125,8 @@ export function toApiQuery(params: RegistryParams, viewer: Viewer): ApplicationL
     page: params.page,
     limit: params.limit,
     sort: params.sort,
-    customer: params.customer || undefined,
-    settlement: params.settlement || undefined,
-    customerRepresentative: params.representative || undefined,
-    comment: params.comment || undefined,
+    q: params.q || undefined,
     areaType: params.area || undefined,
-    address: params.address || undefined,
-    number: params.number && isNumberSearchValid(params.number) ? params.number : undefined,
     objectType: params.type || undefined,
     objectCategory: params.category || undefined,
     status: params.status || undefined,

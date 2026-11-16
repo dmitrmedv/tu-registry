@@ -1,11 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { applicationListQuerySchema, regNumberSearchField } from './applicationList';
+import { parseRegNumberSearch } from '../regNumber';
+import { applicationListQuerySchema } from './applicationList';
 
 describe('applicationListQuerySchema', () => {
   it('applies defaults and drops empty query values', () => {
     expect(
       applicationListQuerySchema.parse({
-        customer: '',
+        q: '',
         objectType: '',
         objectCategory: '',
         createdBy: '',
@@ -20,14 +21,11 @@ describe('applicationListQuerySchema', () => {
     }
   });
 
-  it('searches the representative and the comment, and filters by area', () => {
-    expect(
-      applicationListQuerySchema.parse({
-        customerRepresentative: ' Петренко ',
-        comment: 'довідка',
-        areaType: 'RURAL',
-      }),
-    ).toMatchObject({ customerRepresentative: 'Петренко', comment: 'довідка', areaType: 'RURAL' });
+  it('takes one trimmed search text and filters by area', () => {
+    expect(applicationListQuerySchema.parse({ q: ' Петренко ', areaType: 'RURAL' })).toMatchObject({
+      q: 'Петренко',
+      areaType: 'RURAL',
+    });
   });
 
   it('filters by object category', () => {
@@ -51,6 +49,7 @@ describe('applicationListQuerySchema', () => {
     { objectCategory: 'CASTLE' },
     { areaType: 'SUBURBAN' },
     { sort: 'phone' },
+    { q: 'я'.repeat(201) },
     { createdBy: 'not-an-id' },
     { dateFrom: '2026-02-30' },
     { dateFrom: '2026-03-10', dateTo: '2026-03-01' },
@@ -59,17 +58,17 @@ describe('applicationListQuerySchema', () => {
   });
 });
 
-describe('regNumberSearchField', () => {
+describe('parseRegNumberSearch', () => {
   it.each([
     ['15', { seq: 15 }],
     ['15т/26', { year: 2026, seq: 15 }],
     [' 15t/2026 ', { year: 2026, seq: 15 }],
-    ['', undefined],
+    ['15т/26-8', { year: 2026, seq: 15, departmentCode: 8 }],
   ])('%j → %j', (input, expected) => {
-    expect(regNumberSearchField.parse(input)).toEqual(expected);
+    expect(parseRegNumberSearch(input)).toEqual(expected);
   });
 
-  it.each(['0', 'abc', '15/26'])('rejects %j', (input) => {
-    expect(regNumberSearchField.safeParse(input).success).toBe(false);
+  it.each(['', '0', 'abc', '15/26', 'вул. Шевченка, 15'])('%j is not a number', (input) => {
+    expect(parseRegNumberSearch(input)).toBeNull();
   });
 });

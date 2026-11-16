@@ -7,14 +7,14 @@ type Props = {
   value: string;
   onCommit: (value: string) => void;
   placeholder?: string;
-  error?: string;
+  className?: string;
 };
 
 /**
  * A text filter that updates the URL only after typing pauses. It follows outside changes
  * too (reset button, browser Back) without echoing a stale value back into the URL.
  */
-export function SearchField({ label, value, onCommit, placeholder, error }: Props) {
+export function SearchField({ label, value, onCommit, placeholder, className }: Props) {
   const [text, setText] = useState(value);
   const debounced = useDebouncedValue(text, 400);
   const committed = useRef(value);
@@ -41,7 +41,7 @@ export function SearchField({ label, value, onCommit, placeholder, error }: Prop
       type="search"
       value={text}
       placeholder={placeholder}
-      error={error}
+      className={className}
       onChange={(event) => setText(event.target.value)}
     />
   );

@@ -33,7 +33,7 @@ test('sorts by any column in Ukrainian alphabetical order', async ({ page }) => 
     await createApplication(page.request, headers, { customer: `${name} ${tag}` });
   }
 
-  await page.goto(`/?customer=${encodeURIComponent(tag)}`);
+  await page.goto(`/?q=${encodeURIComponent(tag)}`);
   const table = page.getByRole('table', { name: 'Реєстр заяв' });
   // Rows by position; the customer is found by text (columns differ for admins and users).
   const row = (n: number) => table.getByRole('row').nth(n);

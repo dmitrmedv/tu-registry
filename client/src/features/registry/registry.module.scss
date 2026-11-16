@@ -23,13 +23,33 @@
   }
 }
 
-.filtersToggle {
-  align-self: flex-start;
+// Search, department (admins), period and the «Ще фільтри» button in one row on wide screens.
+.mainFilters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--space-3) var(--space-4);
+
+  > * {
+    flex: 1 1 200px;
+  }
 }
 
-// Collapsible on every screen: open, it fills the sticky bar; folded, only the button stays.
-.filterPanel {
-  display: none;
+.search {
+  flex: 3 1 320px;
+}
+
+// The period select and its dates are items of the row itself, so they line up with the rest.
+.period {
+  display: contents;
+}
+
+.moreToggle {
+  flex: 0 0 auto;
+}
+
+.moreFilters {
+  display: grid;
   grid-template-columns: 1fr;
   gap: var(--space-3) var(--space-4);
   padding: var(--space-4);
@@ -37,26 +57,70 @@
   border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
 
+  // The class sets display, so the hidden attribute needs saying again.
+  &[hidden] {
+    display: none;
+  }
+
   @include up(sm) {
-    grid-template-columns: repeat(2, 1fr);
-  }
-
-  @include up(md) {
-    grid-template-columns: repeat(3, 1fr);
-  }
-
-  @include up(xl) {
-    grid-template-columns: repeat(5, 1fr);
+    // Wide enough for three choice buttons in a row («Усі · Активні · Анульовані»).
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
   }
 }
 
-.filterPanelOpen {
-  display: grid;
-}
-
-.resetCell {
+// Quick views, chips of what is set behind «Ще фільтри», and «Скинути все».
+.filterSummary {
   display: flex;
-  align-items: flex-end;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-4);
+}
+
+.quickViews {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: var(--space-1) var(--space-1) var(--space-1) var(--space-3);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border-strong);
+  border-radius: 999px;
+  font-size: var(--text-sm);
+}
+
+.chipRemove {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  background: none;
+  border: 0;
+  border-radius: 50%;
+  color: var(--color-text-muted);
+  font-size: 1.1em;
+  line-height: 1;
+  cursor: pointer;
+
+  &:hover {
+    background: var(--color-surface-hover);
+    color: var(--color-text);
+  }
 }
 
 .summary {

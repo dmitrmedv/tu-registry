@@ -134,6 +134,20 @@ describe('RegistryPage', () => {
     expect(last().get('dateTo')).toBe('2026-03-31');
   });
 
+  it('does not list my own name next to «Мої заяви»; an old link with my id shows «Мої заяви»', async () => {
+    const { last } = serveRegistry();
+    renderApp(`/?user=${me.id}`);
+    await screen.findByRole('option', { name: 'Іван Петренко' });
+
+    const author = screen.getByLabelText('Користувач');
+    const names = within(author)
+      .getAllByRole('option')
+      .map((option) => option.textContent);
+    expect(names).toEqual(['Усі користувачі', 'Мої заяви', 'Іван Петренко']);
+    expect(author).toHaveValue('mine');
+    expect(last().get('createdBy')).toBe(me.id);
+  });
+
   it('filters by a colleague and by all users', async () => {
     const { last } = serveRegistry();
     const { user } = renderApp('/');

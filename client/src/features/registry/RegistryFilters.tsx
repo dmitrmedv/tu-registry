@@ -12,6 +12,7 @@ import {
 } from '@tu-registry/shared';
 import clsx from 'clsx';
 import { useState } from 'react';
+import { useCurrentUser } from '@/features/auth';
 import { useDepartments } from '@/features/departments';
 import { AREA_TYPE_LABELS, OBJECT_CATEGORY_LABELS, OBJECT_TYPE_LABELS } from '@/shared/lib/labels';
 import { Button, SelectField, TextField } from '@/shared/ui';
@@ -66,6 +67,7 @@ export function RegistryFilters({
   users,
 }: Props) {
   const departments = useDepartments();
+  const me = useCurrentUser();
   // Open on wide screens, collapsed on phones; either way the button folds it away.
   const [open, setOpen] = useState(() => window.matchMedia?.(WIDE_SCREEN).matches ?? true);
   // Typing creates no history entries; picking a value does.
@@ -74,13 +76,16 @@ export function RegistryFilters({
     (value: string) =>
       update({ [key]: value }, { replace: true });
 
+  // "Мої заяви" already means the signed-in user: their own name would be the same filter twice.
   const userOptions = [
     { value: 'all', label: 'Усі користувачі' },
     { value: 'mine', label: 'Мої заяви' },
-    ...(users ?? []).map((u) => ({
-      value: u.id,
-      label: u.isActive ? u.fullName : `${u.fullName} (деактивований)`,
-    })),
+    ...(users ?? [])
+      .filter((u) => u.id !== me.id)
+      .map((u) => ({
+        value: u.id,
+        label: u.isActive ? u.fullName : `${u.fullName} (деактивований)`,
+      })),
   ];
 
   return (
@@ -157,7 +162,7 @@ export function RegistryFilters({
         <SelectField
           label="Користувач"
           options={userOptions}
-          value={params.user}
+          value={params.user === me.id ? 'mine' : params.user}
           onChange={(e) => update({ user: e.target.value })}
         />
         <TextField

@@ -3,6 +3,7 @@ import { inTransaction } from '../../utils/db';
 import { toIsoDate } from '../../utils/kyivDate';
 import { type RequestContext, recordAudit } from '../audit/audit.service';
 import { departmentCode } from '../departments/department.service';
+import { deleteScanFile } from '../scans/scan.storage';
 import type { Actor } from './application.access';
 import { loadApplication, versionConflict } from './application.edit.service';
 import { Application } from './application.model';
@@ -45,4 +46,6 @@ export async function deleteApplication(
       session,
     );
   });
+  // After the commit: a failed deletion must not lose the file of a still existing application.
+  if (current.scan) await deleteScanFile(current.scan.fileId);
 }

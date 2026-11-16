@@ -4,6 +4,7 @@ export * from './enums';
 export * from './labels';
 export * from './phone';
 export * from './regNumber';
+export * from './scan';
 export * from './schemas/application';
 export * from './schemas/auth';
 export * from './schemas/user';

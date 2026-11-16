@@ -1,9 +1,30 @@
+@use '@/styles/mixins' as *;
+
 // Shared page layouts used inside AppLayout.
 .narrow {
   display: flex;
   flex-direction: column;
   gap: var(--space-4);
   max-width: 440px;
+}
+
+// A side column (the scan) and the main content; stacked on narrow screens.
+.withSide {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--space-6);
+  align-items: start;
+
+  @include up(lg) {
+    grid-template-columns: minmax(260px, 300px) minmax(0, 1fr);
+  }
+}
+
+.side {
+  @include up(lg) {
+    position: sticky;
+    top: calc(var(--app-header-height, 0px) + var(--space-4));
+  }
 }
 
 .wide {

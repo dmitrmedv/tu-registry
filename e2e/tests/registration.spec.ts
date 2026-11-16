@@ -1,3 +1,4 @@
+import { readFile } from 'node:fs/promises';
 import { expect, test } from '@playwright/test';
 import { ADMIN } from '../support/accounts';
 import { signIn, uniqueName } from '../support/api';
@@ -60,4 +61,56 @@ test('enters a back-dated application under the number typed by hand', async ({ 
   await page.getByRole('button', { name: 'Внести заяву' }).click();
 
   await expect(page.getByText('Заяву внесено вручну: 14т/24-8 від 10.05.2024')).toBeVisible();
+});
+
+test('registers an application with a scan of the documents and opens it from the card', async ({
+  page,
+  context,
+}) => {
+  await signIn(page, ADMIN, '/applications/new');
+  const customer = uniqueName('ТОВ Зі сканом');
+
+  await page.getByLabel('PDF-файл скану').setInputFiles({
+    name: 'Пакет документів.pdf',
+    mimeType: 'application/pdf',
+    buffer: Buffer.from('%PDF-1.4\n1 0 obj << /Type /Catalog >> endobj\ntrailer << >>\n%%EOF\n'),
+  });
+  await expect(page.getByText('Пакет документів.pdf')).toBeVisible();
+  await page.getByLabel('Замовник', { exact: true }).fill(customer);
+  await page.getByLabel('Телефон').fill('067 123 45 67');
+  await page.getByLabel('Населений пункт').fill('м. Київ');
+  await page.getByLabel('Адреса обʼєкта').fill('вул. Сканова, 1');
+  await page.getByRole('radio', { name: 'Міська' }).check();
+  await page.getByRole('radio', { name: 'Побутовий', exact: true }).check();
+  await page.getByRole('radio', { name: 'Квартира' }).check();
+  await page.getByRole('button', { name: 'Зареєструвати заяву' }).click();
+
+  await expect(page.getByText('Скан «Пакет документів.pdf» (1 КБ) додано.')).toBeVisible();
+
+  await page.goto(`/?customer=${encodeURIComponent(customer)}`);
+  await page
+    .getByRole('table', { name: 'Реєстр заяв' })
+    .getByRole('cell', { name: customer })
+    .click();
+  const panel = page.getByRole('region', { name: 'Скан пакета документів' });
+  await expect(panel).toContainText('Пакет документів.pdf');
+
+  const [pdfTab] = await Promise.all([
+    context.waitForEvent('page'),
+    panel.getByRole('button', { name: 'Переглянути' }).click(),
+  ]);
+  // A real Chrome shows the PDF in the tab; the headless shell used in tests has no PDF viewer
+  // and turns it into a download. Either way, the tab must receive the PDF itself.
+  const head = await Promise.race([
+    pdfTab
+      .waitForEvent('download')
+      .then(async (download) =>
+        (await readFile((await download.path())!)).subarray(0, 5).toString('latin1'),
+      ),
+    expect
+      .poll(() => pdfTab.url())
+      .toMatch(/^blob:/)
+      .then(() => '%PDF-'),
+  ]);
+  expect(head).toBe('%PDF-');
 });

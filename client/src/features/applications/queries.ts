@@ -63,6 +63,14 @@ export const useAnnulApplication = (id: string) =>
 export const useRestoreApplication = (id: string) =>
   useApplicationsMutation((version: number) => applicationsApi.restore(id, version));
 
+type ScanUpload = { id: string; file: File; onProgress?: (percent: number) => void };
+
+export const useUploadScan = () =>
+  useApplicationsMutation(({ id, file, onProgress }: ScanUpload) =>
+    applicationsApi.uploadScan(id, file, onProgress),
+  );
+export const useRemoveScan = () => useApplicationsMutation(applicationsApi.removeScan);
+
 export function useDeleteApplication(id: string) {
   const queryClient = useQueryClient();
   return useMutation({

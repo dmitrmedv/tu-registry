@@ -109,7 +109,7 @@ export async function createApplication(
           context,
         );
       });
-      return toApplicationDto(created, code, actor);
+      return toApplicationDto(created, code, { author: actor });
     } catch (error) {
       if (isDuplicateKey(error) && attempt < MAX_AUTO_ATTEMPTS) continue;
       throw error;
@@ -166,7 +166,7 @@ export async function createManualApplication(
         context,
       );
     });
-    return toApplicationDto(created, code, actor);
+    return toApplicationDto(created, code, { author: actor });
   } catch (error) {
     // A concurrent registration took the number between the check and the insert.
     if (isDuplicateKey(error)) throw numberTaken(formatted);

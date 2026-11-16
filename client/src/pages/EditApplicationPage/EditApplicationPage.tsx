@@ -4,6 +4,7 @@ import {
   canChangeDepartment,
   canEditRegistration,
   EditApplicationForm,
+  ScanPanel,
   useApplication,
 } from '@/features/applications';
 import { useCurrentUser } from '@/features/auth';
@@ -47,18 +48,24 @@ export function EditApplicationPage() {
   return (
     <section className={pageStyles.wide}>
       <h1>Редагування заяви {app.regNumber}</h1>
-      <EditApplicationForm
-        // A new version (after a conflict reload) rebuilds the form from fresh data.
-        key={app.version}
-        app={app}
-        canEditRegistration={canEditRegistration(app, user)}
-        canChangeDepartment={canChangeDepartment(app, user)}
-        cancelTo={cardPath}
-        onReload={() => application.refetch()}
-        onSaved={() =>
-          navigate(cardPath, { replace: true, state: { ...state, notice: 'Зміни збережено' } })
-        }
-      />
+      <div className={pageStyles.withSide}>
+        <div className={pageStyles.side}>
+          {/* Scan changes are saved at once and do not touch the form's unsaved edits. */}
+          <ScanPanel app={app} editable />
+        </div>
+        <EditApplicationForm
+          // A new version (after a conflict reload) rebuilds the form from fresh data.
+          key={app.version}
+          app={app}
+          canEditRegistration={canEditRegistration(app, user)}
+          canChangeDepartment={canChangeDepartment(app, user)}
+          cancelTo={cardPath}
+          onReload={() => application.refetch()}
+          onSaved={() =>
+            navigate(cardPath, { replace: true, state: { ...state, notice: 'Зміни збережено' } })
+          }
+        />
+      </div>
     </section>
   );
 }

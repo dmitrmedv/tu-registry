@@ -2,7 +2,8 @@ import type { ApplicationDto } from '@tu-registry/shared';
 import { kyivCalendarDate } from '@tu-registry/shared';
 import { cleanup, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { http as mock, HttpResponse } from 'msw';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
+import { makePdf } from '@/test/fixtures';
 import { chooseSetting, renderApp } from '@/test/renderApp';
 import { apiError, makeUser, server, signedInAs } from '@/test/server';
 
@@ -37,6 +38,7 @@ const created: ApplicationDto = {
   status: 'ACTIVE',
   createdBy: { id: employee.id, fullName: employee.fullName },
   annulment: null,
+  scan: null,
   createdAt: '2026-03-12T09:00:00.000Z',
   updatedAt: '2026-03-12T09:00:00.000Z',
   version: 1,
@@ -503,5 +505,105 @@ describe('NewApplicationPage — department', () => {
     await user.click(screen.getByRole('button', { name: 'Зареєструвати заяву' }));
     await screen.findByText(/Заяву зареєстровано/);
     expect(sentBody).not.toHaveProperty('department');
+  });
+});
+
+describe('NewApplicationPage — scan of the documents', () => {
+  const scanned = {
+    name: 'Скан заяви.pdf',
+    size: 16,
+    uploadedAt: '2026-03-12T09:00:00.000Z',
+    uploadedBy: { id: employee.id, fullName: employee.fullName },
+  };
+  const dropZone = () => screen.getByText('Перетягніть PDF сюди або').parentElement!;
+  const drop = (file: File) => fireEvent.drop(dropZone(), { dataTransfer: { files: [file] } });
+
+  it('takes a PDF from the button or by dropping it, and lets it go again', async () => {
+    const { user } = openPage();
+    await screen.findByText('15т/26-8');
+
+    await user.upload(screen.getByLabelText('PDF-файл скану'), makePdf('перший.pdf'));
+    expect(screen.getByText('перший.pdf')).toBeInTheDocument();
+
+    drop(makePdf('другий.pdf'));
+    expect(screen.getByText('другий.pdf')).toBeInTheDocument();
+    expect(screen.queryByText('перший.pdf')).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Прибрати файл другий.pdf' }));
+    expect(screen.queryByText('другий.pdf')).not.toBeInTheDocument();
+  });
+
+  it('refuses other files and files over 50 MB, saying why', async () => {
+    openPage();
+    await screen.findByText('15т/26-8');
+
+    drop(new File(['hello'], 'notes.docx', { type: 'application/msword' }));
+    expect(screen.getByRole('alert')).toHaveTextContent('Оберіть PDF-файл');
+
+    drop(makePdf('великий.pdf', 50 * 1024 * 1024 + 1));
+    expect(screen.getByRole('alert')).toHaveTextContent('Файл більший за 50 МБ');
+    expect(screen.queryByText('великий.pdf')).not.toBeInTheDocument();
+  });
+
+  it('uploads the scan right after registering and says so', async () => {
+    const uploaded: string[] = [];
+    const { user } = openPage();
+    server.use(
+      mock.post('*/api/v1/applications', () => HttpResponse.json(created, { status: 201 })),
+      mock.put('*/api/v1/applications/:id/scan', async ({ request, params }) => {
+        const file = (await request.formData()).get('scan') as File;
+        uploaded.push(`${params.id} ${file.name}`);
+        return HttpResponse.json({ ...created, scan: scanned });
+      }),
+    );
+    await screen.findByText('15т/26-8');
+
+    await user.upload(screen.getByLabelText('PDF-файл скану'), makePdf());
+    await fillRequiredFields(user);
+    await user.click(screen.getByRole('button', { name: 'Зареєструвати заяву' }));
+
+    expect(await screen.findByText('Скан «Скан заяви.pdf» (1 КБ) додано.')).toBeInTheDocument();
+    expect(uploaded).toEqual(['a1 Скан заяви.pdf']);
+  });
+
+  it('keeps the registration when the scan fails, pointing to where to add it', async () => {
+    const { user } = openPage();
+    server.use(
+      mock.post('*/api/v1/applications', () => HttpResponse.json(created, { status: 201 })),
+      mock.put('*/api/v1/applications/:id/scan', () =>
+        apiError(413, 'SCAN_TOO_LARGE', 'Скан більший за 50 МБ'),
+      ),
+    );
+    await screen.findByText('15т/26-8');
+
+    await user.upload(screen.getByLabelText('PDF-файл скану'), makePdf());
+    await fillRequiredFields(user);
+    await user.click(screen.getByRole('button', { name: 'Зареєструвати заяву' }));
+
+    expect(await screen.findByText(/Заяву зареєстровано/)).toBeInTheDocument();
+    expect(screen.getByText(/Скан не завантажено: Скан більший за 50 МБ/)).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'редагуванні заяви' })).toHaveAttribute(
+      'href',
+      '/applications/a1/edit',
+    );
+  });
+
+  it('registers without a scan as before (the field is optional)', async () => {
+    const scanRequests = vi.fn();
+    const { user } = openPage();
+    server.use(
+      mock.post('*/api/v1/applications', () => HttpResponse.json(created, { status: 201 })),
+      mock.put('*/api/v1/applications/:id/scan', () => {
+        scanRequests();
+        return HttpResponse.json(created);
+      }),
+    );
+    await screen.findByText('15т/26-8');
+
+    await fillRequiredFields(user);
+    await user.click(screen.getByRole('button', { name: 'Зареєструвати заяву' }));
+
+    await screen.findByText(/Заяву зареєстровано/);
+    expect(scanRequests).not.toHaveBeenCalled();
   });
 });

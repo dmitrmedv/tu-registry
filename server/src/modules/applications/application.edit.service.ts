@@ -62,12 +62,17 @@ async function deny(
 async function toDto(app: ApplicationDocument) {
   const authorId = String(app.createdBy);
   const annulledById = app.annulment ? String(app.annulment.by) : null;
+  const scanUploaderId = app.scan ? String(app.scan.uploadedBy) : null;
   const [names, code] = await Promise.all([
-    findUserSummaries([authorId, annulledById]),
+    findUserSummaries([authorId, annulledById, scanUploaderId]),
     departmentCode(app.department),
   ]);
   const name = (id: string) => ({ id, fullName: names.get(id)?.fullName ?? '—' });
-  return toApplicationDto(app, code, name(authorId), annulledById ? name(annulledById) : null);
+  return toApplicationDto(app, code, {
+    author: name(authorId),
+    annulledBy: annulledById ? name(annulledById) : null,
+    scanUploader: scanUploaderId ? name(scanUploaderId) : null,
+  });
 }
 
 export async function getApplication(id: string, actor: Actor) {

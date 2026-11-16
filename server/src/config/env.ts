@@ -19,6 +19,8 @@ const envSchema = z.object({
   // Enable only behind a trusted reverse proxy, otherwise X-Forwarded-For can be spoofed.
   TRUST_PROXY: z.stringbool().default(false),
   BCRYPT_COST: z.coerce.number().int().min(4).max(15).default(12),
+  // Scanned documents (PDF). Relative to the server's working directory; back it up with the DB.
+  UPLOADS_DIR: z.string().trim().min(1).default('uploads'),
 });
 
 const parsed = envSchema.safeParse(process.env);

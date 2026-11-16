@@ -3,7 +3,10 @@
  * database with one seeded administrator and never touches the local development data.
  */
 import { randomBytes } from 'node:crypto';
+import { mkdtemp, rm } from 'node:fs/promises';
 import type { Server } from 'node:http';
+import { tmpdir } from 'node:os';
+import path from 'node:path';
 import { MongoMemoryReplSet } from 'mongodb-memory-server';
 import { MONGODB_VERSION } from '../config/mongodbVersion';
 
@@ -19,6 +22,9 @@ const replSet = await MongoMemoryReplSet.create({
 });
 process.env.MONGO_URI = replSet.getUri('tu_registry_e2e');
 process.env.JWT_ACCESS_SECRET ??= randomBytes(48).toString('base64');
+// Scans uploaded by the tests go to a throwaway folder, removed on shutdown.
+const uploadsDir = await mkdtemp(path.join(tmpdir(), 'tu-registry-e2e-uploads-'));
+process.env.UPLOADS_DIR = uploadsDir;
 
 // env.ts validates process.env when imported, so the app is loaded only after it is complete.
 const { env } = await import('../config/env');
@@ -38,6 +44,7 @@ async function shutdown() {
   try {
     await disconnectDb();
     await replSet.stop();
+    await rm(uploadsDir, { recursive: true, force: true });
     process.exit(0);
   } catch (error) {
     console.error('E2E server shutdown failed:', error);

@@ -43,4 +43,20 @@ export const applicationsApi = {
   remove: async (id: string, version: number) => {
     await http.delete(`/applications/${id}`, { params: { version } });
   },
+  /** `onProgress` gets 0–100 while the file is being sent. */
+  uploadScan: (id: string, file: File, onProgress?: (percent: number) => void) => {
+    const form = new FormData();
+    form.append('scan', file);
+    return http
+      .put<ApplicationDto>(`/applications/${id}/scan`, form, {
+        onUploadProgress: (event) =>
+          event.total && onProgress?.(Math.round((event.loaded / event.total) * 100)),
+      })
+      .then((r) => r.data);
+  },
+  removeScan: (id: string) =>
+    http.delete<ApplicationDto>(`/applications/${id}/scan`).then((r) => r.data),
+  /** Fetched with the access token (it lives in memory, so a plain link cannot carry it). */
+  scanFile: (id: string) =>
+    http.get<Blob>(`/applications/${id}/scan`, { responseType: 'blob' }).then((r) => r.data),
 };

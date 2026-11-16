@@ -12,6 +12,7 @@ import {
 } from '../enums';
 import type { Department } from '../departments';
 import { normalizePhone } from '../phone';
+import type { ScanDto } from '../scan';
 import { departmentField } from '../departments';
 
 const requiredText = (label: string, max: number) =>
@@ -193,6 +194,8 @@ export type ApplicationDto = {
   status: ApplicationStatus;
   createdBy: { id: string; fullName: string };
   annulment: { reason: string; at: string; by: { id: string; fullName: string } } | null;
+  /** The scanned documents (PDF), if any. */
+  scan: ScanDto | null;
   createdAt: string;
   updatedAt: string;
   version: number;

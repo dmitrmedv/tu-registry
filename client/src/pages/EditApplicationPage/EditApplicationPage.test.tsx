@@ -2,7 +2,7 @@ import type { ApplicationDto } from '@tu-registry/shared';
 import { screen, within } from '@testing-library/react';
 import { http as mock, HttpResponse } from 'msw';
 import { describe, expect, it, vi } from 'vitest';
-import { makeApplication, makeChange } from '@/test/fixtures';
+import { makeApplication, makeChange, makePdf } from '@/test/fixtures';
 import { renderApp } from '@/test/renderApp';
 import { apiError, makeUser, server, signedInAs } from '@/test/server';
 
@@ -213,5 +213,53 @@ describe('EditApplicationPage', () => {
 
     await screen.findByLabelText('Порядковий номер');
     expect(screen.queryByLabelText('Управління')).not.toBeInTheDocument();
+  });
+});
+
+describe('EditApplicationPage — scan', () => {
+  const scan = {
+    name: 'старий.pdf',
+    size: 2048,
+    uploadedAt: '2026-03-12T09:00:00.000Z',
+    uploadedBy: { id: owner.id, fullName: owner.fullName },
+  };
+
+  it('replaces the scan at once, without touching unsaved edits of the form', async () => {
+    const uploaded: string[] = [];
+    const { user } = openEdit(owner, [makeApplication({ scan })]);
+    server.use(
+      mock.put('*/api/v1/applications/:id/scan', async ({ request }) => {
+        uploaded.push(((await request.formData()).get('scan') as File).name);
+        return HttpResponse.json(makeApplication({ scan: { ...scan, name: 'новий.pdf' } }));
+      }),
+    );
+
+    const customer = await screen.findByLabelText('Замовник');
+    await user.clear(customer);
+    await user.type(customer, 'Незбережена правка');
+    await user.upload(screen.getByLabelText('PDF-файл скану'), makePdf('новий.pdf'));
+
+    expect(await screen.findByText('Скан замінено')).toBeInTheDocument();
+    expect(uploaded).toEqual(['новий.pdf']);
+    expect(screen.getByLabelText('Замовник')).toHaveValue('Незбережена правка');
+  });
+
+  it('removes the scan after confirmation', async () => {
+    const removed = vi.fn();
+    const { user } = openEdit(owner, [makeApplication({ scan })]);
+    server.use(
+      mock.delete('*/api/v1/applications/:id/scan', () => {
+        removed();
+        return HttpResponse.json(makeApplication());
+      }),
+    );
+
+    await user.click(await screen.findByRole('button', { name: 'Видалити скан' }));
+    const dialog = screen.getByRole('dialog', { name: 'Видалити скан?' });
+    expect(dialog).toHaveTextContent('Файл «старий.pdf» буде видалено');
+    await user.click(within(dialog).getByRole('button', { name: 'Видалити' }));
+
+    expect(await screen.findByText('Скан видалено')).toBeInTheDocument();
+    expect(removed).toHaveBeenCalledTimes(1);
   });
 });

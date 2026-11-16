@@ -4,6 +4,7 @@ import {
   requireRegistrationRights,
   requireRole,
 } from '../../middlewares/authenticate';
+import { uploadScan } from '../../middlewares/upload';
 import * as controller from './application.controller';
 
 export const applicationRouter = Router();
@@ -21,5 +22,9 @@ applicationRouter.get('/:id', controller.getOne);
 applicationRouter.patch('/:id', controller.update);
 applicationRouter.delete('/:id', requireRole('ADMIN'), controller.remove);
 applicationRouter.get('/:id/history', controller.history);
+// Access is checked before the file is read, so a refusal costs no upload.
+applicationRouter.put('/:id/scan', controller.checkScanEditable, uploadScan, controller.uploadScan);
+applicationRouter.delete('/:id/scan', controller.deleteScan);
+applicationRouter.get('/:id/scan', controller.downloadScan);
 applicationRouter.post('/:id/annul', controller.annul);
 applicationRouter.post('/:id/restore', requireRole('ADMIN'), controller.restore);

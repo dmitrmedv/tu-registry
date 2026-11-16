@@ -10,6 +10,7 @@ import {
   updateApplicationSchema,
 } from '@tu-registry/shared';
 import type { RequestHandler } from 'express';
+import { ApiError } from '../../utils/ApiError';
 import { kyivToday } from '../../utils/kyivDate';
 import { departmentScope, isAdmin, registrationDepartment } from './application.access';
 import { idParamsSchema, parseRequest } from '../../utils/parseRequest';
@@ -17,6 +18,7 @@ import { requestContext } from '../audit/audit.service';
 import { deleteApplication } from './application.delete.service';
 import { listApplications } from './application.list.service';
 import * as editService from './application.edit.service';
+import * as scanService from './application.scan.service';
 import * as applicationService from './application.service';
 
 export const list: RequestHandler = async (req, res) => {
@@ -115,6 +117,51 @@ export const remove: RequestHandler = async (req, res) => {
   });
   await deleteApplication(params.id, query.version, req.user!, requestContext(req));
   res.status(204).end();
+};
+
+export const checkScanEditable: RequestHandler = async (req, _res, next) => {
+  const { params } = parseRequest(req, { params: idParamsSchema });
+  await scanService.assertScanEditable(params.id, req.user!);
+  next();
+};
+
+export const uploadScan: RequestHandler = async (req, res) => {
+  const { params } = parseRequest(req, { params: idParamsSchema });
+  if (!req.file) throw ApiError.badRequest('Оберіть PDF-файл');
+  res.json(await scanService.attachScan(params.id, req.file, req.user!));
+};
+
+export const deleteScan: RequestHandler = async (req, res) => {
+  const { params } = parseRequest(req, { params: idParamsSchema });
+  res.json(await scanService.removeScan(params.id, req.user!));
+};
+
+/** RFC 6266: an ASCII fallback plus the real (Ukrainian) name, opened in the browser. */
+function inlineDisposition(name: string) {
+  const ascii = name.replace(/[^\x20-\x7e]|["\\]/g, '_');
+  return `inline; filename="${ascii}"; filename*=UTF-8''${encodeURIComponent(name)}`;
+}
+
+export const downloadScan: RequestHandler = async (req, res, next) => {
+  const { params } = parseRequest(req, { params: idParamsSchema });
+  const scan = await scanService.scanFile(params.id, req.user!);
+  res.sendFile(
+    scan.path,
+    {
+      headers: {
+        'Content-Type': 'application/pdf',
+        'Content-Disposition': inlineDisposition(scan.name),
+        // Customer documents: never kept by shared caches.
+        'Cache-Control': 'private, no-store',
+      },
+    },
+    (error?: NodeJS.ErrnoException) => {
+      if (!error) return;
+      next(
+        error.code === 'ENOENT' ? ApiError.notFound('Файл скану не знайдено') : (error as Error),
+      );
+    },
+  );
 };
 
 export const history: RequestHandler = async (req, res) => {

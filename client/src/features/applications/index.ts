@@ -4,6 +4,8 @@ export { ApplicationForm } from './ApplicationForm';
 export { ApplicationHistory } from './ApplicationHistory';
 export { DeleteDialog } from './DeleteDialog';
 export { EditApplicationForm } from './EditApplicationForm';
+export { ScanDropzone } from './ScanDropzone';
+export { ScanPanel } from './ScanPanel';
 export {
   canAnnul,
   canChangeDepartment,
@@ -12,4 +14,4 @@ export {
   canEditRegistration,
   canRestore,
 } from './permissions';
-export { useApplication, useRestoreApplication } from './queries';
+export { useApplication, useRestoreApplication, useUploadScan } from './queries';

@@ -231,3 +231,49 @@ describe('ApplicationPage', () => {
     expect(cardRequests).toHaveBeenCalledTimes(1);
   });
 });
+
+describe('ApplicationPage — scan', () => {
+  const withScan = makeApplication({
+    scan: {
+      name: 'Скан заяви.pdf',
+      size: 3 * 1024 * 1024,
+      uploadedAt: '2026-03-12T09:00:00.000Z',
+      uploadedBy: { id: owner.id, fullName: owner.fullName },
+    },
+  });
+
+  it('describes the scan and opens it in a new tab', async () => {
+    const tab = { location: { href: '' }, close: vi.fn() };
+    const open = vi.spyOn(window, 'open').mockReturnValue(tab as unknown as Window);
+    const createUrl = vi.fn(() => 'blob:scan');
+    URL.createObjectURL = createUrl;
+    URL.revokeObjectURL = vi.fn();
+    const { user } = openCard(owner, withScan);
+    server.use(
+      mock.get('*/api/v1/applications/:id/scan', () =>
+        HttpResponse.arrayBuffer(new TextEncoder().encode('%PDF-1.4').buffer, {
+          headers: { 'Content-Type': 'application/pdf' },
+        }),
+      ),
+    );
+
+    const panel = await screen.findByRole('region', { name: 'Скан пакета документів' });
+    expect(panel).toHaveTextContent('Скан заяви.pdf');
+    expect(panel).toHaveTextContent('3,0 МБ · Олена Коваль');
+    // The card only shows it; changes are on the edit page.
+    expect(within(panel).queryByRole('button', { name: 'Видалити скан' })).not.toBeInTheDocument();
+
+    await user.click(within(panel).getByRole('button', { name: 'Переглянути' }));
+
+    await vi.waitFor(() => expect(tab.location.href).toBe('blob:scan'));
+    expect(open).toHaveBeenCalledWith('', '_blank');
+    open.mockRestore();
+  });
+
+  it('says when there is no scan', async () => {
+    openCard(owner);
+
+    const panel = await screen.findByRole('region', { name: 'Скан пакета документів' });
+    expect(panel).toHaveTextContent('Скан не додано.');
+  });
+});

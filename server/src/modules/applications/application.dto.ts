@@ -10,9 +10,9 @@ type Author = { id: string; fullName: string };
 export function toApplicationDto(
   app: ApplicationDocument,
   departmentCode: number,
-  author: Author,
-  annulledBy: Author | null = null,
+  people: { author: Author; annulledBy?: Author | null; scanUploader?: Author | null },
 ): ApplicationDto {
+  const { author, annulledBy, scanUploader } = people;
   return {
     id: app.id as string,
     regNumber: formatRegNumber(app.regYear, app.regSeq, departmentCode),
@@ -40,6 +40,15 @@ export function toApplicationDto(
             reason: app.annulment.reason,
             at: app.annulment.at.toISOString(),
             by: annulledBy,
+          }
+        : null,
+    scan:
+      app.scan && scanUploader
+        ? {
+            name: app.scan.name,
+            size: app.scan.size,
+            uploadedAt: app.scan.uploadedAt.toISOString(),
+            uploadedBy: scanUploader,
           }
         : null,
     createdAt: (app.get('createdAt') as Date).toISOString(),

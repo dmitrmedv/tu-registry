@@ -90,7 +90,8 @@ const EMPTY_VALUES: FormValues = {
   regSeq: '',
 };
 
-type Props = { onCreated: (app: ApplicationDto) => void };
+/** `onCreated` may be async (the page uploads the scan): the form stays busy until it ends. */
+type Props = { onCreated: (app: ApplicationDto) => void | Promise<void> };
 
 export function ApplicationForm({ onCreated }: Props) {
   const user = useCurrentUser();
@@ -151,12 +152,12 @@ export function ApplicationForm({ onCreated }: Props) {
         const { manual: _manual, ...data } = values;
         const created = await createManual.mutateAsync(data);
         draft.clear();
-        onCreated(created);
+        await onCreated(created);
       } else {
         const { manual: _manual, ...data } = values;
         const created = await createAuto.mutateAsync(data);
         draft.clear();
-        onCreated(created);
+        await onCreated(created);
       }
     } catch (error) {
       const apiError = toApiError(error);

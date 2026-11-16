@@ -1,3 +1,5 @@
+import { tmpdir } from 'node:os';
+import path from 'node:path';
 import { defineConfig } from 'vitest/config';
 
 export default defineConfig({
@@ -11,6 +13,8 @@ export default defineConfig({
       JWT_ACCESS_SECRET: 'test-secret-that-is-at-least-32-characters-long',
       // Fast hashing in tests; production uses the default cost of 12.
       BCRYPT_COST: '4',
+      // Scans written by tests stay out of the project.
+      UPLOADS_DIR: path.join(tmpdir(), 'tu-registry-test-uploads'),
     },
     testTimeout: 15_000,
     hookTimeout: 30_000,

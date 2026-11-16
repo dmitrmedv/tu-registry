@@ -15,6 +15,8 @@ const USER_FIELD_LABELS: Record<string, string> = {
   isActive: 'активний',
 };
 
+const ENGINEER_FIELD_LABELS: Record<string, string> = { fullName: 'ПІБ' };
+
 const DEPARTMENT_FIELD_LABELS: Record<string, string> = { name: 'назва', code: 'код' };
 
 const text = (value: unknown) => (value === null || value === undefined ? '' : String(value));
@@ -48,6 +50,20 @@ export function describeDetails(entry: AuditLogDto): string {
       return changes
         .map(
           (c) => `${DEPARTMENT_FIELD_LABELS[c.field] ?? c.field}: ${text(c.from)} → ${text(c.to)}`,
+        )
+        .join(', ');
+    }
+    case 'ENGINEER_UPDATED': {
+      const changes = Array.isArray(d.changes)
+        ? (d.changes as { field: string; from: unknown; to: unknown }[])
+        : [];
+      return changes
+        .map((c) =>
+          c.field === 'isActive'
+            ? c.to
+              ? 'активовано'
+              : 'деактивовано'
+            : `${ENGINEER_FIELD_LABELS[c.field] ?? c.field}: ${text(c.from)} → ${text(c.to)}`,
         )
         .join(', ');
     }

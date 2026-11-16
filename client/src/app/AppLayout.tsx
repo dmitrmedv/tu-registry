@@ -46,6 +46,7 @@ export function AppLayout() {
           { label: 'Користувачі', to: '/users' },
           { label: 'Журнал', to: '/audit' },
           { label: 'Управління', to: '/departments' },
+          { label: 'Інженери', to: '/engineers' },
         ]
       : []),
     ...(!restricted ? [{ label: 'Змінити пароль', to: CHANGE_PASSWORD_PATH }] : []),

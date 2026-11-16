@@ -61,7 +61,14 @@ describe('header', () => {
     const { user, router } = open(admin);
 
     await user.click(await settingsButton());
-    expect(menuItems()).toEqual(['Користувачі', 'Журнал', 'Управління', 'Змінити пароль', 'Вийти']);
+    expect(menuItems()).toEqual([
+      'Користувачі',
+      'Журнал',
+      'Управління',
+      'Інженери',
+      'Змінити пароль',
+      'Вийти',
+    ]);
     await user.click(screen.getByRole('menuitem', { name: 'Журнал' }));
 
     expect(router.state.location.pathname).toBe('/audit');

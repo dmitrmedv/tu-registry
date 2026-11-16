@@ -11,6 +11,7 @@ import { ApiError } from '../../utils/ApiError';
 import { isDuplicateKey } from '../../utils/db';
 import { Application } from '../applications/application.model';
 import { type RequestContext, recordAudit } from '../audit/audit.service';
+import { Engineer } from '../engineers/engineer.model';
 import { Counter } from '../numbering/counter.model';
 import { User } from '../users/user.model';
 import { Department } from './department.model';
@@ -198,22 +199,23 @@ export async function setArchived(
 }
 
 /**
- * Only an empty department is deleted for good (with its counters); one with users or
- * applications must be archived instead, so nothing points to a missing department.
+ * Only an empty department is deleted for good (with its counters); one with users,
+ * applications or engineers must be archived instead, so nothing points to a missing department.
  */
 export async function deleteDepartment(id: DepartmentId, actor: Actor, context: RequestContext) {
   const department = await Department.findById(id);
   if (!department) throw departmentNotFound();
-  const [users, applications] = await Promise.all([
+  const [users, applications, engineers] = await Promise.all([
     User.countDocuments({ department: id }),
     Application.countDocuments({ department: id }),
+    Engineer.countDocuments({ department: id }),
   ]);
-  if (users > 0 || applications > 0) {
+  if (users > 0 || applications > 0 || engineers > 0) {
     throw new ApiError(
       409,
       'DEPARTMENT_IN_USE',
-      `В управлінні є користувачі (${users}) або заяви (${applications}): його можна лише архівувати`,
-      { users, applications },
+      `В управлінні є користувачі (${users}), заяви (${applications}) або інженери (${engineers}): його можна лише архівувати`,
+      { users, applications, engineers },
     );
   }
   await Department.deleteOne({ _id: id });

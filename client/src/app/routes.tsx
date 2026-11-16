@@ -32,6 +32,9 @@ const usersPage = lazyPage(() =>
 const departmentsPage = lazyPage(() =>
   import('@/pages/DepartmentsPage').then((m) => ({ default: m.DepartmentsPage })),
 );
+const engineersPage = lazyPage(() =>
+  import('@/pages/EngineersPage').then((m) => ({ default: m.EngineersPage })),
+);
 const auditPage = lazyPage(() =>
   import('@/pages/AuditPage').then((m) => ({ default: m.AuditPage })),
 );
@@ -56,6 +59,7 @@ export const routes: RouteObject[] = [
               { path: '/users', element: usersPage },
               { path: '/audit', element: auditPage },
               { path: '/departments', element: departmentsPage },
+              { path: '/engineers', element: engineersPage },
             ],
           },
         ],

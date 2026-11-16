@@ -1,0 +1,15 @@
+// Lets form fields take part in the dialog body's flex layout.
+.formContents {
+  display: contents;
+}
+
+.inactiveRow td {
+  color: var(--color-text-muted);
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: var(--space-1);
+}

@@ -60,6 +60,9 @@ export const AUDIT_ACTION_LABELS: Record<AuditAction, string> = {
   DEPARTMENT_ARCHIVED: 'Архівовано управління',
   DEPARTMENT_RESTORED: 'Відновлено управління',
   DEPARTMENT_DELETED: 'Видалено управління',
+  ENGINEER_CREATED: 'Додано інженера',
+  ENGINEER_UPDATED: 'Змінено інженера',
+  ENGINEER_DEACTIVATED: 'Деактивовано інженера',
   ACCESS_DENIED: 'Відмовлено в доступі',
 };
 

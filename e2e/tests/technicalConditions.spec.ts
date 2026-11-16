@@ -29,6 +29,9 @@ test('technical conditions after a response: one valid set, replaced only after 
     data: { version: 1, documentsReceivedAt: today },
   });
   await signIn(page, ADMIN, `/applications/${id}`);
+  const title = page.getByRole('heading', { level: 1 }).locator('..');
+  // Answered, and the documents asked for came: processing goes on.
+  await expect(title).toContainText('На опрацюванні');
 
   const section = page.getByRole('region', { name: 'Технічні умови' });
   await expect(section.getByText('Технічні умови ще не підготовлено.')).toBeVisible();
@@ -46,6 +49,7 @@ test('technical conditions after a response: one valid set, replaced only after 
   };
 
   await addTu('0032/ТУ', '12,5');
+  await expect(title).toContainText('ТУ підготовлені');
   const first = section.getByRole('listitem', { name: /^Технічні умови № 0032\/ТУ/ });
   await expect(first).toContainText('12,5 м³/год');
   await expect(first).toContainText('Нестандартне (збільшення потужності)');
@@ -60,10 +64,24 @@ test('technical conditions after a response: one valid set, replaced only after 
   await cancel.getByLabel('Причина скасування').fill('Помилка в розрахунку');
   await cancel.getByRole('button', { name: 'Скасувати документ' }).click();
   await expect(first).toContainText('Скасовано');
+  await expect(title).toContainText('На опрацюванні');
 
   await addTu('0033/ТУ', '13');
   await expect(section.getByRole('listitem')).toHaveCount(2);
   await expect(section.getByRole('listitem').first()).toContainText('0033/ТУ');
+
+  // The timeline: registration, response, documents, the cancelled TU and the valid one.
+  const history = page.getByRole('region', { name: 'Історія опрацювання' });
+  await expect(history.getByRole('list', { name: 'Строки опрацювання' })).toContainText(
+    'Технічні умови: 0 робочих днів з 10',
+  );
+  const events = history.getByRole('listitem', { name: /, \d\d\.\d\d\.\d{4}$/ });
+  await expect(events).toHaveCount(5);
+  await expect(events.nth(0)).toContainText(`Заява № ${regNumber}`);
+  await expect(events.nth(1)).toContainText('Відповідь № 125/01-15');
+  await expect(events.nth(2)).toContainText('Документи надійшли');
+  await expect(events.nth(3)).toContainText('скасовано');
+  await expect(events.nth(4)).toContainText('Технічні умови № 0033/ТУ');
 
   await page.goto('/audit');
   await expect(

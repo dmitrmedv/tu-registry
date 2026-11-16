@@ -14,3 +14,4 @@ export * from './schemas/engineer';
 export * from './schemas/calendar';
 export * from './schemas/response';
 export * from './schemas/technicalConditions';
+export * from './schemas/processing';

@@ -18,41 +18,34 @@ export function useTechnicalConditions(applicationId: string) {
   });
 }
 
-function useTuMutation<TVariables, TResult>(
-  applicationId: string,
-  fn: (v: TVariables) => Promise<TResult>,
-) {
+function useTuMutation<TVariables, TResult>(fn: (v: TVariables) => Promise<TResult>) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: fn,
-    onSuccess: () =>
-      queryClient.invalidateQueries({ queryKey: technicalConditionsKeys.list(applicationId) }),
+    // The application's stage, timeline and registry row follow its documents.
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['applications'] }),
   });
 }
 
 export const useCreateTechnicalConditions = (applicationId: string) =>
-  useTuMutation(applicationId, (input: CreateTechnicalConditionsInput) =>
-    api.create(applicationId, input),
-  );
+  useTuMutation((input: CreateTechnicalConditionsInput) => api.create(applicationId, input));
 
 export const useUpdateTechnicalConditions = (applicationId: string) =>
-  useTuMutation(
-    applicationId,
-    ({ id, input }: { id: string; input: UpdateTechnicalConditionsInput }) =>
-      api.update(applicationId, id, input),
+  useTuMutation(({ id, input }: { id: string; input: UpdateTechnicalConditionsInput }) =>
+    api.update(applicationId, id, input),
   );
 
 export const useCancelTechnicalConditions = (applicationId: string) =>
-  useTuMutation(applicationId, ({ id, input }: { id: string; input: CancelDocumentInput }) =>
+  useTuMutation(({ id, input }: { id: string; input: CancelDocumentInput }) =>
     api.cancel(applicationId, id, input),
   );
 
 export const useRestoreTechnicalConditions = (applicationId: string) =>
-  useTuMutation(applicationId, ({ id, version }: { id: string; version: number }) =>
+  useTuMutation(({ id, version }: { id: string; version: number }) =>
     api.restore(applicationId, id, version),
   );
 
 export const useUploadTechnicalConditionsScan = (applicationId: string) =>
-  useTuMutation(applicationId, ({ id, file }: { id: string; file: File }) =>
+  useTuMutation(({ id, file }: { id: string; file: File }) =>
     api.uploadScan(applicationId, id, file),
   );

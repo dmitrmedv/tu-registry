@@ -1,6 +1,9 @@
 import { DEFAULT_DEPARTMENT } from '@tu-registry/shared';
-import mongoose from 'mongoose';
+import mongoose, { Types } from 'mongoose';
 import { Counter } from '../numbering/counter.model';
+import { recomputeProcessing } from '../processing/processing.summary';
+import { ApplicationResponse } from '../responses/response.model';
+import { TechnicalConditions } from '../technicalConditions/technicalConditions.model';
 import { User } from '../users/user.model';
 import { Application } from './application.model';
 
@@ -162,4 +165,28 @@ export async function dropYearWideUniqueNumberIndex() {
   if (!legacy?.name) return false;
   await Application.collection.dropIndex(legacy.name);
   return true;
+}
+
+/**
+ * Stage 17.5: the processing summary of every application — computed from its documents where
+ * it has any, REGISTERED otherwise. Returns how many had none yet; a repeated run finds none.
+ */
+export async function backfillProcessing() {
+  const withDocuments = new Set(
+    (
+      await Promise.all([
+        ApplicationResponse.distinct('applicationId'),
+        TechnicalConditions.distinct('applicationId'),
+      ])
+    )
+      .flat()
+      .map(String),
+  );
+  const missing = await Application.find({ processing: mongoose.trusted({ $exists: false }) })
+    .select('_id')
+    .lean();
+  for (const id of new Set([...withDocuments, ...missing.map((app) => String(app._id))])) {
+    await recomputeProcessing(new Types.ObjectId(id));
+  }
+  return missing.length;
 }

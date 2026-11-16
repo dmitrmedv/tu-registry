@@ -1,5 +1,6 @@
 import { type ApplicationDto, formatRegNumber } from '@tu-registry/shared';
 import { toIsoDate } from '../../utils/kyivDate';
+import { deadlinesTracked } from '../processing/deadlinesTracked';
 import type { Application } from './application.model';
 
 export type ApplicationDocument = InstanceType<typeof Application>;
@@ -51,6 +52,8 @@ export function toApplicationDto(
             uploadedBy: scanUploader,
           }
         : null,
+    stage: app.processing?.stage ?? 'REGISTERED',
+    deadlinesTracked: deadlinesTracked(app.regDate),
     createdAt: (app.get('createdAt') as Date).toISOString(),
     updatedAt: (app.get('updatedAt') as Date).toISOString(),
     version: app.version,

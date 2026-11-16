@@ -19,6 +19,7 @@ import {
   type DocumentKind,
   loadChangeable,
   loadDocument,
+  changeDocuments,
   restoreDocument,
   updateSeen,
 } from '../documents/document.service';
@@ -88,19 +89,26 @@ export async function createResponse(
   } = input as Required<Pick<CreateResponseInput, 'outgoingNumber' | 'responseDate' | 'engineer'>>;
   assertDocumentDate(app, 'responseDate', responseDate, 'Дата відповіді');
   const engineer = await resolveEngineer(app, engineerId);
-  const created = await ApplicationResponse.create({
-    applicationId: app._id,
-    outgoingNumber,
-    responseDate: fromIsoDate(responseDate),
-    engineer: engineer._id,
-    engineerName: engineer.fullName,
-    createdBy: actor.id,
-  });
-  const record = created.toObject() as unknown as ResponseRecord;
+  const [created] = await changeDocuments(app, (session) =>
+    ApplicationResponse.create(
+      [
+        {
+          applicationId: app._id,
+          outgoingNumber,
+          responseDate: fromIsoDate(responseDate),
+          engineer: engineer._id,
+          engineerName: engineer.fullName,
+          createdBy: actor.id,
+        },
+      ],
+      { session },
+    ),
+  );
+  const record = created!.toObject() as unknown as ResponseRecord;
   await auditDocument(RESPONSE, 'RESPONSE_CREATED', actor, app, record, context, {
     responseDate,
   });
-  return responseDto(app, String(created._id));
+  return responseDto(app, String(created!._id));
 }
 
 export async function updateResponse(
@@ -161,7 +169,7 @@ export async function updateResponse(
   if (next.documentsReceivedAt) $set.documentsReceivedAt = fromIsoDate(next.documentsReceivedAt);
   else update.$unset = { documentsReceivedAt: 1 };
 
-  await updateSeen(RESPONSE, current, update);
+  await changeDocuments(app, (session) => updateSeen(RESPONSE, current, update, session));
   await auditDocument(
     RESPONSE,
     'RESPONSE_UPDATED',

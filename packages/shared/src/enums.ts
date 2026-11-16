@@ -31,6 +31,13 @@ export type ApplicationStatus = (typeof APPLICATION_STATUSES)[number];
 export const APPLICATION_CHANGE_ACTIONS = ['CREATED', 'UPDATED', 'ANNULLED', 'RESTORED'] as const;
 export type ApplicationChangeAction = (typeof APPLICATION_CHANGE_ACTIONS)[number];
 
+/**
+ * Where the processing of an application stands (stage 17.5), derived from its documents.
+ * Annulment is the application's own `status`, shown instead of this. New stages go here.
+ */
+export const PROCESSING_STAGES = ['REGISTERED', 'IN_PROGRESS', 'RESPONDED', 'TU_PREPARED'] as const;
+export type ProcessingStage = (typeof PROCESSING_STAGES)[number];
+
 /** Technical conditions (stage 17.4): how the object is connected. */
 export const CONNECTION_TYPES = [
   'STANDARD',

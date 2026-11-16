@@ -1,8 +1,8 @@
 import type { AuditAction, CancelDocumentInput } from '@tu-registry/shared';
-import mongoose, { type Model } from 'mongoose';
+import mongoose, { type ClientSession, type Model } from 'mongoose';
 import { ApiError } from '../../utils/ApiError';
 import { clock } from '../../utils/clock';
-import { isDuplicateKey } from '../../utils/db';
+import { inTransaction, isDuplicateKey } from '../../utils/db';
 import type { Actor } from '../applications/application.access';
 import type { ApplicationDocument } from '../applications/application.dto';
 import { type RequestContext, recordAudit } from '../audit/audit.service';
@@ -15,6 +15,7 @@ import {
   storeScan,
 } from '../scans/scan.storage';
 import type { DocumentRecord } from './document.dto';
+import { recomputeProcessing } from '../processing/processing.summary';
 import { regNumberOf } from './document.rules';
 
 type UploadedFile = { path: string; originalname: string; size: number };
@@ -103,12 +104,29 @@ export async function updateSeen<R extends DocumentRecord>(
   kind: DocumentKind<R>,
   current: R,
   update: Record<string, unknown>,
+  session?: ClientSession,
 ) {
   const { matchedCount } = await kind.model.updateOne(
     { _id: current._id, version: current.version },
     update,
+    { session },
   );
   if (matchedCount === 0) throw versionConflict(kind);
+}
+
+/**
+ * A change of the application's documents together with its processing summary: both are
+ * written, or neither (a refused change leaves the summary as it was).
+ */
+export function changeDocuments<T>(
+  app: ApplicationDocument,
+  work: (session: ClientSession) => Promise<T>,
+) {
+  return inTransaction(async (session) => {
+    const result = await work(session);
+    await recomputeProcessing(app._id, session);
+    return result;
+  });
 }
 
 export async function cancelDocument<R extends DocumentRecord>(
@@ -120,14 +138,21 @@ export async function cancelDocument<R extends DocumentRecord>(
   context: RequestContext,
 ) {
   const current = await loadChangeable(kind, app, id, input.version);
-  await updateSeen(kind, current, {
-    $set: {
-      cancellation: { reason: input.reason, at: clock.now(), by: actor.id },
-      updatedBy: actor.id,
-      ...kind.onCancel,
-    },
-    $inc: { version: 1 },
-  });
+  await changeDocuments(app, (session) =>
+    updateSeen(
+      kind,
+      current,
+      {
+        $set: {
+          cancellation: { reason: input.reason, at: clock.now(), by: actor.id },
+          updatedBy: actor.id,
+          ...kind.onCancel,
+        },
+        $inc: { version: 1 },
+      },
+      session,
+    ),
+  );
   // The reason is free text and may name the customer: it stays with the document only.
   await auditDocument(kind, kind.actions.cancelled, actor, app, current, context);
 }
@@ -147,11 +172,18 @@ export async function restoreDocument<R extends DocumentRecord>(
   }
   if (version !== current.version) throw versionConflict(kind);
   try {
-    await updateSeen(kind, current, {
-      $unset: { cancellation: 1 },
-      $set: { updatedBy: actor.id, ...kind.onRestore },
-      $inc: { version: 1 },
-    });
+    await changeDocuments(app, (session) =>
+      updateSeen(
+        kind,
+        current,
+        {
+          $unset: { cancellation: 1 },
+          $set: { updatedBy: actor.id, ...kind.onRestore },
+          $inc: { version: 1 },
+        },
+        session,
+      ),
+    );
   } catch (error) {
     if (isDuplicateKey(error) && kind.messages.restoreTaken) {
       throw new ApiError(409, 'DOCUMENT_TAKEN', kind.messages.restoreTaken);

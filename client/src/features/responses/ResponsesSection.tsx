@@ -89,7 +89,7 @@ export function ResponsesSection({ app }: { app: ApplicationDto }) {
                   <li>Інженер: {response.engineer.fullName}</li>
                   <li>
                     {workingDaysLabel(response.workingDays)} з {RESPONSE_DEADLINE_DAYS}{' '}
-                    {overdueBy > 0 && !response.cancellation && (
+                    {overdueBy > 0 && !response.cancellation && app.deadlinesTracked && (
                       <Badge tone="danger">строк перевищено на {workingDaysLabel(overdueBy)}</Badge>
                     )}
                   </li>

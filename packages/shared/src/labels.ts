@@ -5,6 +5,7 @@ import type {
   GasPressure,
   ObjectCategory,
   ObjectType,
+  ProcessingStage,
 } from './enums';
 
 // Names of enum values as people read them. Shared: the client shows them and the server
@@ -27,6 +28,13 @@ export const OBJECT_CATEGORY_LABELS: Record<ObjectCategory, string> = {
 export const AREA_TYPE_LABELS: Record<AreaType, string> = {
   URBAN: 'Міська',
   RURAL: 'Сільська',
+};
+
+export const PROCESSING_STAGE_LABELS: Record<ProcessingStage, string> = {
+  REGISTERED: 'Зареєстрована',
+  IN_PROGRESS: 'На опрацюванні',
+  RESPONDED: 'Відповідь надана',
+  TU_PREPARED: 'ТУ підготовлені',
 };
 
 export const CONNECTION_TYPE_LABELS: Record<ConnectionType, string> = {

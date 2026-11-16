@@ -8,6 +8,7 @@ import {
   OBJECT_TYPES,
   type ObjectCategory,
   type ObjectType,
+  type ProcessingStage,
   type RegistrationMode,
 } from '../enums';
 import type { Department } from '../departments';
@@ -198,6 +199,10 @@ export type ApplicationDto = {
   scan: ScanDto | null;
   createdAt: string;
   updatedAt: string;
+  /** Where the processing stands, derived from the responses and technical conditions. */
+  stage: ProcessingStage;
+  /** False for applications registered before deadlines were tracked: no overdue warnings. */
+  deadlinesTracked: boolean;
   version: number;
 };
 

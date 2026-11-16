@@ -5,6 +5,7 @@ import {
   requireRole,
 } from '../../middlewares/authenticate';
 import { uploadScan } from '../../middlewares/upload';
+import * as processingController from '../processing/processing.controller';
 import { responseRouter } from '../responses/response.routes';
 import { technicalConditionsRouter } from '../technicalConditions/technicalConditions.routes';
 import * as controller from './application.controller';
@@ -24,6 +25,7 @@ applicationRouter.get('/:id', controller.getOne);
 applicationRouter.patch('/:id', controller.update);
 applicationRouter.delete('/:id', requireRole('ADMIN'), controller.remove);
 applicationRouter.get('/:id/history', controller.history);
+applicationRouter.get('/:id/processing', processingController.show);
 // Access is checked before the file is read, so a refusal costs no upload.
 applicationRouter.put('/:id/scan', controller.checkScanEditable, uploadScan, controller.uploadScan);
 applicationRouter.delete('/:id/scan', controller.deleteScan);

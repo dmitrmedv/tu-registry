@@ -14,9 +14,11 @@ import {
   useRestoreApplication,
 } from '@/features/applications';
 import { useCurrentUser } from '@/features/auth';
+import { ProcessingSection } from '@/features/processing';
 import { ResponsesSection } from '@/features/responses';
 import { TechnicalConditionsSection } from '@/features/technicalConditions';
 import { toApiError } from '@/shared/api/apiError';
+import { PROCESSING_STAGE_LABELS } from '@/shared/lib/labels';
 import { Alert, Badge, Button, ConfirmDialog, Icon, LinkButton, Spinner } from '@/shared/ui';
 import pageStyles from '../page.module.scss';
 import type { RegistryPageState } from '../RegistryPage/RegistryPage';
@@ -91,7 +93,11 @@ export function ApplicationPage() {
         <div className={styles.title}>
           <h1>Заява {app.regNumber}</h1>
           {app.registrationMode === 'MANUAL' && <Badge>вручну</Badge>}
-          {app.status === 'ANNULLED' && <Badge tone="danger">Анульовано</Badge>}
+          {app.status === 'ANNULLED' ? (
+            <Badge tone="danger">Анульовано</Badge>
+          ) : (
+            <Badge tone="info">{PROCESSING_STAGE_LABELS[app.stage]}</Badge>
+          )}
         </div>
         <div className={styles.actions}>
           {app.scan && (
@@ -131,6 +137,7 @@ export function ApplicationPage() {
       {scanError && <Alert variant="error">{scanError}</Alert>}
 
       <ApplicationDetails app={app} />
+      <ProcessingSection app={app} />
       <ResponsesSection app={app} />
       <TechnicalConditionsSection app={app} />
 

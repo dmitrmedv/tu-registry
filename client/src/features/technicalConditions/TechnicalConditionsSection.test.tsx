@@ -7,7 +7,7 @@ import type {
 import { screen, within } from '@testing-library/react';
 import { http as mock, HttpResponse } from 'msw';
 import { describe, expect, it } from 'vitest';
-import { makeApplication, makePdf, makeTechnicalConditions } from '@/test/fixtures';
+import { makeApplication, makePdf, makeProcessing, makeTechnicalConditions } from '@/test/fixtures';
 import { renderApp } from '@/test/renderApp';
 import { apiError, makeUser, server, signedInAs } from '@/test/server';
 
@@ -43,6 +43,9 @@ function openCard(
   server.use(
     signedInAs(user),
     mock.get(`*/api/v1/applications/${app.id}`, () => HttpResponse.json(app)),
+    mock.get(`*/api/v1/applications/${app.id}/processing`, () =>
+      HttpResponse.json(makeProcessing()),
+    ),
     mock.get(`*/api/v1/applications/${app.id}/history`, () => HttpResponse.json([])),
     mock.get(`*/api/v1/applications/${app.id}/responses`, () => HttpResponse.json([])),
     mock.get(TU, () => HttpResponse.json(current.rows)),

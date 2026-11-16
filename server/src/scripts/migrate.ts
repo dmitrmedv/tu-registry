@@ -6,6 +6,7 @@ import {
   assignDefaultDepartment,
   backfillAreaType,
   backfillObjectCategory,
+  backfillProcessing,
   backfillSettlement,
   dropYearWideUniqueNumberIndex,
   moveCadastralNumberIntoAddress,
@@ -34,6 +35,8 @@ async function main() {
     logger.info({ counters }, 'Year counters moved to Одеське');
     const droppedIndex = await dropYearWideUniqueNumberIndex();
     logger.info({ droppedIndex }, 'Year-wide unique number index dropped');
+    const processing = await backfillProcessing();
+    logger.info({ processing }, 'Processing summaries filled in');
   } finally {
     await disconnectDb();
   }

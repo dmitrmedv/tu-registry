@@ -114,7 +114,7 @@ export function TechnicalConditionsSection({ app }: { app: ApplicationDto }) {
                     <dt>Строк</dt>
                     <dd>
                       {workingDaysLabel(tu.workingDays)} з {TU_DEADLINE_DAYS}{' '}
-                      {overdueBy > 0 && !tu.cancellation && (
+                      {overdueBy > 0 && !tu.cancellation && app.deadlinesTracked && (
                         <Badge tone="danger">
                           строк перевищено на {workingDaysLabel(overdueBy)}
                         </Badge>

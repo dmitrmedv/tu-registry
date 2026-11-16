@@ -18,38 +18,34 @@ export function useResponses(applicationId: string) {
   });
 }
 
-function useResponseMutation<TVariables, TResult>(
-  applicationId: string,
-  fn: (v: TVariables) => Promise<TResult>,
-) {
+function useResponseMutation<TVariables, TResult>(fn: (v: TVariables) => Promise<TResult>) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: fn,
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: responseKeys.list(applicationId) }),
+    // The application's stage, timeline and registry row follow its documents.
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['applications'] }),
   });
 }
 
 export const useCreateResponse = (applicationId: string) =>
-  useResponseMutation(applicationId, (input: CreateResponseInput) =>
-    responsesApi.create(applicationId, input),
-  );
+  useResponseMutation((input: CreateResponseInput) => responsesApi.create(applicationId, input));
 
 export const useUpdateResponse = (applicationId: string) =>
-  useResponseMutation(applicationId, ({ id, input }: { id: string; input: UpdateResponseInput }) =>
+  useResponseMutation(({ id, input }: { id: string; input: UpdateResponseInput }) =>
     responsesApi.update(applicationId, id, input),
   );
 
 export const useCancelResponse = (applicationId: string) =>
-  useResponseMutation(applicationId, ({ id, input }: { id: string; input: CancelDocumentInput }) =>
+  useResponseMutation(({ id, input }: { id: string; input: CancelDocumentInput }) =>
     responsesApi.cancel(applicationId, id, input),
   );
 
 export const useRestoreResponse = (applicationId: string) =>
-  useResponseMutation(applicationId, ({ id, version }: { id: string; version: number }) =>
+  useResponseMutation(({ id, version }: { id: string; version: number }) =>
     responsesApi.restore(applicationId, id, version),
   );
 
 export const useUploadResponseScan = (applicationId: string) =>
-  useResponseMutation(applicationId, ({ id, file }: { id: string; file: File }) =>
+  useResponseMutation(({ id, file }: { id: string; file: File }) =>
     responsesApi.uploadScan(applicationId, id, file),
   );

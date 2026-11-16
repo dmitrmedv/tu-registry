@@ -1,6 +1,7 @@
 import type {
   ApplicationChangeDto,
   ApplicationDto,
+  ProcessingDto,
   ResponseDto,
   TechnicalConditionsDto,
 } from '@tu-registry/shared';
@@ -30,6 +31,8 @@ export function makeApplication(overrides: Partial<ApplicationDto> = {}): Applic
     createdBy: { id: 'owner000000000000000001', fullName: 'Олена Коваль' },
     annulment: null,
     scan: null,
+    stage: 'REGISTERED',
+    deadlinesTracked: true,
     createdAt: '2026-03-12T09:00:00.000Z',
     updatedAt: '2026-03-12T09:00:00.000Z',
     version: 3,
@@ -95,6 +98,41 @@ export function makeTechnicalConditions(
     createdBy: { id: 'owner000000000000000001', fullName: 'Олена Коваль' },
     createdAt: '2026-03-20T09:00:00.000Z',
     version: 1,
+    ...overrides,
+  };
+}
+
+/** A freshly registered application's processing: nothing yet, both terms running. */
+export function makeProcessing(overrides: Partial<ProcessingDto> = {}): ProcessingDto {
+  return {
+    stage: 'REGISTERED',
+    deadlines: {
+      tracked: true,
+      response: {
+        norm: 5,
+        used: 0,
+        remaining: 5,
+        dueDate: '2026-03-19',
+        overdueBy: 0,
+        done: false,
+      },
+      tu: { norm: 10, used: 0, remaining: 10, dueDate: '2026-03-26', overdueBy: 0, done: false },
+    },
+    events: [
+      {
+        type: 'REGISTERED',
+        date: '2026-03-12',
+        number: '14т/26-8',
+        person: 'Олена Коваль',
+        documentId: null,
+        scanName: null,
+        workingDays: 0,
+        norm: null,
+        overdueBy: 0,
+        sinceDocumentsReceived: null,
+        cancelled: false,
+      },
+    ],
     ...overrides,
   };
 }

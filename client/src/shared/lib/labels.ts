@@ -11,6 +11,7 @@ import {
   formatPhone,
   OBJECT_CATEGORY_LABELS,
   OBJECT_TYPE_LABELS,
+  PROCESSING_STAGE_LABELS,
   type ObjectCategory,
   type ObjectType,
   type Role,
@@ -25,6 +26,7 @@ export {
   GAS_PRESSURE_LABELS,
   OBJECT_CATEGORY_LABELS,
   OBJECT_TYPE_LABELS,
+  PROCESSING_STAGE_LABELS,
 };
 
 export const ROLE_LABELS: Record<Role, string> = {

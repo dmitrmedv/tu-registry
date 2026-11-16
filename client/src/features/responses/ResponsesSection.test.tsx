@@ -2,7 +2,7 @@ import type { ApplicationDto, EngineerDto, ResponseDto, UserDto } from '@tu-regi
 import { screen, within } from '@testing-library/react';
 import { http as mock, HttpResponse } from 'msw';
 import { describe, expect, it } from 'vitest';
-import { makeApplication, makePdf, makeResponse } from '@/test/fixtures';
+import { makeApplication, makePdf, makeProcessing, makeResponse } from '@/test/fixtures';
 import { renderApp } from '@/test/renderApp';
 import { apiError, makeUser, server, signedInAs } from '@/test/server';
 
@@ -28,6 +28,9 @@ function openCard(rows: ResponseDto[], user: UserDto = owner, app: ApplicationDt
   server.use(
     signedInAs(user),
     mock.get(`*/api/v1/applications/${app.id}`, () => HttpResponse.json(app)),
+    mock.get(`*/api/v1/applications/${app.id}/processing`, () =>
+      HttpResponse.json(makeProcessing()),
+    ),
     mock.get(`*/api/v1/applications/${app.id}/history`, () => HttpResponse.json([])),
     mock.get(RESPONSES, () => HttpResponse.json(current.rows)),
     mock.get(`*/api/v1/applications/${app.id}/technical-conditions`, () => HttpResponse.json([])),

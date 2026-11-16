@@ -21,6 +21,12 @@ const envSchema = z.object({
   BCRYPT_COST: z.coerce.number().int().min(4).max(15).default(12),
   // Scanned documents (PDF). Relative to the server's working directory; back it up with the DB.
   UPLOADS_DIR: z.string().trim().min(1).default('uploads'),
+  // Applications registered before this date (YYYY-MM-DD) get no overdue warnings: their
+  // deadlines were not tracked when they were processed. Unset: every application is tracked.
+  PROCESSING_START_DATE: z.preprocess(
+    (value) => (value === '' ? undefined : value),
+    z.iso.date('Очікується дата YYYY-MM-DD').optional(),
+  ),
 });
 
 const parsed = envSchema.safeParse(process.env);

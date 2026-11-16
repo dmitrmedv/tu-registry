@@ -24,6 +24,7 @@ import {
   type DocumentKind,
   loadChangeable,
   loadDocument,
+  changeDocuments,
   restoreDocument,
   updateSeen,
 } from '../documents/document.service';
@@ -106,24 +107,31 @@ export async function createTechnicalConditions(
   const engineer = await resolveEngineer(app, input.engineer);
   let created;
   try {
-    created = await TechnicalConditions.create({
-      ...input,
-      applicationId: app._id,
-      preparedDate: fromIsoDate(input.preparedDate),
-      engineer: engineer._id,
-      engineerName: engineer.fullName,
-      createdBy: actor.id,
-    });
+    [created] = await changeDocuments(app, (session) =>
+      TechnicalConditions.create(
+        [
+          {
+            ...input,
+            applicationId: app._id,
+            preparedDate: fromIsoDate(input.preparedDate),
+            engineer: engineer._id,
+            engineerName: engineer.fullName,
+            createdBy: actor.id,
+          },
+        ],
+        { session },
+      ),
+    );
   } catch (error) {
     // Two users adding at once: the index lets one through.
     if (isDuplicateKey(error)) throw alreadyValid();
     throw error;
   }
-  const record = created.toObject() as unknown as TechnicalConditionsRecord;
+  const record = created!.toObject() as unknown as TechnicalConditionsRecord;
   await auditDocument(TECHNICAL_CONDITIONS, 'TU_CREATED', actor, app, record, context, {
     preparedDate: input.preparedDate,
   });
-  return technicalConditionsDto(app, String(created._id));
+  return technicalConditionsDto(app, String(created!._id));
 }
 
 const PLAIN_FIELDS = [
@@ -167,7 +175,9 @@ export async function updateTechnicalConditions(
   }
   if (changes.length === 0) return technicalConditionsDto(app, id);
 
-  await updateSeen(TECHNICAL_CONDITIONS, current, { $set, $inc: { version: 1 } });
+  await changeDocuments(app, (session) =>
+    updateSeen(TECHNICAL_CONDITIONS, current, { $set, $inc: { version: 1 } }, session),
+  );
   await auditDocument(
     TECHNICAL_CONDITIONS,
     'TU_UPDATED',

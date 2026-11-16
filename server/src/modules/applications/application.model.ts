@@ -5,6 +5,8 @@ import {
   OBJECT_CATEGORIES,
   OBJECT_CATEGORY_OTHER_MAX,
   OBJECT_TYPES,
+  PROCESSING_STAGES,
+  CONNECTION_TYPES,
   REGISTRATION_MODES,
   SETTLEMENT_MAX,
 } from '@tu-registry/shared';
@@ -17,6 +19,30 @@ const annulmentSchema = new Schema(
     reason: { type: String, required: true, trim: true, maxlength: 500 },
     at: { type: Date, required: true },
     by: { type: Schema.Types.ObjectId, ref: 'User', required: true },
+  },
+  { _id: false },
+);
+
+/**
+ * Where the processing stands, derived from the responses and technical conditions (stage
+ * 17.5) and rewritten in the same transaction as any change of them. The documents are the
+ * source of truth; this is for the card and the registry (sorting, filters, search).
+ */
+const processingSchema = new Schema(
+  {
+    stage: { type: String, enum: PROCESSING_STAGES, required: true },
+    // Of the responses not cancelled.
+    lastResponseDate: Date,
+    lastResponseNumber: String,
+    // Of the valid technical conditions.
+    tuDate: Date,
+    tuNumber: String,
+    gasFlow: Number,
+    connectionType: { type: String, enum: CONNECTION_TYPES },
+    // The engineer of the technical conditions, or of the last response without them.
+    engineerName: String,
+    engineerIds: { type: [Schema.Types.ObjectId], default: [] },
+    documentNumbers: { type: [String], default: [] },
   },
   { _id: false },
 );
@@ -56,6 +82,8 @@ const applicationSchema = new Schema(
     status: { type: String, enum: APPLICATION_STATUSES, default: 'ACTIVE', required: true },
     annulment: { type: annulmentSchema, default: undefined },
     scan: { type: scanRecordSchema, default: undefined },
+    // Absent until the first change of documents or `db:migrate`: read as REGISTERED.
+    processing: { type: processingSchema, default: undefined },
     createdBy: { type: Schema.Types.ObjectId, ref: 'User', required: true },
     updatedBy: { type: Schema.Types.ObjectId, ref: 'User' },
     // Optimistic concurrency for edits: updateOne({ _id, version }, { $inc: { version: 1 } }).

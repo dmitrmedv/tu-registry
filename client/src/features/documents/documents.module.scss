@@ -54,7 +54,8 @@
 .cancelled {
   color: var(--color-text-muted);
 
-  .title {
+  // The title, not the «Скасовано» badge after it.
+  .title > span:first-child {
     text-decoration: line-through;
   }
 }

@@ -1,6 +1,6 @@
 import type { AuditLogDto } from '@tu-registry/shared';
 import { Link } from 'react-router';
-import { formatDateTime } from '@/shared/lib/format';
+import { formatCalendarDate, formatDateTime } from '@/shared/lib/format';
 import { AUDIT_ACTION_LABELS } from '@/shared/lib/labels';
 import { Table } from '@/shared/ui';
 import styles from './audit.module.scss';
@@ -11,6 +11,7 @@ function EntityCell({ entry }: { entry: AuditLogDto }) {
   // The application no longer exists: its number, but no link to a missing card.
   if (entry.action === 'APPLICATION_DELETED') return <>Заява {entry.entityLabel}</>;
   if (entry.entityType === 'Department') return <>Управління {entry.entityLabel}</>;
+  if (entry.entityType === 'CalendarDay') return <>{formatCalendarDate(entry.entityLabel)}</>;
   if (entry.entityType === 'Engineer') return <>Інженер {entry.entityLabel}</>;
   if (entry.entityType === 'Application') {
     return <Link to={`/applications/${entry.entityId}`}>Заява {entry.entityLabel}</Link>;

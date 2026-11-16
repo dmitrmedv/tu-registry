@@ -194,7 +194,7 @@ project/
 { actor (ObjectId | null), action, entityType, entityId, details (без паролів і токенів), ip, userAgent, createdAt }
 ```
 
-Дії: `LOGIN_SUCCESS`, `LOGIN_FAILED`, `LOGOUT`, `PASSWORD_CHANGED`, `USER_CREATED`, `USER_UPDATED`, `USER_DEACTIVATED`, `PASSWORD_RESET`, `APPLICATION_CREATED`, `APPLICATION_MANUAL_CREATED`, `REG_NUMBER_CHANGED`, `REG_DATE_CHANGED`, `APPLICATION_ANNULLED`, `APPLICATION_RESTORED`, `ENGINEER_CREATED`, `ENGINEER_UPDATED`, `ENGINEER_DEACTIVATED`, `ACCESS_DENIED`.
+Дії: `LOGIN_SUCCESS`, `LOGIN_FAILED`, `LOGOUT`, `PASSWORD_CHANGED`, `USER_CREATED`, `USER_UPDATED`, `USER_DEACTIVATED`, `PASSWORD_RESET`, `APPLICATION_CREATED`, `APPLICATION_MANUAL_CREATED`, `REG_NUMBER_CHANGED`, `REG_DATE_CHANGED`, `APPLICATION_ANNULLED`, `APPLICATION_RESTORED`, `ENGINEER_CREATED`, `ENGINEER_UPDATED`, `ENGINEER_DEACTIVATED`, `CALENDAR_DAY_CREATED`, `CALENDAR_DAY_UPDATED`, `CALENDAR_DAY_DELETED`, `ACCESS_DENIED`.
 
 API для зміни чи видалення записів журналу немає. Індекс `{ createdAt: -1 }`.
 
@@ -210,7 +210,21 @@ API для зміни чи видалення записів журналу не
 
 API: `GET /engineers?department=&active=` — будь-хто (користувач завжди отримує інженерів свого управління), `POST /engineers` і `PATCH /engineers/:id` (`fullName`, `isActive`) — адміністратор. Аудит: `ENGINEER_CREATED`, `ENGINEER_UPDATED`, `ENGINEER_DEACTIVATED`.
 
-### 3.7 `refreshSessions`
+### 3.7 `calendarDays` (етап 17.2)
+
+Винятки з правила «субота й неділя — вихідні». Лише адміністратор, «Налаштування → Календар».
+
+| Поле | Тип | Примітка |
+|---|---|---|
+| _id | String `YYYY-MM-DD` | календарна дата; одна дата — щонайбільше один запис |
+| kind | `NON_WORKING` \| `WORKING` | неробочий будній день або робоча субота/неділя; інші поєднання відхиляються («вихідні й так») |
+| description | String 2–200 | назва свята чи причина |
+| createdBy, updatedBy | ObjectId → User | хто вніс і хто змінив останнім |
+| createdAt, updatedAt | Date | |
+
+API: `GET /calendar?year=`, `POST /calendar`, `PATCH /calendar/:date` (`kind`, `description`; дата — ключ, не змінюється), `DELETE /calendar/:date`. Історія змін — у журналі аудиту: `CALENDAR_DAY_CREATED`, `CALENDAR_DAY_UPDATED` (було → стало), `CALENDAR_DAY_DELETED`.
+
+### 3.8 `refreshSessions`
 
 `{ userId, tokenHash (SHA-256), expiresAt, revokedAt, createdAt }`. TTL-індекс на `expiresAt` автоматично прибирає прострочені сесії.
 
@@ -320,6 +334,16 @@ session.withTransaction(async () => {
 - Клієнт: рядок «Пошук», «Управління» (адміністратор), «Період» (Будь-коли / Сьогодні / Цей тиждень / Цей місяць / Цей рік — за київським часом — або довільні дати), кнопка «Ще фільтри (N)» з рідшими фільтрами; під ними — швидкі вкладки «Усі · Мої · Анульовані» і чипи активних фільтрів з «Скинути все». Усе — в URL (`q`, `from`, `to`…).
 - Пошук підрядка не може використати індекс; вибірку обмежує управління й сортування за індексом (тест `explain()` перевіряє й варіант із `q`). Для внутрішнього реєстру цього достатньо; якщо стане повільно — повнотекстовий індекс.
 
+### 5.9 Строки опрацювання в робочих днях (етап 17.2)
+
+- Рахує **лише сервер** (`modules/calendar/workingDays.ts`, `documentDeadline()` у `calendar.service.ts`) за поточним календарем і «сьогодні» за Києвом — у всіх користувачів однакові числа.
+- Робочий день: виняток календаря, якщо він є; інакше — не субота й не неділя.
+- `used` — робочі дні в проміжку (дата реєстрації; дата документа]: день реєстрації не рахується, день документа рахується. Поки документа немає — до сьогодні. Документ, датований днем реєстрації чи раніше, — 0.
+- `dueDate` — N-й робочий день після реєстрації; документ, датований цим днем, вчасний. `remaining = N − used` (відʼємне — прострочено), `overdueBy = max(0, used − N)`.
+- Норми: відповідь — 5, ТУ — 10 робочих днів (`RESPONSE_DEADLINE_DAYS`, `TU_DEADLINE_DAYS` у shared). Відлік завжди від дати реєстрації, зокрема для заяв, внесених вручну.
+- Приклад: заява пн 02.11.2026, відповідь пт 06.11 → 4 з 5, строк — 09.11. Неробочий вівторок зсуває строк на день пізніше, робоча субота — на день раніше.
+- Зміна календаря одразу змінює всі розрахунки, зокрема минулих документів (знімки не зберігаються).
+
 ---
 
 ## 6. Розмежування доступу
@@ -342,6 +366,7 @@ session.withTransaction(async () => {
 | Довідник управлінь (додавання, назви, коди, архів, видалення порожніх) | ❌ | ❌ | ✅ |
 | Довідник інженерів (додавання, ПІБ, деактивація) | ❌ | ❌ | ✅ |
 | Список інженерів для вибору в документах | свого управління | свого управління | усі |
+| Календар робочих днів (винятки, історія в журналі) | ❌ | ❌ | ✅ |
 | Видалення заяви назавжди | ❌ | ❌ | ✅ |
 | Керування акаунтами (створення, права, деактивація, скидання пароля) | ❌ | ❌ | ✅ |
 | Журнал аудиту | ❌ | ❌ | ✅ |

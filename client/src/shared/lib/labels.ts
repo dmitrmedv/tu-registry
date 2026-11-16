@@ -4,6 +4,7 @@ import {
   AREA_TYPE_LABELS,
   type AreaType,
   type AuditAction,
+  type CalendarDayKind,
   formatPhone,
   OBJECT_CATEGORY_LABELS,
   OBJECT_TYPE_LABELS,
@@ -63,6 +64,9 @@ export const AUDIT_ACTION_LABELS: Record<AuditAction, string> = {
   ENGINEER_CREATED: 'Додано інженера',
   ENGINEER_UPDATED: 'Змінено інженера',
   ENGINEER_DEACTIVATED: 'Деактивовано інженера',
+  CALENDAR_DAY_CREATED: 'Додано день у календар',
+  CALENDAR_DAY_UPDATED: 'Змінено день календаря',
+  CALENDAR_DAY_DELETED: 'Видалено день з календаря',
   ACCESS_DENIED: 'Відмовлено в доступі',
 };
 
@@ -116,3 +120,8 @@ export function formatFieldValue(
       return text;
   }
 }
+
+export const CALENDAR_DAY_KIND_LABELS: Record<CalendarDayKind, string> = {
+  NON_WORKING: 'Неробочий',
+  WORKING: 'Робочий',
+};

@@ -7,6 +7,7 @@ import { errorHandler } from './middlewares/errorHandler';
 import { notFound } from './middlewares/notFound';
 import { applicationRouter } from './modules/applications/application.routes';
 import { auditRouter } from './modules/audit/audit.routes';
+import { calendarRouter } from './modules/calendar/calendar.routes';
 import { departmentRouter } from './modules/departments/department.routes';
 import { engineerRouter } from './modules/engineers/engineer.routes';
 import { createAuthRouter } from './modules/auth/auth.routes';
@@ -39,6 +40,7 @@ export function createApp() {
   app.use('/api/v1/audit', auditRouter);
   app.use('/api/v1/departments', departmentRouter);
   app.use('/api/v1/engineers', engineerRouter);
+  app.use('/api/v1/calendar', calendarRouter);
 
   app.use(notFound);
   app.use(errorHandler);

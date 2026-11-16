@@ -47,6 +47,7 @@ export function AppLayout() {
           { label: 'Журнал', to: '/audit' },
           { label: 'Управління', to: '/departments' },
           { label: 'Інженери', to: '/engineers' },
+          { label: 'Календар', to: '/calendar' },
         ]
       : []),
     ...(!restricted ? [{ label: 'Змінити пароль', to: CHANGE_PASSWORD_PATH }] : []),

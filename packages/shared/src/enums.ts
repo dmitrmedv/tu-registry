@@ -31,6 +31,10 @@ export type ApplicationStatus = (typeof APPLICATION_STATUSES)[number];
 export const APPLICATION_CHANGE_ACTIONS = ['CREATED', 'UPDATED', 'ANNULLED', 'RESTORED'] as const;
 export type ApplicationChangeAction = (typeof APPLICATION_CHANGE_ACTIONS)[number];
 
+/** A calendar exception: a weekday off, or a Saturday/Sunday worked (stage 17.2). */
+export const CALENDAR_DAY_KINDS = ['NON_WORKING', 'WORKING'] as const;
+export type CalendarDayKind = (typeof CALENDAR_DAY_KINDS)[number];
+
 export const AUDIT_ACTIONS = [
   'LOGIN_SUCCESS',
   'LOGIN_FAILED',
@@ -56,6 +60,9 @@ export const AUDIT_ACTIONS = [
   'ENGINEER_CREATED',
   'ENGINEER_UPDATED',
   'ENGINEER_DEACTIVATED',
+  'CALENDAR_DAY_CREATED',
+  'CALENDAR_DAY_UPDATED',
+  'CALENDAR_DAY_DELETED',
   'ACCESS_DENIED',
 ] as const;
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];

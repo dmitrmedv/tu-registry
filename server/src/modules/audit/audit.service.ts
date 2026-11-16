@@ -12,7 +12,7 @@ export function requestContext(req: Request): RequestContext {
 type AuditEntry = {
   action: AuditAction;
   actor?: Types.ObjectId | string | null;
-  entityType?: 'User' | 'Application' | 'Department' | 'Engineer';
+  entityType?: 'User' | 'Application' | 'Department' | 'Engineer' | 'CalendarDay';
   entityId?: Types.ObjectId | string;
   /** Never put passwords, tokens or personal data of customers here. */
   details?: Record<string, unknown>;

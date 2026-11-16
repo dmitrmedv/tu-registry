@@ -1,5 +1,6 @@
-import type { AuditLogDto } from '@tu-registry/shared';
+import type { AuditLogDto, CalendarDayKind } from '@tu-registry/shared';
 import { formatCalendarDate } from '@/shared/lib/format';
+import { CALENDAR_DAY_KIND_LABELS } from '@/shared/lib/labels';
 
 const LOGIN_FAILURE_REASONS: Record<string, string> = {
   UNKNOWN_LOGIN: 'невідомий логін',
@@ -66,6 +67,19 @@ export function describeDetails(entry: AuditLogDto): string {
             : `${ENGINEER_FIELD_LABELS[c.field] ?? c.field}: ${text(c.from)} → ${text(c.to)}`,
         )
         .join(', ');
+    }
+    case 'CALENDAR_DAY_CREATED':
+    case 'CALENDAR_DAY_DELETED':
+      return `${CALENDAR_DAY_KIND_LABELS[d.kind as CalendarDayKind] ?? text(d.kind)}: ${text(d.description)}`;
+    case 'CALENDAR_DAY_UPDATED': {
+      const changes = Array.isArray(d.changes)
+        ? (d.changes as { field: string; from: unknown; to: unknown }[])
+        : [];
+      const show = (field: string, value: unknown) =>
+        field === 'kind'
+          ? (CALENDAR_DAY_KIND_LABELS[value as CalendarDayKind] ?? text(value))
+          : text(value);
+      return changes.map((c) => `${show(c.field, c.from)} → ${show(c.field, c.to)}`).join(', ');
     }
     case 'APPLICATION_DELETED':
       return d.regDate ? `заява від ${formatCalendarDate(text(d.regDate))}` : '';

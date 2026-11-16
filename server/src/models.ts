@@ -1,6 +1,7 @@
 import { ApplicationChange } from './modules/applications/applicationChange.model';
 import { Application } from './modules/applications/application.model';
 import { AuditLog } from './modules/audit/auditLog.model';
+import { CalendarDay } from './modules/calendar/calendarDay.model';
 import { Department } from './modules/departments/department.model';
 import { Engineer } from './modules/engineers/engineer.model';
 import { RefreshSession } from './modules/auth/refreshSession.model';
@@ -12,6 +13,7 @@ export const allModels = [
   Department,
   User,
   Engineer,
+  CalendarDay,
   Application,
   ApplicationChange,
   Counter,

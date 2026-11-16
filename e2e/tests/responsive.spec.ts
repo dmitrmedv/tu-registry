@@ -33,6 +33,7 @@ test('every page fits a 375 px phone screen', async ({ page }, testInfo) => {
     ['/users', 'Користувачі'],
     ['/audit', 'Журнал'],
     ['/engineers', 'Інженери'],
+    ['/calendar', 'Календар робочих днів'],
     ['/change-password', 'Зміна пароля'],
   ];
   for (const [path, heading] of pages) {

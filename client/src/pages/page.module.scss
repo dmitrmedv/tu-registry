@@ -8,7 +8,8 @@
   max-width: 440px;
 }
 
-// A side column (the scan) and the main content; stacked on narrow screens.
+// The main content and a side column (the scan) on its right. On narrow screens the side
+// column comes first (it is first in the markup), so it is not left below the form's button.
 .withSide {
   display: grid;
   grid-template-columns: 1fr;
@@ -16,12 +17,14 @@
   align-items: start;
 
   @include up(lg) {
-    grid-template-columns: minmax(260px, 300px) minmax(0, 1fr);
+    grid-template-columns: minmax(0, 1fr) minmax(260px, 300px);
   }
 }
 
 .side {
   @include up(lg) {
+    grid-row: 1;
+    grid-column: 2;
     position: sticky;
     top: calc(var(--app-header-height, 0px) + var(--space-4));
   }

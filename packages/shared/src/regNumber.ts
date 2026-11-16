@@ -28,12 +28,26 @@ export function parseRegNumber(
 
 export type RegNumberSearch = { seq: number; year?: number; departmentCode?: number };
 
+// A number as it is being typed: "5", "5т", "5т/", "5т/2", "5т/26", "5т/26-", "5т/26-8". The
+// year counts only once complete (2 or 4 digits), the department code only after a year.
+const REG_NUMBER_SEARCH_PATTERN =
+  /^0*(\d{1,6})(?:\s*[тТtT](?:\s*\/\s*(\d{0,4})(?:\s*-\s*0*(\d{0,3}))?)?)?$/;
+
 /**
- * A number as people search for it: "15" — number 15 in any year, "15т/26" — in any
- * department, "15т/26-8" — that exact number. Null when the text is not a number.
+ * A number as people search for it: "15" or "15т" — number 15 in any year, "15т/26" — in any
+ * department, "15т/26-8" — that exact number. A part still being typed ("15т/2") is left out
+ * rather than making the whole text "not a number". Null when the text is not a number.
  */
 export function parseRegNumberSearch(input: string): RegNumberSearch | null {
-  const value = input.trim();
-  if (/^\d{1,6}$/.test(value)) return Number(value) > 0 ? { seq: Number(value) } : null;
-  return parseRegNumber(value);
+  const match = REG_NUMBER_SEARCH_PATTERN.exec(input.trim());
+  if (!match) return null;
+  const seq = Number(match[1]);
+  if (seq < 1) return null;
+  const yearPart = match[2] ?? '';
+  if (yearPart.length !== 2 && yearPart.length !== 4) return { seq };
+  const year = yearPart.length === 2 ? 2000 + Number(yearPart) : Number(yearPart);
+  if (year < 2000 || year > 2099) return { seq };
+  if (!match[3]) return { seq, year };
+  const departmentCode = Number(match[3]);
+  return departmentCode >= 1 ? { seq, year, departmentCode } : { seq, year };
 }

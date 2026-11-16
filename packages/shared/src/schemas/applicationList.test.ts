@@ -79,11 +79,23 @@ describe('parseRegNumberSearch', () => {
     ['15т/26', { year: 2026, seq: 15 }],
     [' 15t/2026 ', { year: 2026, seq: 15 }],
     ['15т/26-8', { year: 2026, seq: 15, departmentCode: 8 }],
+    // Typed so far: what is complete narrows the search, the rest waits.
+    ['5т', { seq: 5 }],
+    ['5 Т', { seq: 5 }],
+    ['5t', { seq: 5 }],
+    ['5т/', { seq: 5 }],
+    ['5т/2', { seq: 5 }],
+    ['5т/202', { seq: 5 }],
+    ['5т/26-', { year: 2026, seq: 5 }],
+    ['5т / 2026 - 1', { year: 2026, seq: 5, departmentCode: 1 }],
   ])('%j → %j', (input, expected) => {
     expect(parseRegNumberSearch(input)).toEqual(expected);
   });
 
-  it.each(['', '0', 'abc', '15/26', 'вул. Шевченка, 15'])('%j is not a number', (input) => {
-    expect(parseRegNumberSearch(input)).toBeNull();
-  });
+  it.each(['', '0', '0т', 'abc', '15/26', 'т5', '5т/26-8-1', 'вул. Шевченка, 15'])(
+    '%j is not a number',
+    (input) => {
+      expect(parseRegNumberSearch(input)).toBeNull();
+    },
+  );
 });

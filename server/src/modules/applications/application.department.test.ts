@@ -171,6 +171,14 @@ describe('departments', () => {
       expect(await numbers(admin, { q: '1т/26-11' })).toEqual(['1т/26-11']);
       expect(await numbers(admin, { q: '1т/26-11', department: 'ODESA' })).toEqual([]);
       expect(await numbers(admin, { q: '1т/26' })).toHaveLength(2);
+      // Partly typed: what is complete counts, the rest is ignored until finished.
+      expect(await numbers(admin, { q: '1т' })).toHaveLength(2);
+      expect(await numbers(admin, { q: '1t/2' })).toHaveLength(2);
+      expect(await numbers(admin, { q: '1т/26-' })).toHaveLength(2);
+      // A department code is exact: "-1" is Арцизьке (none there), not a start of "-11".
+      expect(await numbers(admin, { q: '1т/26-1' })).toEqual([]);
+      expect(await numbers(admin, { q: '1т/26-11' })).toEqual(['1т/26-11']);
+      expect(await numbers(admin, { q: '2т' })).toEqual([]);
     });
 
     it('sorts departments by name for an admin', async () => {

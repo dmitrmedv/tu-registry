@@ -12,6 +12,7 @@ import {
   OBJECT_CATEGORY_LABELS,
   OBJECT_TYPE_LABELS,
   PROCESSING_STAGE_LABELS,
+  REGISTRY_STAGE_LABELS,
   type ObjectCategory,
   type ObjectType,
   type Role,
@@ -27,6 +28,7 @@ export {
   OBJECT_CATEGORY_LABELS,
   OBJECT_TYPE_LABELS,
   PROCESSING_STAGE_LABELS,
+  REGISTRY_STAGE_LABELS,
 };
 
 export const ROLE_LABELS: Record<Role, string> = {

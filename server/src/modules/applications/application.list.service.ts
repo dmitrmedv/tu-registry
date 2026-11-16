@@ -13,6 +13,7 @@ import {
   buildListFilter,
   searchedNumber,
   CODES_BY_NAME,
+  type ComputedSortField,
   type ListSort,
   listSort,
   UKRAINIAN,
@@ -36,6 +37,16 @@ type ListedApplication = {
   registrationMode: ApplicationListItemDto['registrationMode'];
   status: ApplicationListItemDto['status'];
   createdBy: { _id: mongoose.Types.ObjectId; fullName: string } | null;
+  processing?: {
+    stage: ApplicationListItemDto['stage'];
+    lastResponseDate?: Date;
+    lastResponseNumber?: string;
+    tuDate?: Date;
+    tuNumber?: string;
+    gasFlow?: number;
+    connectionType?: ApplicationListItemDto['connectionType'];
+    engineerName?: string;
+  };
 };
 
 const LIST_FIELDS = [
@@ -54,6 +65,7 @@ const LIST_FIELDS = [
   'registrationMode',
   'status',
   'createdBy',
+  'processing',
 ] as const;
 
 type Page = { filter: Record<string, unknown>; skip: number; limit: number };
@@ -76,25 +88,10 @@ async function findComputed(
   { filter, skip, limit }: Page,
   { field, dir }: Extract<ListSort, { kind: 'computed' }>,
 ) {
-  const sortKey =
-    field === 'createdBy'
-      ? [
-          {
-            $lookup: {
-              from: 'users',
-              localField: 'createdBy',
-              foreignField: '_id',
-              pipeline: [{ $project: { fullName: 1 } }],
-              as: 'author',
-            },
-          },
-          { $addFields: { sortKey: { $first: '$author.fullName' } } },
-        ]
-      : [{ $addFields: { sortKey: { $indexOfArray: [await codesByName(field), `$${field}`] } } }];
   const rows = await Application.aggregate<ListedApplication>(
     [
       { $match: filter },
-      ...sortKey,
+      ...(await sortKeyStages(field)),
       { $sort: { sortKey: dir, regYear: dir, regSeq: dir } },
       { $skip: skip },
       { $limit: limit },
@@ -110,16 +107,66 @@ async function findComputed(
   return populated as ListedApplication[];
 }
 
-/** One page of the registry. Filtering, sorting and paging happen in the database. */
-type EnumSortField = Exclude<Extract<ListSort, { kind: 'computed' }>['field'], 'createdBy'>;
+/** Stored values of the processing summary, sorted as they are (text by Ukrainian collation). */
+const STORED_KEYS = {
+  lastResponseNumber: '$processing.lastResponseNumber',
+  tuNumber: '$processing.tuNumber',
+  gasFlow: '$processing.gasFlow',
+  engineer: '$processing.engineerName',
+} as const;
 
-/** The values of `field` in the alphabetical order of their names; departments are in the DB. */
-async function codesByName(field: EnumSortField) {
-  if (field !== 'department') return CODES_BY_NAME[field];
-  const departments = [...(await departmentDirectory()).values()];
-  return codesByLabel(Object.fromEntries(departments.map((d) => [d.id, d.name])));
+/** Values sorted by the alphabetical order of their names: the position is the key. */
+const ENUM_KEYS = {
+  objectType: '$objectType',
+  objectCategory: '$objectCategory',
+  areaType: '$areaType',
+  connectionType: '$processing.connectionType',
+  // As the registry shows it: annulled, else the stage (none yet: registered).
+  stage: {
+    $cond: [
+      { $eq: ['$status', 'ANNULLED'] },
+      'ANNULLED',
+      { $ifNull: ['$processing.stage', 'REGISTERED'] },
+    ],
+  },
+} as const;
+
+/** The stages that put `sortKey` on each row for `field`. */
+async function sortKeyStages(field: ComputedSortField) {
+  if (field === 'createdBy') {
+    return [
+      {
+        $lookup: {
+          from: 'users',
+          localField: 'createdBy',
+          foreignField: '_id',
+          pipeline: [{ $project: { fullName: 1 } }],
+          as: 'author',
+        },
+      },
+      { $addFields: { sortKey: { $first: '$author.fullName' } } },
+    ];
+  }
+  if (field in STORED_KEYS) {
+    return [{ $addFields: { sortKey: STORED_KEYS[field as keyof typeof STORED_KEYS] } }];
+  }
+  if (field === 'department') {
+    // Departments live in the database: their names are read now.
+    const departments = [...(await departmentDirectory()).values()];
+    const codes = codesByLabel(Object.fromEntries(departments.map((d) => [d.id, d.name])));
+    return [{ $addFields: { sortKey: { $indexOfArray: [codes, '$department'] } } }];
+  }
+  const enumField = field as keyof typeof ENUM_KEYS;
+  return [
+    {
+      $addFields: {
+        sortKey: { $indexOfArray: [CODES_BY_NAME[enumField], ENUM_KEYS[enumField]] },
+      },
+    },
+  ];
 }
 
+/** One page of the registry. Filtering, sorting and paging happen in the database. */
 export async function listApplications(
   query: ApplicationListQueryData,
 ): Promise<Paginated<ApplicationListItemDto>> {
@@ -165,6 +212,16 @@ export async function listApplications(
       createdBy: row.createdBy
         ? { id: String(row.createdBy._id), fullName: row.createdBy.fullName }
         : { id: '', fullName: '—' },
+      stage: row.processing?.stage ?? 'REGISTERED',
+      lastResponseDate: row.processing?.lastResponseDate
+        ? toIsoDate(row.processing.lastResponseDate)
+        : null,
+      lastResponseNumber: row.processing?.lastResponseNumber ?? null,
+      tuDate: row.processing?.tuDate ? toIsoDate(row.processing.tuDate) : null,
+      tuNumber: row.processing?.tuNumber ?? null,
+      gasFlow: row.processing?.gasFlow ?? null,
+      connectionType: row.processing?.connectionType ?? null,
+      engineerName: row.processing?.engineerName ?? null,
     })),
     meta: {
       page: query.page,

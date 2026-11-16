@@ -26,6 +26,14 @@ const row = (overrides: Partial<ApplicationListItemDto> = {}): ApplicationListIt
   registrationMode: 'AUTO',
   status: 'ACTIVE',
   createdBy: { id: me.id, fullName: me.fullName },
+  stage: 'REGISTERED',
+  lastResponseDate: null,
+  lastResponseNumber: null,
+  tuDate: null,
+  tuNumber: null,
+  gasFlow: null,
+  connectionType: null,
+  engineerName: null,
   ...overrides,
 });
 
@@ -80,11 +88,12 @@ describe('RegistryPage', () => {
     expect(rows).toHaveLength(3); // header + 2
     expect(within(rows[1]!).getByText('15т/26-8')).toBeInTheDocument();
     expect(within(rows[1]!).getByText('12.03.2026')).toBeInTheDocument();
-    expect(within(rows[1]!).getByText('—')).toBeInTheDocument(); // no representative
-    expect(within(rows[1]!).getByText('Житловий будинок')).toBeInTheDocument();
+    // No documents yet: registered, empty document columns.
+    expect(within(rows[1]!).getByText('Зареєстрована')).toBeInTheDocument();
+    expect(within(rows[1]!).getAllByText('—')).toHaveLength(4);
     // How it was registered is on the card, not in the table.
     expect(within(rows[2]!).queryByText('вручну')).not.toBeInTheDocument();
-    expect(within(rows[2]!).getByText('Інше: Котельня')).toBeInTheDocument();
+    expect(within(rows[2]!).queryByText('Інше: Котельня')).not.toBeInTheDocument(); // hidden column
     expect(last().get('createdBy')).toBeNull();
     expect(last().get('sort')).toBe('-regDate');
     expect(screen.getByRole('status')).toHaveTextContent('Знайдено: 2');
@@ -98,15 +107,16 @@ describe('RegistryPage', () => {
       'Управління↕', // the signed-in user is an admin
       'Замовник↕',
       'Населений пункт↕',
-      'Місцевість↕',
       'Адреса↕',
       'Тип обʼєкта↕',
-      'Категорія↕',
-      'Представник замовника↕',
-      'Зареєстрував↕',
+      'Стан↕',
+      'Дата відповіді↕',
+      'Дата ТУ↕',
+      'Номер ТУ↕',
+      'Інженер↕',
     ]);
-    expect(within(rows[1]!).getByText('Міська')).toBeInTheDocument();
-    expect(within(rows[2]!).getByText('Сільська')).toBeInTheDocument();
+    // Area, category, representative and author are hidden until chosen in «Колонки».
+    expect(within(rows[1]!).queryByText('Міська')).not.toBeInTheDocument();
     // One way back to the registry (the header title) and one "Нова заява" (on the page).
     expect(screen.getAllByRole('link', { name: /^Реєстр/ })).toHaveLength(1);
     expect(screen.getAllByRole('link', { name: 'Нова заява' })).toHaveLength(1);
@@ -284,17 +294,17 @@ describe('RegistryPage — card links and status', () => {
     selection.mockRestore();
   });
 
-  it('filters by area and status with buttons and shows them as removable chips', async () => {
+  it('filters by area and «Стан» and shows them as removable chips', async () => {
     const { last } = serveRegistry();
     const { user, router } = renderApp('/');
     await screen.findByRole('table');
     await openMoreFilters(user);
 
     await user.click(screen.getByRole('radio', { name: 'Сільська' }));
-    await user.click(screen.getByRole('radio', { name: 'Активні' }));
+    await user.selectOptions(screen.getByLabelText('Стан'), 'На опрацюванні');
 
     await waitFor(() =>
-      expect(Object.fromEntries(last())).toMatchObject({ areaType: 'RURAL', status: 'ACTIVE' }),
+      expect(Object.fromEntries(last())).toMatchObject({ areaType: 'RURAL', stage: 'IN_PROGRESS' }),
     );
     expect(router.state.location.search).toContain('area=RURAL');
     expect(screen.getByRole('button', { name: /^Ще фільтри \(2\)/ })).toBeInTheDocument();
@@ -303,7 +313,7 @@ describe('RegistryPage — card links and status', () => {
       within(chips)
         .getAllByRole('listitem')
         .map((chip) => chip.textContent),
-    ).toEqual(['Місцевість: Сільська×', 'Статус: Активні×']);
+    ).toEqual(['Місцевість: Сільська×', 'Стан: На опрацюванні×']);
 
     await user.click(
       screen.getByRole('button', { name: 'Прибрати фільтр «Місцевість: Сільська»' }),
@@ -313,7 +323,7 @@ describe('RegistryPage — card links and status', () => {
     expect(
       within(screen.getByRole('group', { name: 'Місцевість' })).getByRole('radio', { name: 'Усі' }),
     ).toBeChecked();
-    expect(last().get('status')).toBe('ACTIVE');
+    expect(last().get('stage')).toBe('IN_PROGRESS');
   });
 
   it('switches quick views, keeping the other filters', async () => {
@@ -334,7 +344,7 @@ describe('RegistryPage — card links and status', () => {
     );
 
     await user.click(within(views).getByRole('button', { name: 'Анульовані' }));
-    await waitFor(() => expect(last().get('status')).toBe('ANNULLED'));
+    await waitFor(() => expect(last().get('stage')).toBe('ANNULLED'));
     expect(last().get('createdBy')).toBeNull();
     expect(last().get('objectType')).toBe('DOMESTIC');
   });
@@ -390,10 +400,13 @@ describe('RegistryPage — card links and status', () => {
     await user.click(screen.getByRole('button', { name: /^Замовник/ }));
     await waitFor(() => expect(last().get('sort')).toBe('-customer'));
 
-    await user.click(screen.getByRole('button', { name: /^Зареєстрував/ }));
-    await waitFor(() => expect(last().get('sort')).toBe('createdBy'));
-    await user.click(screen.getByRole('button', { name: /^Місцевість/ }));
-    await waitFor(() => expect(last().get('sort')).toBe('areaType'));
+    await user.click(screen.getByRole('button', { name: /^Інженер/ }));
+    await waitFor(() => expect(last().get('sort')).toBe('engineer'));
+    // Dates of documents, like the registration date, start from the newest.
+    await user.click(screen.getByRole('button', { name: /^Дата ТУ/ }));
+    await waitFor(() => expect(last().get('sort')).toBe('-tuDate'));
+    await user.click(screen.getByRole('button', { name: /^Дата відповіді/ }));
+    await waitFor(() => expect(last().get('sort')).toBe('-lastResponseDate'));
   });
 
   it('keeps the rarer filters folded until asked', async () => {
@@ -443,15 +456,121 @@ describe('RegistryPage — card links and status', () => {
     await waitFor(() => expect(last().get('objectCategory')).toBe('BIOGAS_PRODUCER'));
   });
 
-  it('filters by status', async () => {
+  it('filters by «Стан», reading old ?status=ANNULLED links as annulled', async () => {
     const { last } = serveRegistry();
+    const { user } = renderApp('/?status=ANNULLED');
+    await screen.findByRole('table');
+    await waitFor(() => expect(last().get('stage')).toBe('ANNULLED'));
+    await openMoreFilters(user);
+
+    await user.selectOptions(screen.getByLabelText('Стан'), 'ТУ підготовлені');
+    await waitFor(() => expect(last().get('stage')).toBe('TU_PREPARED'));
+    expect(last().get('status')).toBeNull();
+  });
+
+  it('filters by an engineer of the documents', async () => {
+    const { last } = serveRegistry();
+    server.use(
+      mock.get('*/api/v1/engineers', () =>
+        HttpResponse.json([
+          {
+            id: 'cccccccccccccccccccccccc',
+            fullName: 'Бойко Андрій',
+            department: 'ODESA',
+            isActive: true,
+          },
+          {
+            id: 'dddddddddddddddddddddddd',
+            fullName: 'Колишній Інженер',
+            department: 'ODESA',
+            isActive: false,
+          },
+        ]),
+      ),
+    );
     const { user } = renderApp('/');
     await screen.findByRole('table');
     await openMoreFilters(user);
 
-    await user.click(screen.getByRole('radio', { name: 'Анульовані' }));
+    const engineer = screen.getByLabelText('Інженер');
+    await waitFor(() =>
+      expect(
+        within(engineer).getByRole('option', { name: 'Колишній Інженер (неактивний)' }),
+      ).toBeInTheDocument(),
+    );
+    await user.selectOptions(engineer, 'Бойко Андрій');
 
-    await waitFor(() => expect(last().get('status')).toBe('ANNULLED'));
+    await waitFor(() => expect(last().get('engineer')).toBe('cccccccccccccccccccccccc'));
+    expect(
+      screen.getByRole('button', { name: 'Прибрати фільтр «Інженер: Бойко Андрій»' }),
+    ).toBeInTheDocument();
+  });
+
+  it('shows the documents of a row in their columns', async () => {
+    serveRegistry([
+      row({
+        stage: 'TU_PREPARED',
+        lastResponseDate: '2026-03-16',
+        tuDate: '2026-03-20',
+        tuNumber: '0032/ТУ',
+        engineerName: 'Бойко Андрій',
+        gasFlow: 2.5,
+      }),
+      row({ id: 'a2', status: 'ANNULLED', stage: 'RESPONDED' }),
+    ]);
+    renderApp('/');
+    const table = await screen.findByRole('table', { name: 'Реєстр заяв' });
+    const header = within(table)
+      .getAllByRole('columnheader')
+      .map((th) => th.textContent?.replace(/[▲▼↕]/, ''));
+    expect(header).toEqual([
+      '№',
+      'Дата реєстрації',
+      'Управління',
+      'Замовник',
+      'Населений пункт',
+      'Адреса',
+      'Тип обʼєкта',
+      'Стан',
+      'Дата відповіді',
+      'Дата ТУ',
+      'Номер ТУ',
+      'Інженер',
+    ]);
+    const [, prepared, annulled] = within(table).getAllByRole('row');
+    for (const text of ['ТУ підготовлені', '16.03.2026', '20.03.2026', '0032/ТУ', 'Бойко Андрій']) {
+      expect(prepared).toHaveTextContent(text);
+    }
+    // Annulled, whatever its documents.
+    expect(annulled).toHaveTextContent('Анульована');
+  });
+
+  it('lets each user choose the columns, remembered in this browser', async () => {
+    serveRegistry([row({ gasFlow: 2.5, tuNumber: '0032/ТУ' })]);
+    const first = renderApp('/');
+    const table = await screen.findByRole('table', { name: 'Реєстр заяв' });
+    const picker = screen.getByRole('button', { name: /^Колонки/ });
+
+    await first.user.click(picker);
+    expect(picker).toHaveAttribute('aria-expanded', 'true');
+    expect(screen.getByRole('button', { name: 'Як за замовчуванням' })).toBeDisabled();
+    await first.user.click(screen.getByRole('checkbox', { name: 'Витрати газу, м³/год' }));
+    await first.user.click(screen.getByRole('checkbox', { name: 'Номер ТУ' }));
+    expect(within(table).getByRole('columnheader', { name: /^Витрати газу/ })).toBeInTheDocument();
+    expect(within(table).queryByRole('columnheader', { name: /^Номер ТУ/ })).toBeNull();
+    expect(within(table).getByText('2,5')).toBeInTheDocument();
+    await first.user.keyboard('{Escape}');
+    expect(picker).toHaveAttribute('aria-expanded', 'false');
+    expect(picker).toHaveFocus();
+
+    expect(
+      JSON.parse(window.localStorage.getItem(`tu-registry:registry-columns:${me.id}`) ?? '{}'),
+    ).toEqual({ gasFlow: true, tuNumber: false });
+
+    await first.user.click(picker);
+    await first.user.click(screen.getByRole('button', { name: 'Як за замовчуванням' }));
+    expect(within(table).queryByRole('columnheader', { name: /^Витрати газу/ })).toBeNull();
+    expect(window.localStorage.getItem(`tu-registry:registry-columns:${me.id}`)).toBe('{}');
   });
 });
 

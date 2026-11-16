@@ -37,6 +37,12 @@ export const PROCESSING_STAGE_LABELS: Record<ProcessingStage, string> = {
   TU_PREPARED: 'ТУ підготовлені',
 };
 
+/** The registry's «Стан»: an annulled application shows as annulled, whatever its stage. */
+export const REGISTRY_STAGE_LABELS = {
+  ...PROCESSING_STAGE_LABELS,
+  ANNULLED: 'Анульована',
+} as const;
+
 export const CONNECTION_TYPE_LABELS: Record<ConnectionType, string> = {
   STANDARD: 'Стандартне',
   NON_STANDARD: 'Нестандартне',

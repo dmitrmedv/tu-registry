@@ -165,6 +165,8 @@ describe('settlement, area type and the registry search and sort', () => {
           'settlement',
           'objectAddress',
           'customerRepresentative',
+          'lastResponseDate',
+          'tuDate',
         ]) {
           for (const sort of [field, `-${field}`] as const) {
             const plan = listSort(sort as 'customer');

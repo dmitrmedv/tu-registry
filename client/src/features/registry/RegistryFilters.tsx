@@ -1,5 +1,4 @@
 import {
-  type ApplicationStatus,
   AREA_TYPES,
   type AreaType,
   type Department,
@@ -7,12 +6,20 @@ import {
   OBJECT_TYPES,
   type ObjectCategory,
   type ObjectType,
+  STAGE_FILTERS,
+  type StageFilter,
   type UserOptionDto,
 } from '@tu-registry/shared';
 import { useState } from 'react';
 import { useCurrentUser } from '@/features/auth';
 import { useDepartments } from '@/features/departments';
-import { AREA_TYPE_LABELS, OBJECT_CATEGORY_LABELS, OBJECT_TYPE_LABELS } from '@/shared/lib/labels';
+import { useEngineers } from '@/features/engineers';
+import {
+  AREA_TYPE_LABELS,
+  OBJECT_CATEGORY_LABELS,
+  OBJECT_TYPE_LABELS,
+  REGISTRY_STAGE_LABELS,
+} from '@/shared/lib/labels';
 import { Button, ChoiceField, SelectField } from '@/shared/ui';
 import { PeriodField } from './PeriodField';
 import styles from './registry.module.scss';
@@ -47,21 +54,16 @@ const AREA_OPTIONS = [
   ...AREA_TYPES.map((area) => ({ value: area, label: AREA_TYPE_LABELS[area] })),
 ];
 
-const STATUS_LABELS: Record<ApplicationStatus, string> = {
-  ACTIVE: 'Активні',
-  ANNULLED: 'Анульовані',
-};
-const STATUS_OPTIONS = [
+const STAGE_OPTIONS = [
   { value: '', label: 'Усі' },
-  { value: 'ACTIVE', label: STATUS_LABELS.ACTIVE },
-  { value: 'ANNULLED', label: STATUS_LABELS.ANNULLED },
+  ...STAGE_FILTERS.map((stage) => ({ value: stage, label: REGISTRY_STAGE_LABELS[stage] })),
 ];
 
-/** Ready-made views: they set the author and status filters and leave the rest alone. */
+/** Ready-made views: they set the author and «Стан» filters and leave the rest alone. */
 const QUICK_VIEWS = [
-  { label: 'Усі', patch: { user: 'all', status: '' } },
-  { label: 'Мої', patch: { user: 'mine', status: '' } },
-  { label: 'Анульовані', patch: { user: 'all', status: 'ANNULLED' } },
+  { label: 'Усі', patch: { user: 'all', stage: '' } },
+  { label: 'Мої', patch: { user: 'mine', stage: '' } },
+  { label: 'Анульовані', patch: { user: 'all', stage: 'ANNULLED' } },
 ] as const satisfies { label: string; patch: Partial<RegistryParams> }[];
 
 export function RegistryFilters({
@@ -75,6 +77,19 @@ export function RegistryFilters({
   const departments = useDepartments();
   const me = useCurrentUser();
   const [moreOpen, setMoreOpen] = useState(false);
+  // A user's engineers are their department's (the server decides); an admin's — of the
+  // department chosen, or all.
+  const engineers = useEngineers({
+    department: showDepartment && params.department !== 'all' ? params.department : undefined,
+  });
+  const engineerList = engineers.data ?? [];
+  const engineerOptions = [
+    { value: '', label: 'Усі інженери' },
+    ...engineerList.map((e) => ({
+      value: e.id,
+      label: e.isActive ? e.fullName : `${e.fullName} (неактивний)`,
+    })),
+  ];
   // An old link may carry the signed-in user's id instead of "mine".
   const user = params.user === me.id ? 'mine' : params.user;
   const moreCount = countMoreFilters(params);
@@ -100,7 +115,14 @@ export function RegistryFilters({
       clear: { category: '' },
     },
     params.area && { label: `Місцевість: ${AREA_TYPE_LABELS[params.area]}`, clear: { area: '' } },
-    params.status && { label: `Статус: ${STATUS_LABELS[params.status]}`, clear: { status: '' } },
+    params.stage && {
+      label: `Стан: ${REGISTRY_STAGE_LABELS[params.stage]}`,
+      clear: { stage: '' },
+    },
+    params.engineer && {
+      label: `Інженер: ${engineerList.find((e) => e.id === params.engineer)?.fullName ?? 'обраний'}`,
+      clear: { engineer: '' },
+    },
     user !== 'all' && { label: `Користувач: ${userName(user)}`, clear: { user: 'all' } },
   ].filter((chip) => !!chip) as { label: string; clear: Partial<RegistryParams> }[];
 
@@ -110,7 +132,7 @@ export function RegistryFilters({
         <SearchField
           className={styles.search}
           label="Пошук"
-          placeholder="Номер, замовник, адреса, представник, коментар"
+          placeholder="Номер заяви, ТУ чи відповіді, замовник, адреса, представник"
           value={params.q}
           onCommit={(q) => update({ q }, { replace: true })}
         />
@@ -159,12 +181,17 @@ export function RegistryFilters({
           value={params.area}
           onChange={(e) => update({ area: e.target.value as AreaType | '' })}
         />
-        <ChoiceField
-          legend="Статус"
-          name="registry-status"
-          options={STATUS_OPTIONS}
-          value={params.status}
-          onChange={(e) => update({ status: e.target.value as ApplicationStatus | '' })}
+        <SelectField
+          label="Стан"
+          options={STAGE_OPTIONS}
+          value={params.stage}
+          onChange={(e) => update({ stage: e.target.value as StageFilter | '' })}
+        />
+        <SelectField
+          label="Інженер"
+          options={engineerOptions}
+          value={params.engineer}
+          onChange={(e) => update({ engineer: e.target.value })}
         />
         <SelectField
           label="Користувач"
@@ -177,7 +204,7 @@ export function RegistryFilters({
       <div className={styles.filterSummary}>
         <div className={styles.quickViews} role="group" aria-label="Швидкий вибір">
           {QUICK_VIEWS.map((view) => {
-            const active = user === view.patch.user && params.status === view.patch.status;
+            const active = user === view.patch.user && params.stage === view.patch.stage;
             return (
               <Button
                 key={view.label}

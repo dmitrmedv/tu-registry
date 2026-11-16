@@ -3,10 +3,12 @@ import {
   type ApplicationSort,
   AREA_TYPE_LABELS,
   codesByLabel,
+  CONNECTION_TYPE_LABELS,
   OBJECT_CATEGORY_LABELS,
   OBJECT_TYPE_LABELS,
   parseRegNumberSearch,
   type RegNumberSearch,
+  REGISTRY_STAGE_LABELS,
   type SortField,
 } from '@tu-registry/shared';
 import mongoose from 'mongoose';
@@ -29,6 +31,8 @@ const QUICK_SEARCH_FIELDS = [
   'settlement',
   'objectAddress',
   'comment',
+  // Numbers of the responses and the valid technical conditions (stage 17.6).
+  'processing.documentNumbers',
 ] as const;
 
 /** The search box read as a registration number, if it is one. */
@@ -77,7 +81,16 @@ export function buildListFilter(query: ApplicationListQueryData, numberDepartmen
   if (query.objectType) filter.objectType = query.objectType;
   if (query.objectCategory) filter.objectCategory = query.objectCategory;
   if (query.areaType) filter.areaType = query.areaType;
-  if (query.status) filter.status = query.status;
+  if (query.stage === 'ANNULLED') filter.status = 'ANNULLED';
+  else if (query.stage) {
+    filter.status = 'ACTIVE';
+    // An application without a summary yet (before `db:migrate`) has no documents: registered.
+    filter['processing.stage'] =
+      query.stage === 'REGISTERED' ? mongoose.trusted({ $in: ['REGISTERED', null] }) : query.stage;
+  }
+  if (query.engineer) {
+    filter['processing.engineerIds'] = new mongoose.Types.ObjectId(query.engineer);
+  }
   if (query.createdBy) filter.createdBy = new mongoose.Types.ObjectId(query.createdBy);
   if (query.dateFrom || query.dateTo) {
     // Both ends inclusive: registration dates are stored as midnight UTC.
@@ -96,13 +109,28 @@ export type ListSort =
   /** Sorted by the database through an index. */
   | { kind: 'indexed'; sort: Record<string, 1 | -1>; collation?: typeof UKRAINIAN }
   /** Sorted by a computed key (an enum's name, the author's name) after filtering. */
-  | {
-      kind: 'computed';
-      field: 'department' | 'objectType' | 'objectCategory' | 'areaType' | 'createdBy';
-      dir: 1 | -1;
-    };
+  | { kind: 'computed'; field: ComputedSortField; dir: 1 | -1 };
 
-const TEXT_SORT_FIELDS = ['customer', 'settlement', 'objectAddress', 'customerRepresentative'];
+/** Sorted after filtering, in the database's memory (no index): see §5.7 of ARCHITECTURE. */
+export type ComputedSortField = Exclude<
+  SortField,
+  'regNumber' | 'regDate' | TextSortField | DateSortField
+>;
+type TextSortField = (typeof TEXT_SORT_FIELDS)[number];
+type DateSortField = keyof typeof DATE_SORT_PATHS;
+
+/** Dates of documents, sorted through indexes like the registration date. */
+const DATE_SORT_PATHS = {
+  lastResponseDate: 'processing.lastResponseDate',
+  tuDate: 'processing.tuDate',
+} as const;
+
+const TEXT_SORT_FIELDS = [
+  'customer',
+  'settlement',
+  'objectAddress',
+  'customerRepresentative',
+] as const;
 
 /** Equal values are always ordered by number, in the same direction, so pages are stable. */
 export function listSort(sort: ApplicationSort): ListSort {
@@ -111,14 +139,14 @@ export function listSort(sort: ApplicationSort): ListSort {
   const byNumber = { regYear: dir, regSeq: dir } as const;
   if (field === 'regNumber') return { kind: 'indexed', sort: byNumber };
   if (field === 'regDate') return { kind: 'indexed', sort: { regDate: dir, ...byNumber } };
-  if (TEXT_SORT_FIELDS.includes(field)) {
+  if (field in DATE_SORT_PATHS) {
+    const path = DATE_SORT_PATHS[field as DateSortField];
+    return { kind: 'indexed', sort: { [path]: dir, ...byNumber } };
+  }
+  if ((TEXT_SORT_FIELDS as readonly string[]).includes(field)) {
     return { kind: 'indexed', sort: { [field]: dir, ...byNumber }, collation: UKRAINIAN };
   }
-  return {
-    kind: 'computed',
-    field: field as Extract<ListSort, { kind: 'computed' }>['field'],
-    dir,
-  };
+  return { kind: 'computed', field: field as ComputedSortField, dir };
 }
 
 /** Enum codes in the alphabetical order of their names: the position is the sort key. */
@@ -126,4 +154,6 @@ export const CODES_BY_NAME = {
   objectType: codesByLabel(OBJECT_TYPE_LABELS),
   objectCategory: codesByLabel(OBJECT_CATEGORY_LABELS),
   areaType: codesByLabel(AREA_TYPE_LABELS),
+  connectionType: codesByLabel(CONNECTION_TYPE_LABELS),
+  stage: codesByLabel(REGISTRY_STAGE_LABELS),
 };

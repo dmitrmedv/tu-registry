@@ -136,6 +136,11 @@ for (const field of ['customer', 'settlement', 'objectAddress', 'customerReprese
 }
 // A user's registry is always one department: the same sorts, scoped to it.
 applicationSchema.index({ department: 1, ...BY_DATE });
+// Dates of the documents (stage 17.6): the registry sorts by them like by the registration date.
+for (const path of ['processing.lastResponseDate', 'processing.tuDate']) {
+  applicationSchema.index({ [path]: 1, regYear: 1, regSeq: 1 });
+  applicationSchema.index({ department: 1, [path]: 1, regYear: 1, regSeq: 1 });
+}
 
 export type ApplicationData = InferSchemaType<typeof applicationSchema>;
 export const Application = model('Application', applicationSchema);

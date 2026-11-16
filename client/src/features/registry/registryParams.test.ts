@@ -48,6 +48,20 @@ describe('registry URL params', () => {
     expect(query.dateTo).toBeUndefined();
   });
 
+  it('reads «Стан» and the engineer, and old ?status=ANNULLED links as annulled', () => {
+    const params = readParams(
+      new URLSearchParams('stage=TU_PREPARED&engineer=cccccccccccccccccccccccc'),
+    );
+    expect(params).toMatchObject({ stage: 'TU_PREPARED', engineer: 'cccccccccccccccccccccccc' });
+    expect(toApiQuery(params, ME)).toMatchObject({
+      stage: 'TU_PREPARED',
+      engineer: 'cccccccccccccccccccccccc',
+    });
+    expect(readParams(new URLSearchParams('status=ANNULLED')).stage).toBe('ANNULLED');
+    expect(readParams(new URLSearchParams('status=ACTIVE')).stage).toBe('');
+    expect(readParams(new URLSearchParams('stage=DONE&engineer=Бойко'))).toEqual(DEFAULT_PARAMS);
+  });
+
   it('forgets the per-field searches of old links', () => {
     expect(readParams(new URLSearchParams('customer=ТОВ&number=15'))).toEqual(DEFAULT_PARAMS);
   });
@@ -60,9 +74,11 @@ describe('registry URL params', () => {
         q: 'x',
         from: '2026-01-01',
         area: 'URBAN',
+        stage: 'RESPONDED',
+        engineer: 'cccccccccccccccccccccccc',
         user: 'mine',
       }),
-    ).toBe(2);
+    ).toBe(4);
   });
 
   it("sends an admin's department (Одеське by default, none for «all»); never a user's", () => {

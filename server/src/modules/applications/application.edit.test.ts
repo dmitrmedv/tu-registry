@@ -335,16 +335,18 @@ describe('application card, editing, annulment and history', () => {
     expect((await history(owner, '0123456789abcdef01234567')).status).toBe(404);
   });
 
-  it('filters the registry by status', async () => {
+  it('filters the registry by «Стан»: annulled, or the stage of an active one', async () => {
     const created = await register(owner);
     await register(owner);
     await annul(owner, created.id, { reason: 'Помилка', version: 1 });
 
-    const annulled = await request(app).get(BASE).query({ status: 'ANNULLED' }).set(owner.auth);
-    const all = await request(app).get(BASE).set(owner.auth);
+    const total = async (query: Record<string, string>) =>
+      (await request(app).get(BASE).query(query).set(owner.auth)).body.meta.total as number;
 
-    expect(annulled.body.meta.total).toBe(1);
-    expect(all.body.meta.total).toBe(2);
+    expect(await total({ stage: 'ANNULLED' })).toBe(1);
+    // An annulled application is not «registered» any more, whatever its documents.
+    expect(await total({ stage: 'REGISTERED' })).toBe(1);
+    expect(await total({})).toBe(2);
   });
 
   it('does not report the edited application as holding its own number', async () => {

@@ -28,6 +28,19 @@ describe('applicationListQuerySchema', () => {
     });
   });
 
+  it('filters by «Стан» and engineer, sorts by the documents', () => {
+    expect(
+      applicationListQuerySchema.parse({
+        stage: 'ANNULLED',
+        engineer: 'aaaaaaaaaaaaaaaaaaaaaaaa',
+        sort: '-tuDate',
+      }),
+    ).toMatchObject({ stage: 'ANNULLED', engineer: 'aaaaaaaaaaaaaaaaaaaaaaaa', sort: '-tuDate' });
+    for (const sort of ['stage', '-lastResponseDate', 'gasFlow', '-engineer']) {
+      expect(applicationListQuerySchema.parse({ sort }).sort).toBe(sort);
+    }
+  });
+
   it('filters by object category', () => {
     expect(applicationListQuerySchema.parse({ objectCategory: 'LAND_PLOT' }).objectCategory).toBe(
       'LAND_PLOT',
@@ -51,6 +64,8 @@ describe('applicationListQuerySchema', () => {
     { sort: 'phone' },
     { q: 'я'.repeat(201) },
     { createdBy: 'not-an-id' },
+    { stage: 'ACTIVE' },
+    { engineer: 'Бойко' },
     { dateFrom: '2026-02-30' },
     { dateFrom: '2026-03-10', dateTo: '2026-03-01' },
   ])('rejects %j', (query) => {

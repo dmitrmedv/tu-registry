@@ -228,3 +228,56 @@
 .annulledRow .rowLink {
   text-decoration: line-through;
 }
+
+.summaryStart {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+// «Колонки»: the panel opens under the button, over the table.
+.columnsPicker {
+  position: relative;
+}
+
+.columnsPanel {
+  position: absolute;
+  z-index: 20;
+  top: calc(100% + var(--space-1));
+  left: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  width: max-content;
+  max-width: min(320px, calc(100vw - 2 * var(--space-4)));
+  // The bar it opens from is sticky: on a short page the panel must scroll within itself.
+  max-height: min(70vh, 560px);
+  overflow-y: auto;
+  padding: var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  box-shadow: 0 4px 16px rgb(0 0 0 / 12%);
+
+  fieldset {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+    margin: 0;
+    padding: 0;
+    border: 0;
+  }
+
+  legend {
+    margin-bottom: var(--space-1);
+    font-weight: 600;
+  }
+}
+
+.columnOption {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  cursor: pointer;
+}

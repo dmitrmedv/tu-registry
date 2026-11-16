@@ -4,10 +4,12 @@ import { useEffect } from 'react';
 import { useLocation } from 'react-router';
 import { useCurrentUser } from '@/features/auth';
 import {
+  ColumnsPicker,
   RegistryFilters,
   RegistryTable,
   toApiQuery,
   useApplicationList,
+  useRegistryColumns,
   useRegistryParams,
   useUserOptions,
 } from '@/features/registry';
@@ -28,6 +30,7 @@ export function RegistryPage() {
   const list = useApplicationList(toApiQuery(params, user));
   const isAdmin = user.role === 'ADMIN';
   const users = useUserOptions();
+  const columns = useRegistryColumns(user.id, isAdmin);
   const meta = list.data?.meta;
 
   // Another page starts from its first row, not where the previous one was scrolled to.
@@ -64,7 +67,16 @@ export function RegistryPage() {
         />
         {meta && meta.total > 0 && (
           <div className={styles.summary}>
-            <span role="status">Знайдено: {meta.total}</span>
+            <div className={styles.summaryStart}>
+              <span role="status">Знайдено: {meta.total}</span>
+              <ColumnsPicker
+                columns={columns.available}
+                isVisible={columns.isVisible}
+                onChange={columns.setVisible}
+                onReset={columns.resetColumns}
+                isDefault={columns.isDefault}
+              />
+            </div>
             <div className={styles.paging}>
               <Pagination
                 page={meta.page}
@@ -125,7 +137,7 @@ export function RegistryPage() {
             aria-busy={list.isFetching}
           >
             <RegistryTable
-              showDepartment={isAdmin}
+              columns={columns.visible}
               rows={list.data.data}
               sort={params.sort}
               onSort={(sort) => update({ sort })}

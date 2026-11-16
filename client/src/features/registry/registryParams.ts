@@ -1,7 +1,5 @@
 import {
-  APPLICATION_STATUSES,
   APPLICATION_SORTS,
-  type ApplicationStatus,
   type ApplicationListQuery,
   type ApplicationSort,
   AREA_TYPES,
@@ -15,6 +13,8 @@ import {
   type ObjectType,
   PAGE_SIZES,
   type Role,
+  STAGE_FILTERS,
+  type StageFilter,
 } from '@tu-registry/shared';
 
 /** Registry state as it lives in the URL (?customer=…&type=…&page=2). */
@@ -27,7 +27,10 @@ export type RegistryParams = {
   type: ObjectType | '';
   category: ObjectCategory | '';
   area: AreaType | '';
-  status: ApplicationStatus | '';
+  /** «Стан»: a processing stage of an active application, or annulled. */
+  stage: StageFilter | '';
+  /** An engineer named in any document in force. */
+  engineer: string;
   /** "all" (default), "mine", or a user id. */
   user: string;
   /** Admins only (users always get their own): a department or "all"; Одеське by default. */
@@ -44,14 +47,15 @@ export const DEFAULT_PARAMS: RegistryParams = {
   type: '',
   category: '',
   area: '',
-  status: '',
+  stage: '',
+  engineer: '',
   user: 'all',
   department: DEFAULT_DEPARTMENT,
   from: '',
   to: '',
 };
 
-const FILTER_KEYS = ['q', 'type', 'category', 'area', 'status', 'from', 'to'] as const;
+const FILTER_KEYS = ['q', 'type', 'category', 'area', 'stage', 'engineer', 'from', 'to'] as const;
 const OBJECT_ID = /^[a-f\d]{24}$/i;
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -64,7 +68,9 @@ export function readParams(search: URLSearchParams): RegistryParams {
   const type = search.get('type') as ObjectType;
   const category = search.get('category') as ObjectCategory;
   const area = search.get('area') as AreaType;
-  const status = search.get('status') as ApplicationStatus;
+  // Links from before stage 17.6 carry ?status=ANNULLED: the same as «Стан: Анульована».
+  const stage = (search.get('stage') ??
+    (search.get('status') === 'ANNULLED' ? 'ANNULLED' : '')) as StageFilter;
   const user = text('user');
   const department = text('department') as Department | 'all';
   const date = (key: string) => (ISO_DATE.test(text(key)) ? text(key) : '');
@@ -76,7 +82,8 @@ export function readParams(search: URLSearchParams): RegistryParams {
     type: OBJECT_TYPES.includes(type) ? type : '',
     category: OBJECT_CATEGORIES.includes(category) ? category : '',
     area: AREA_TYPES.includes(area) ? area : '',
-    status: APPLICATION_STATUSES.includes(status) ? status : '',
+    stage: STAGE_FILTERS.includes(stage) ? stage : '',
+    engineer: OBJECT_ID.test(text('engineer')) ? text('engineer') : '',
     user: user === 'mine' || OBJECT_ID.test(user) ? user : 'all',
     department:
       department === 'all' || DEPARTMENT_ID_PATTERN.test(department)
@@ -98,7 +105,9 @@ export function writeParams(params: RegistryParams) {
 
 /** Filters behind «Ще фільтри»: the button shows how many of them are set. */
 export function countMoreFilters(params: RegistryParams) {
-  const set = [params.type, params.category, params.area, params.status].filter(Boolean).length;
+  const set = [params.type, params.category, params.area, params.stage, params.engineer].filter(
+    Boolean,
+  ).length;
   return set + (params.user !== 'all' ? 1 : 0);
 }
 
@@ -129,7 +138,8 @@ export function toApiQuery(params: RegistryParams, viewer: Viewer): ApplicationL
     areaType: params.area || undefined,
     objectType: params.type || undefined,
     objectCategory: params.category || undefined,
-    status: params.status || undefined,
+    stage: params.stage || undefined,
+    engineer: params.engineer || undefined,
     createdBy:
       params.user === 'mine' ? currentUserId : params.user === 'all' ? undefined : params.user,
     dateFrom: params.from || undefined,

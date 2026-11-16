@@ -30,8 +30,9 @@ test('registers an application under the next number and finds it in the registr
   const table = page.getByRole('table', { name: 'Реєстр заяв' });
   await expect(table.getByRole('row')).toHaveCount(2); // header + the new application
   await expect(table.getByRole('link', { name: regNumber })).toBeVisible();
-  await expect(table.getByRole('cell', { name: 'Житловий будинок' })).toBeVisible();
-  await expect(table.getByRole('cell', { name: 'Міська' })).toBeVisible();
+  await expect(table.getByRole('cell', { name: 'Побутовий' })).toBeVisible();
+  await expect(table.getByRole('cell', { name: 'м. Київ' })).toBeVisible();
+  await expect(table.getByRole('cell', { name: 'Зареєстрована' })).toBeVisible();
 
   // The same box finds it by number; a click anywhere on the row opens the card.
   await page.getByRole('searchbox', { name: 'Пошук' }).fill(regNumber);

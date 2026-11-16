@@ -7,21 +7,20 @@ import clsx from 'clsx';
 import type { MouseEvent } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router';
 import { useDepartments } from '@/features/departments';
-import { formatCalendarDate } from '@/shared/lib/format';
-import { AREA_TYPE_LABELS, formatObjectCategory, OBJECT_TYPE_LABELS } from '@/shared/lib/labels';
 import { Badge, Table } from '@/shared/ui';
+import type { RegistryColumn } from './registryColumns';
 import styles from './registry.module.scss';
 
 type Props = {
   rows: ApplicationListItemDto[];
-  /** Admins see every department, so the column tells them apart. */
-  showDepartment: boolean;
+  /** The columns after «№», as the viewer chose them (see useRegistryColumns). */
+  columns: RegistryColumn[];
   sort: ApplicationSort;
   onSort: (sort: ApplicationSort) => void;
 };
 
-/** Number and date start from the newest; names start from А. A second click reverses. */
-const NEWEST_FIRST: SortField[] = ['regNumber', 'regDate'];
+/** Number and dates start from the newest; names start from А. A second click reverses. */
+const NEWEST_FIRST: SortField[] = ['regNumber', 'regDate', 'lastResponseDate', 'tuDate'];
 
 function SortableHeader({
   field,
@@ -45,17 +44,6 @@ function SortableHeader({
   );
 }
 
-const COLUMNS: [SortField, string][] = [
-  ['customer', 'Замовник'],
-  ['settlement', 'Населений пункт'],
-  ['areaType', 'Місцевість'],
-  ['objectAddress', 'Адреса'],
-  ['objectType', 'Тип обʼєкта'],
-  ['objectCategory', 'Категорія'],
-  ['customerRepresentative', 'Представник замовника'],
-  ['createdBy', 'Зареєстрував'],
-];
-
 /**
  * A click anywhere on a row opens the card; Ctrl/Cmd+click and the middle button open it in a
  * new tab. Mouse only: keyboard and screen-reader users get the link on the number. Clicks on
@@ -74,7 +62,7 @@ function useRowOpener(registrySearch: string) {
   };
 }
 
-export function RegistryTable({ rows, showDepartment, sort, onSort }: Props) {
+export function RegistryTable({ rows, columns, sort, onSort }: Props) {
   // The card's "back to registry" link returns to exactly these filters.
   const { search } = useLocation();
   const openRow = useRowOpener(search);
@@ -84,12 +72,14 @@ export function RegistryTable({ rows, showDepartment, sort, onSort }: Props) {
       <thead>
         <tr>
           <SortableHeader field="regNumber" label="№" sort={sort} onSort={onSort} />
-          <SortableHeader field="regDate" label="Дата реєстрації" sort={sort} onSort={onSort} />
-          {showDepartment && (
-            <SortableHeader field="department" label="Управління" sort={sort} onSort={onSort} />
-          )}
-          {COLUMNS.map(([field, label]) => (
-            <SortableHeader key={field} field={field} label={label} sort={sort} onSort={onSort} />
+          {columns.map((column) => (
+            <SortableHeader
+              key={column.id}
+              field={column.id}
+              label={column.label}
+              sort={sort}
+              onSort={onSort}
+            />
           ))}
         </tr>
       </thead>
@@ -116,18 +106,11 @@ export function RegistryTable({ rows, showDepartment, sort, onSort }: Props) {
                 </>
               )}
             </td>
-            <td className={styles.nowrap}>{formatCalendarDate(row.regDate)}</td>
-            {showDepartment && <td className={styles.nowrap}>{nameOf(row.department)}</td>}
-            <td className={styles.wrap}>{row.customer}</td>
-            <td className={styles.nowrap}>{row.settlement ?? '—'}</td>
-            <td className={styles.nowrap}>{row.areaType ? AREA_TYPE_LABELS[row.areaType] : '—'}</td>
-            <td className={styles.wrap}>{row.objectAddress}</td>
-            <td className={styles.nowrap}>{OBJECT_TYPE_LABELS[row.objectType]}</td>
-            <td className={styles.wrap}>
-              {formatObjectCategory(row.objectCategory, row.objectCategoryOther)}
-            </td>
-            <td className={styles.wrap}>{row.customerRepresentative ?? '—'}</td>
-            <td className={styles.nowrap}>{row.createdBy.fullName}</td>
+            {columns.map((column) => (
+              <td key={column.id} className={column.wrap ? styles.wrap : styles.nowrap}>
+                {column.cell(row, nameOf)}
+              </td>
+            ))}
           </tr>
         ))}
       </tbody>

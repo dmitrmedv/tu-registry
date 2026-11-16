@@ -4,13 +4,15 @@ import { setupServer } from 'msw/node';
 
 /**
  * Network-level mock: tests talk to the real axios client and interceptors.
- * Defaults (restored after each test): an empty registry, no users, the 14 initial departments.
+ * Defaults (restored after each test): an empty registry, no users or engineers, the 14 initial
+ * departments.
  */
 export const server = setupServer(
   http.get('*/api/v1/applications', () =>
     HttpResponse.json({ data: [], meta: { page: 1, limit: 20, total: 0, totalPages: 1 } }),
   ),
   http.get('*/api/v1/users/options', () => HttpResponse.json([])),
+  http.get('*/api/v1/engineers', () => HttpResponse.json([])),
   http.get('*/api/v1/departments', () => HttpResponse.json(departmentsList())),
 );
 

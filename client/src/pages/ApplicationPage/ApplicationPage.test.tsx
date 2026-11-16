@@ -30,6 +30,7 @@ function openCard(user = owner, app: ApplicationDto = makeApplication()) {
     signedInAs(user),
     mock.get(`*/api/v1/applications/${app.id}`, () => HttpResponse.json(app)),
     mock.get(`*/api/v1/applications/${app.id}/responses`, () => HttpResponse.json([])),
+    mock.get(`*/api/v1/applications/${app.id}/technical-conditions`, () => HttpResponse.json([])),
     mock.get(`*/api/v1/applications/${app.id}/history`, () =>
       HttpResponse.json([
         makeChange({

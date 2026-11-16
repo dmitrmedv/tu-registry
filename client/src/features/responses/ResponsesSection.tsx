@@ -1,23 +1,21 @@
-import {
-  type ApplicationDto,
-  formatFileSize,
-  RESPONSE_DEADLINE_DAYS,
-  type ResponseDto,
-} from '@tu-registry/shared';
+import { type ApplicationDto, RESPONSE_DEADLINE_DAYS, type ResponseDto } from '@tu-registry/shared';
 import clsx from 'clsx';
 import { useState } from 'react';
 import { canManageDocuments, canRestoreDocument } from '@/features/applications';
 import { useCurrentUser } from '@/features/auth';
+import {
+  CancelDocumentDialog,
+  documentStyles as styles,
+  PreviousScans,
+} from '@/features/documents';
 import { toApiError } from '@/shared/api/apiError';
 import { formatCalendarDate, formatDateTime, workingDaysLabel } from '@/shared/lib/format';
 import { openPdf } from '@/shared/lib/pdf';
 import { Alert, Badge, Button, Icon, Spinner } from '@/shared/ui';
 import { responsesApi } from './api';
-import { CancelDocumentDialog } from './CancelDocumentDialog';
 import { DocumentsReceivedDialog } from './DocumentsReceivedDialog';
 import { useCancelResponse, useResponses, useRestoreResponse } from './queries';
 import { ResponseDialog } from './ResponseDialog';
-import styles from './responses.module.scss';
 
 type DialogState =
   | { kind: 'none' }
@@ -147,28 +145,10 @@ export function ResponsesSection({ app }: { app: ApplicationDto }) {
                     </Button>
                   )}
                 </div>
-                {response.previousScans.length > 0 && (
-                  <details className={styles.previous}>
-                    <summary>Попередні версії скану ({response.previousScans.length})</summary>
-                    <ul>
-                      {response.previousScans.map((scan) => (
-                        <li key={scan.id}>
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            onClick={() => openScanOf(response, scan.id, scan.name)}
-                          >
-                            {scan.name}
-                          </Button>{' '}
-                          <span className={styles.muted}>
-                            {formatFileSize(scan.size)}, {formatDateTime(scan.uploadedAt)},{' '}
-                            {scan.uploadedBy.fullName}
-                          </span>
-                        </li>
-                      ))}
-                    </ul>
-                  </details>
-                )}
+                <PreviousScans
+                  scans={response.previousScans}
+                  onOpen={(scan) => openScanOf(response, scan.id, scan.name)}
+                />
               </li>
             );
           })}

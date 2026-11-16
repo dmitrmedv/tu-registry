@@ -30,6 +30,7 @@ function openCard(rows: ResponseDto[], user: UserDto = owner, app: ApplicationDt
     mock.get(`*/api/v1/applications/${app.id}`, () => HttpResponse.json(app)),
     mock.get(`*/api/v1/applications/${app.id}/history`, () => HttpResponse.json([])),
     mock.get(RESPONSES, () => HttpResponse.json(current.rows)),
+    mock.get(`*/api/v1/applications/${app.id}/technical-conditions`, () => HttpResponse.json([])),
     mock.get('*/api/v1/engineers', () => HttpResponse.json(engineers)),
   );
   return { ...renderApp(`/applications/${app.id}`), current };

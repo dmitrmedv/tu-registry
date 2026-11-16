@@ -13,7 +13,13 @@ type AuditEntry = {
   action: AuditAction;
   actor?: Types.ObjectId | string | null;
   entityType?:
-    'User' | 'Application' | 'Department' | 'Engineer' | 'CalendarDay' | 'ApplicationResponse';
+    | 'User'
+    | 'Application'
+    | 'Department'
+    | 'Engineer'
+    | 'CalendarDay'
+    | 'ApplicationResponse'
+    | 'TechnicalConditions';
   entityId?: Types.ObjectId | string;
   /** Never put passwords, tokens or personal data of customers here. */
   details?: Record<string, unknown>;

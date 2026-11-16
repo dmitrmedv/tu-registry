@@ -2,6 +2,7 @@ import { ApplicationChange } from './modules/applications/applicationChange.mode
 import { Application } from './modules/applications/application.model';
 import { AuditLog } from './modules/audit/auditLog.model';
 import { CalendarDay } from './modules/calendar/calendarDay.model';
+import { TechnicalConditions } from './modules/technicalConditions/technicalConditions.model';
 import { ApplicationResponse } from './modules/responses/response.model';
 import { Department } from './modules/departments/department.model';
 import { Engineer } from './modules/engineers/engineer.model';
@@ -16,6 +17,7 @@ export const allModels = [
   Engineer,
   CalendarDay,
   ApplicationResponse,
+  TechnicalConditions,
   Application,
   ApplicationChange,
   Counter,

@@ -82,14 +82,16 @@ export async function listAuditLogs(query: AuditListQueryData): Promise<Paginate
               (regNumbers.get(entityId) ?? detailString(row.details, 'regNumber'))
             : entityType === 'Department'
               ? (departments.get(entityId)?.name ?? detailString(row.details, 'name'))
-              : entityType === 'ApplicationResponse'
-                ? `${detailString(row.details, 'outgoingNumber') ?? ''} до заяви ${detailString(row.details, 'regNumber') ?? ''}`
-                : entityType === 'CalendarDay'
-                  ? entityId
-                  : entityType === 'Engineer'
-                    ? // The name as it was then: the entries are few, a lookup is not worth it.
-                      detailString(row.details, 'fullName')
-                    : (users.get(entityId)?.login ?? null),
+              : entityType === 'TechnicalConditions'
+                ? `${detailString(row.details, 'tuNumber') ?? ''} до заяви ${detailString(row.details, 'regNumber') ?? ''}`
+                : entityType === 'ApplicationResponse'
+                  ? `${detailString(row.details, 'outgoingNumber') ?? ''} до заяви ${detailString(row.details, 'regNumber') ?? ''}`
+                  : entityType === 'CalendarDay'
+                    ? entityId
+                    : entityType === 'Engineer'
+                      ? // The name as it was then: the entries are few, a lookup is not worth it.
+                        detailString(row.details, 'fullName')
+                      : (users.get(entityId)?.login ?? null),
         details: (row.details as Record<string, unknown> | undefined) ?? null,
         ip: row.ip ?? null,
       };

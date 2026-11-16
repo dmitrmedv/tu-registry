@@ -1,6 +1,11 @@
 import type { AuditLogDto, CalendarDayKind } from '@tu-registry/shared';
 import { formatCalendarDate } from '@/shared/lib/format';
-import { CALENDAR_DAY_KIND_LABELS } from '@/shared/lib/labels';
+import {
+  CALENDAR_DAY_KIND_LABELS,
+  CONNECTION_POINT_LABELS,
+  CONNECTION_TYPE_LABELS,
+  GAS_PRESSURE_LABELS,
+} from '@/shared/lib/labels';
 
 const LOGIN_FAILURE_REASONS: Record<string, string> = {
   UNKNOWN_LOGIN: 'невідомий логін',
@@ -16,11 +21,23 @@ const USER_FIELD_LABELS: Record<string, string> = {
   isActive: 'активний',
 };
 
-const RESPONSE_FIELD_LABELS: Record<string, string> = {
+const DOCUMENT_FIELD_LABELS: Record<string, string> = {
   outgoingNumber: 'номер',
   responseDate: 'дата',
   engineer: 'інженер',
   documentsReceivedAt: 'документи надійшли',
+  tuNumber: 'номер',
+  preparedDate: 'дата',
+  gasFlow: 'витрати газу',
+  connectionType: 'тип приєднання',
+  gasPressure: 'тиск',
+  connectionPoint: 'точка приєднання',
+};
+
+const TU_VALUE_LABELS: Record<string, Record<string, string>> = {
+  connectionType: CONNECTION_TYPE_LABELS,
+  gasPressure: GAS_PRESSURE_LABELS,
+  connectionPoint: CONNECTION_POINT_LABELS,
 };
 
 const ENGINEER_FIELD_LABELS: Record<string, string> = { fullName: 'ПІБ' };
@@ -90,23 +107,26 @@ export function describeDetails(entry: AuditLogDto): string {
     }
     case 'RESPONSE_CREATED':
       return d.responseDate ? `від ${formatCalendarDate(text(d.responseDate))}` : '';
-    case 'RESPONSE_UPDATED': {
+    case 'TU_CREATED':
+      return d.preparedDate ? `від ${formatCalendarDate(text(d.preparedDate))}` : '';
+    case 'RESPONSE_UPDATED':
+    case 'TU_UPDATED': {
       const changes = Array.isArray(d.changes)
         ? (d.changes as { field: string; from: unknown; to: unknown }[])
         : [];
       const show = (field: string, value: unknown) =>
         value === null || value === undefined
           ? '—'
-          : field === 'responseDate' || field === 'documentsReceivedAt'
+          : field === 'responseDate' || field === 'documentsReceivedAt' || field === 'preparedDate'
             ? formatCalendarDate(text(value))
-            : text(value);
+            : (TU_VALUE_LABELS[field]?.[text(value)] ?? text(value));
       return changes
         .map((c) =>
           c.field === 'scan'
             ? c.from
               ? 'замінено скан'
               : 'додано скан'
-            : `${RESPONSE_FIELD_LABELS[c.field] ?? c.field}: ${show(c.field, c.from)} → ${show(c.field, c.to)}`,
+            : `${DOCUMENT_FIELD_LABELS[c.field] ?? c.field}: ${show(c.field, c.from)} → ${show(c.field, c.to)}`,
         )
         .join(', ');
     }

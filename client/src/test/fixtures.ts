@@ -1,4 +1,9 @@
-import type { ApplicationChangeDto, ApplicationDto, ResponseDto } from '@tu-registry/shared';
+import type {
+  ApplicationChangeDto,
+  ApplicationDto,
+  ResponseDto,
+  TechnicalConditionsDto,
+} from '@tu-registry/shared';
 
 /** A realistic application as the API returns it; override what a test cares about. */
 export function makeApplication(overrides: Partial<ApplicationDto> = {}): ApplicationDto {
@@ -65,6 +70,30 @@ export function makeResponse(overrides: Partial<ResponseDto> = {}): ResponseDto 
     cancellation: null,
     createdBy: { id: 'owner000000000000000001', fullName: 'Олена Коваль' },
     createdAt: '2026-03-16T09:00:00.000Z',
+    version: 1,
+    ...overrides,
+  };
+}
+
+export function makeTechnicalConditions(
+  overrides: Partial<TechnicalConditionsDto> = {},
+): TechnicalConditionsDto {
+  return {
+    id: 'tu000000000000000000001',
+    applicationId: 'app00000000000000000001',
+    tuNumber: '0032/ТУ',
+    preparedDate: '2026-03-20',
+    engineer: { id: 'e00000000000000000000001', fullName: 'Бойко Андрій' },
+    gasFlow: 2.5,
+    connectionType: 'STANDARD',
+    gasPressure: 'LOW',
+    connectionPoint: 'UNDERGROUND',
+    workingDays: 6,
+    scan: null,
+    previousScans: [],
+    cancellation: null,
+    createdBy: { id: 'owner000000000000000001', fullName: 'Олена Коваль' },
+    createdAt: '2026-03-20T09:00:00.000Z',
     version: 1,
     ...overrides,
   };

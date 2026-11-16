@@ -25,7 +25,8 @@ test('every page fits a 375 px phone screen', async ({ page }, testInfo) => {
     comment: 'Довгий коментар без пробілів: ' + 'ДокументиПоданоНеповністю'.repeat(4),
   });
 
-  // A response with a long number, so the card's «Відповіді» is measured too.
+  // A response and technical conditions with long values, so the card's document sections
+  // are measured too.
   const engineer = await page.request.post('/api/v1/engineers', {
     headers,
     data: { fullName: uniqueName('Довгоіменний Інженер Перевірки Переносу'), department: 'ODESA' },
@@ -40,6 +41,19 @@ test('every page fits a 375 px phone screen', async ({ page }, testInfo) => {
     },
   });
   expect(response.ok(), await response.text()).toBe(true);
+  const tu = await page.request.post(`/api/v1/applications/${id}/technical-conditions`, {
+    headers,
+    data: {
+      tuNumber: '00032/ТУ/2026-ДОВГИЙ-НОМЕР-ТЕХНІЧНИХ-УМОВ',
+      preparedDate: today,
+      engineer: ((await engineer.json()) as { id: string }).id,
+      gasFlow: 99999.999,
+      connectionType: 'NON_STANDARD_CAPACITY',
+      gasPressure: 'MEDIUM',
+      connectionPoint: 'ABOVE_GROUND',
+    },
+  });
+  expect(tu.ok(), await tu.text()).toBe(true);
 
   const pages: [string, string][] = [
     ['/', 'Реєстр заяв'],

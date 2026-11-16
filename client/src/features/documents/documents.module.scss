@@ -1,3 +1,17 @@
+.muted {
+  color: var(--color-text-muted);
+}
+
+.previous {
+  font-size: var(--text-sm);
+
+  ul {
+    margin: var(--space-1) 0 0;
+    padding-left: var(--space-4);
+  }
+}
+
+// Sections of documents in the application card (responses, technical conditions).
 .section {
   display: flex;
   flex-direction: column;
@@ -64,26 +78,30 @@
   list-style: none;
 }
 
-.muted {
-  color: var(--color-text-muted);
-}
-
 .actions {
   display: flex;
   flex-wrap: wrap;
   gap: var(--space-1);
 }
 
-.previous {
-  font-size: var(--text-sm);
-
-  ul {
-    margin: var(--space-1) 0 0;
-    padding-left: var(--space-4);
-  }
-}
-
 // Lets form fields take part in the dialog body's flex layout.
 .formContents {
   display: contents;
+}
+
+// A document's fields as label/value pairs.
+.fields {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: var(--space-2) var(--space-4);
+  margin: 0;
+
+  dt {
+    color: var(--color-text-muted);
+    font-size: var(--text-sm);
+  }
+
+  dd {
+    margin: 0;
+  }
 }

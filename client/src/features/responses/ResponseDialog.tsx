@@ -9,11 +9,11 @@ import { useState } from 'react';
 import { type FieldPath, useForm } from 'react-hook-form';
 import type { z } from 'zod';
 import { ScanDropzone } from '@/features/applications';
-import { useEngineers } from '@/features/engineers';
+import { documentStyles as styles } from '@/features/documents';
+import { useEngineerOptions } from '@/features/engineers';
 import { toApiError } from '@/shared/api/apiError';
 import { Alert, Button, Dialog, SelectField, Spinner, TextField } from '@/shared/ui';
 import { useCreateResponse, useUpdateResponse, useUploadResponseScan } from './queries';
-import styles from './responses.module.scss';
 
 type FormInput = z.input<typeof createResponseSchema>;
 type FormOutput = z.output<typeof createResponseSchema>;
@@ -37,7 +37,10 @@ export function ResponseDialog({ app, response: initial, onClose, onSaved }: Pro
   const [response, setResponse] = useState(initial);
   const [file, setFile] = useState<File | null>(null);
   const [scanError, setScanError] = useState<string>();
-  const engineers = useEngineers({ department: app.department });
+  const { query: engineers, options: engineerOptions } = useEngineerOptions(
+    app.department,
+    initial?.engineer.id,
+  );
   const create = useCreateResponse(app.id);
   const update = useUpdateResponse(app.id);
   const uploadScan = useUploadResponseScan(app.id);
@@ -54,17 +57,6 @@ export function ResponseDialog({ app, response: initial, onClose, onSaved }: Pro
       engineer: initial?.engineer.id ?? '',
     },
   });
-
-  // Active engineers, plus the one already chosen even if deactivated since.
-  const engineerOptions = [
-    { value: '', label: 'Оберіть інженера' },
-    ...(engineers.data ?? [])
-      .filter((engineer) => engineer.isActive || engineer.id === initial?.engineer.id)
-      .map((engineer) => ({
-        value: engineer.id,
-        label: engineer.isActive ? engineer.fullName : `${engineer.fullName} (неактивний)`,
-      })),
-  ];
 
   const save = async (values: FormOutput) => {
     if (!response) return create.mutateAsync(values);

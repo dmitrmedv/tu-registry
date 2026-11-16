@@ -3,6 +3,9 @@ import {
   type ApplicationStatus,
   AREA_TYPE_LABELS,
   type AreaType,
+  CONNECTION_POINT_LABELS,
+  CONNECTION_TYPE_LABELS,
+  GAS_PRESSURE_LABELS,
   type AuditAction,
   type CalendarDayKind,
   formatPhone,
@@ -15,7 +18,14 @@ import {
 import { formatCalendarDate } from './format';
 
 // Enum names live in @tu-registry/shared (the server sorts by them); re-exported for the UI.
-export { AREA_TYPE_LABELS, OBJECT_CATEGORY_LABELS, OBJECT_TYPE_LABELS };
+export {
+  AREA_TYPE_LABELS,
+  CONNECTION_POINT_LABELS,
+  CONNECTION_TYPE_LABELS,
+  GAS_PRESSURE_LABELS,
+  OBJECT_CATEGORY_LABELS,
+  OBJECT_TYPE_LABELS,
+};
 
 export const ROLE_LABELS: Record<Role, string> = {
   USER: 'Користувач',
@@ -71,6 +81,10 @@ export const AUDIT_ACTION_LABELS: Record<AuditAction, string> = {
   RESPONSE_UPDATED: 'Змінено відповідь на заяву',
   RESPONSE_CANCELLED: 'Скасовано відповідь на заяву',
   RESPONSE_RESTORED: 'Відновлено відповідь на заяву',
+  TU_CREATED: 'Внесено технічні умови',
+  TU_UPDATED: 'Змінено технічні умови',
+  TU_CANCELLED: 'Скасовано технічні умови',
+  TU_RESTORED: 'Відновлено технічні умови',
   ACCESS_DENIED: 'Відмовлено в доступі',
 };
 

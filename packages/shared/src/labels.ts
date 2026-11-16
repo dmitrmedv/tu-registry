@@ -1,4 +1,11 @@
-import type { AreaType, ObjectCategory, ObjectType } from './enums';
+import type {
+  AreaType,
+  ConnectionPoint,
+  ConnectionType,
+  GasPressure,
+  ObjectCategory,
+  ObjectType,
+} from './enums';
 
 // Names of enum values as people read them. Shared: the client shows them and the server
 // sorts the registry by them (alphabetical order of the names, not of the codes).
@@ -20,6 +27,24 @@ export const OBJECT_CATEGORY_LABELS: Record<ObjectCategory, string> = {
 export const AREA_TYPE_LABELS: Record<AreaType, string> = {
   URBAN: 'Міська',
   RURAL: 'Сільська',
+};
+
+export const CONNECTION_TYPE_LABELS: Record<ConnectionType, string> = {
+  STANDARD: 'Стандартне',
+  NON_STANDARD: 'Нестандартне',
+  NON_STANDARD_CAPACITY: 'Нестандартне (збільшення потужності)',
+  RECONSTRUCTION: 'Реконструкція',
+};
+
+export const GAS_PRESSURE_LABELS: Record<GasPressure, string> = {
+  LOW: 'Низький',
+  MEDIUM: 'Середній',
+  HIGH: 'Високий',
+};
+
+export const CONNECTION_POINT_LABELS: Record<ConnectionPoint, string> = {
+  ABOVE_GROUND: 'Надземний газопровід',
+  UNDERGROUND: 'Підземний газопровід',
 };
 
 const ukrainian = new Intl.Collator('uk');

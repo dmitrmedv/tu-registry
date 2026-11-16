@@ -194,7 +194,7 @@ project/
 { actor (ObjectId | null), action, entityType, entityId, details (без паролів і токенів), ip, userAgent, createdAt }
 ```
 
-Дії: `LOGIN_SUCCESS`, `LOGIN_FAILED`, `LOGOUT`, `PASSWORD_CHANGED`, `USER_CREATED`, `USER_UPDATED`, `USER_DEACTIVATED`, `PASSWORD_RESET`, `APPLICATION_CREATED`, `APPLICATION_MANUAL_CREATED`, `REG_NUMBER_CHANGED`, `REG_DATE_CHANGED`, `APPLICATION_ANNULLED`, `APPLICATION_RESTORED`, `ENGINEER_CREATED`, `ENGINEER_UPDATED`, `ENGINEER_DEACTIVATED`, `CALENDAR_DAY_CREATED`, `CALENDAR_DAY_UPDATED`, `CALENDAR_DAY_DELETED`, `RESPONSE_CREATED`, `RESPONSE_UPDATED`, `RESPONSE_CANCELLED`, `RESPONSE_RESTORED`, `ACCESS_DENIED`.
+Дії: `LOGIN_SUCCESS`, `LOGIN_FAILED`, `LOGOUT`, `PASSWORD_CHANGED`, `USER_CREATED`, `USER_UPDATED`, `USER_DEACTIVATED`, `PASSWORD_RESET`, `APPLICATION_CREATED`, `APPLICATION_MANUAL_CREATED`, `REG_NUMBER_CHANGED`, `REG_DATE_CHANGED`, `APPLICATION_ANNULLED`, `APPLICATION_RESTORED`, `ENGINEER_CREATED`, `ENGINEER_UPDATED`, `ENGINEER_DEACTIVATED`, `CALENDAR_DAY_CREATED`, `CALENDAR_DAY_UPDATED`, `CALENDAR_DAY_DELETED`, `RESPONSE_CREATED`, `RESPONSE_UPDATED`, `RESPONSE_CANCELLED`, `RESPONSE_RESTORED`, `TU_CREATED`, `TU_UPDATED`, `TU_CANCELLED`, `TU_RESTORED`, `ACCESS_DENIED`.
 
 API для зміни чи видалення записів журналу немає. Індекс `{ createdAt: -1 }`.
 
@@ -245,7 +245,30 @@ API (вкладене в заяву, права — як на редагуван
 
 Аудит: `RESPONSE_CREATED`, `RESPONSE_UPDATED` (змінені поля; для скану — лише факт заміни, без назви файлу), `RESPONSE_CANCELLED` (без тексту причини), `RESPONSE_RESTORED`. У деталях — номер заяви, номер і дата відповіді; даних замовника немає. Видалення заяви видаляє її відповіді (у транзакції) і всі їхні файли (після коміту).
 
-### 3.9 `refreshSessions`
+### 3.9 `technicalConditions` (етап 17.4)
+
+Підготовлені технічні умови. **Одні чинні** на заяву: нові — лише після скасування попередніх; скасовані лишаються в історії.
+
+| Поле | Тип | Примітка |
+|---|---|---|
+| applicationId | ObjectId → Application | |
+| tuNumber | String ≤ 50 | реєстраційний номер ТУ |
+| preparedDate | Date (опівніч UTC) | не раніше дати реєстрації, не в майбутньому |
+| engineer, engineerName | ObjectId → Engineer, String | як у відповідей |
+| gasFlow | Number (0; 100 000] | м³/год, до 0,001; форма приймає кому |
+| connectionType | `STANDARD` \| `NON_STANDARD` \| `NON_STANDARD_CAPACITY` \| `RECONSTRUCTION` | |
+| gasPressure | `LOW` \| `MEDIUM` \| `HIGH` | |
+| connectionPoint | `ABOVE_GROUND` \| `UNDERGROUND` | назви — `packages/shared/src/labels.ts` |
+| scan, previousScans, cancellation, version | | як у відповідей |
+| active | Boolean | `false` після скасування; окреме поле, бо частковий індекс не перевіряє відсутність поля |
+
+Індекси: `{ applicationId: 1 }` **unique** з `partialFilterExpression: { active: true }` — остаточний захист «одних чинних ТУ»; `{ applicationId: 1, preparedDate: 1, createdAt: 1 }`.
+
+API: `/applications/:id/technical-conditions` — ті самі дії й права, що й у відповідей (`…/:tid`, `cancel`, `restore`, `scan`). Друге чинне ТУ або відновлення, коли є інше чинне, — 409 `DOCUMENT_TAKEN`. Аудит: `TU_CREATED`, `TU_UPDATED`, `TU_CANCELLED`, `TU_RESTORED`.
+
+Спільне для відповідей і ТУ — `server/src/modules/documents` (правила дат та інженера, скасування й відновлення, скани з попередніми версіями, частини DTO); кожен вид документа описано обʼєктом `DocumentKind`.
+
+### 3.10 `refreshSessions`
 
 `{ userId, tokenHash (SHA-256), expiresAt, revokedAt, createdAt }`. TTL-індекс на `expiresAt` автоматично прибирає прострочені сесії.
 
@@ -391,6 +414,7 @@ session.withTransaction(async () => {
 | Перегляд відповідей і їхніх сканів | свого управління | свого управління | усі |
 | Додавання, редагування, «документи надійшли», скасування відповіді (не для анульованих заяв) | свого управління | свого управління | усі |
 | Відновлення скасованої відповіді | ❌ | ❌ | ✅ |
+| Технічні умови: перегляд / додавання, редагування, скасування / відновлення | як у відповідей | як у відповідей | ✅ |
 | Видалення заяви назавжди | ❌ | ❌ | ✅ |
 | Керування акаунтами (створення, права, деактивація, скидання пароля) | ❌ | ❌ | ✅ |
 | Журнал аудиту | ❌ | ❌ | ✅ |

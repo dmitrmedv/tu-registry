@@ -28,6 +28,15 @@ test('a dialog is usable from the keyboard and returns focus when closed', async
   await page.keyboard.press('Escape');
   await expect(dialog).toBeHidden();
   await expect(annulButton).toBeFocused();
+
+  // A click on the backdrop closes it too; a click inside does not.
+  await annulButton.click();
+  await expect(dialog).toBeVisible();
+  await dialog.getByLabel('Причина анулювання').click();
+  await expect(dialog).toBeVisible();
+  await page.mouse.click(5, 5);
+  await expect(dialog).toBeHidden();
+  await expect(annulButton).toBeFocused();
 });
 
 test('the settings menu works from the keyboard on a phone', async ({ page }) => {

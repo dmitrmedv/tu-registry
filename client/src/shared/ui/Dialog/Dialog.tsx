@@ -1,4 +1,11 @@
-import { type ReactNode, useEffect, useId, useRef } from 'react';
+import {
+  type MouseEvent,
+  type PointerEvent,
+  type ReactNode,
+  useEffect,
+  useId,
+  useRef,
+} from 'react';
 import styles from './Dialog.module.scss';
 
 type Props = {
@@ -14,11 +21,13 @@ type Props = {
  * React state is the only source of truth for `open`: Esc is intercepted (`cancel`) and
  * reported via onClose, and the native `close` event is ignored, because it also fires on
  * programmatic closing and would overwrite whatever state the parent has just set.
- * A backdrop click does not close it, to avoid losing form input.
+ * A click on the backdrop closes it like Esc does (reported via onClose) — but only a click
+ * that also started there: selecting text in a field and releasing outside keeps it open.
  */
 export function Dialog({ open, title, onClose, children, footer }: Props) {
   const ref = useRef<HTMLDialogElement>(null);
   const titleId = useId();
+  const pressedOnBackdrop = useRef(false);
   useEffect(() => {
     const dialog = ref.current;
     if (!dialog || !open) return;
@@ -34,6 +43,20 @@ export function Dialog({ open, title, onClose, children, footer }: Props) {
     };
   }, [open]);
 
+  // The backdrop belongs to the <dialog> element itself: a press on it targets the element,
+  // outside its box (a press on its scrollbar targets it too, but inside the box).
+  const isOnBackdrop = (event: MouseEvent | PointerEvent) => {
+    const dialog = ref.current;
+    if (!dialog || event.target !== dialog) return false;
+    const box = dialog.getBoundingClientRect();
+    return (
+      event.clientX < box.left ||
+      event.clientX > box.right ||
+      event.clientY < box.top ||
+      event.clientY > box.bottom
+    );
+  };
+
   return (
     <dialog
       ref={ref}
@@ -42,6 +65,13 @@ export function Dialog({ open, title, onClose, children, footer }: Props) {
       onCancel={(event) => {
         event.preventDefault();
         onClose();
+      }}
+      onPointerDown={(event) => {
+        pressedOnBackdrop.current = isOnBackdrop(event);
+      }}
+      onClick={(event) => {
+        if (pressedOnBackdrop.current && isOnBackdrop(event)) onClose();
+        pressedOnBackdrop.current = false;
       }}
     >
       {open && (

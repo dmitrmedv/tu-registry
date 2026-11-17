@@ -54,6 +54,11 @@ export const cancelDocumentSchema = z
 
 export const restoreDocumentSchema = z.object({ version: versionField }).strict();
 
+/** DELETE has no body: the version the admin saw comes in the query. */
+export const deleteDocumentQuerySchema = z.object({
+  version: z.coerce.number('Відсутня версія документа').int().min(1),
+});
+
 /** `file`: one of the document's earlier scans; the current one when absent. */
 export const documentScanQuerySchema = z.object({
   file: z

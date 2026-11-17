@@ -1,5 +1,5 @@
 import { QueryClient } from '@tanstack/react-query';
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { createMemoryRouter, RouterProvider } from 'react-router';
 import { Providers } from '@/app/providers';
@@ -24,4 +24,11 @@ export function renderApp(path = '/') {
 export async function chooseSetting(user: ReturnType<typeof userEvent.setup>, item: string) {
   await user.click(await screen.findByRole('button', { name: /^Налаштування/ }));
   await user.click(screen.getByRole('menuitem', { name: item }));
+}
+
+/** «Додати модуль» in the application card → the module in its dialog. */
+export async function addModule(user: ReturnType<typeof userEvent.setup>, item: string) {
+  await user.click(await screen.findByRole('button', { name: 'Додати модуль' }));
+  const dialog = await screen.findByRole('dialog', { name: 'Додати модуль' });
+  await user.click(within(dialog).getByRole('button', { name: item }));
 }

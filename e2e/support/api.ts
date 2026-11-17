@@ -63,3 +63,21 @@ export async function chooseSetting(page: Page, item: string) {
   await page.getByRole('button', { name: /^Налаштування/ }).click();
   await page.getByRole('menuitem', { name: item }).click();
 }
+
+/** «Додати модуль» in the application card → the module in its dialog. */
+export async function addModule(page: Page, item: string) {
+  await page.getByRole('button', { name: 'Додати модуль' }).click();
+  await page
+    .getByRole('dialog', { name: 'Додати модуль' })
+    .getByRole('button', { name: item, exact: true })
+    .click();
+}
+
+/** Today in Kyiv as the card shows it: 17.11.2026. */
+export const kyivTodayText = () =>
+  new Date().toLocaleDateString('uk-UA', {
+    timeZone: 'Europe/Kyiv',
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+  });

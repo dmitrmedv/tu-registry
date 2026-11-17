@@ -59,18 +59,14 @@ export function EngineerDialog({ engineer, department, onClose, onSaved }: Props
 
   return (
     <Dialog
+      busy={isSubmitting}
       open
       title={engineer ? `Редагування: ${engineer.fullName}` : 'Новий інженер'}
       onClose={onClose}
       footer={
-        <>
-          <Button onClick={onClose} disabled={isSubmitting}>
-            Скасувати
-          </Button>
-          <Button type="submit" form={FORM_ID} variant="primary" loading={isSubmitting}>
-            {engineer ? 'Зберегти' : 'Додати'}
-          </Button>
-        </>
+        <Button type="submit" form={FORM_ID} variant="primary" loading={isSubmitting}>
+          {engineer ? 'Зберегти' : 'Додати'}
+        </Button>
       }
     >
       <form id={FORM_ID} onSubmit={onSubmit} noValidate className={styles.formContents}>

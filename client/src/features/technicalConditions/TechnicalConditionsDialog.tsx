@@ -4,7 +4,7 @@ import {
   CONNECTION_POINTS,
   CONNECTION_TYPES,
   createTechnicalConditionsSchema,
-  type CreateTechnicalConditionsData,
+  fullAddress,
   GAS_PRESSURES,
   kyivCalendarDate,
   type TechnicalConditionsDto,
@@ -13,7 +13,7 @@ import { useState } from 'react';
 import { type FieldPath, useForm } from 'react-hook-form';
 import type { z } from 'zod';
 import { ScanDropzone } from '@/features/applications';
-import { documentStyles as styles } from '@/features/documents';
+import { CurrentScan, documentStyles as styles } from '@/features/documents';
 import { useEngineerOptions } from '@/features/engineers';
 import { toApiError } from '@/shared/api/apiError';
 import {
@@ -22,13 +22,19 @@ import {
   GAS_PRESSURE_LABELS,
 } from '@/shared/lib/labels';
 import { Alert, Button, ChoiceField, Dialog, SelectField, Spinner, TextField } from '@/shared/ui';
+import { technicalConditionsApi } from './api';
 import {
   useCreateTechnicalConditions,
+  useRemoveTechnicalConditionsScan,
   useUpdateTechnicalConditions,
   useUploadTechnicalConditionsScan,
 } from './queries';
 
-type FormInput = z.input<typeof createTechnicalConditionsSchema>;
+// The API takes the application's customer and address when they are missing; the form always
+// sends them, filled in from the application.
+const formSchema = createTechnicalConditionsSchema.required({ customer: true, address: true });
+type FormInput = z.input<typeof formSchema>;
+type FormData = z.output<typeof formSchema>;
 type ServerErrorDetails = { fieldErrors?: Record<string, string[] | undefined> };
 
 const FORM_ID = 'technical-conditions-form';
@@ -64,16 +70,19 @@ export function TechnicalConditionsDialog({
   const create = useCreateTechnicalConditions(app.id);
   const update = useUpdateTechnicalConditions(app.id);
   const uploadScan = useUploadTechnicalConditionsScan(app.id);
+  const removeScan = useRemoveTechnicalConditionsScan(app.id);
   const {
     register,
     handleSubmit,
     setError,
     formState: { errors, isSubmitting },
-  } = useForm<FormInput, unknown, CreateTechnicalConditionsData>({
-    resolver: zodResolver(createTechnicalConditionsSchema),
+  } = useForm<FormInput, unknown, FormData>({
+    resolver: zodResolver(formSchema),
     defaultValues: {
       tuNumber: initial?.tuNumber ?? '',
       preparedDate: initial?.preparedDate ?? kyivCalendarDate(),
+      customer: initial?.customer ?? app.customer,
+      address: initial?.address ?? fullAddress(app.settlement, app.objectAddress),
       engineer: initial?.engineer.id ?? '',
       // As people write it: "2,5".
       gasFlow: initial ? String(initial.gasFlow).replace('.', ',') : '',
@@ -83,18 +92,20 @@ export function TechnicalConditionsDialog({
     },
   });
 
-  const save = async (values: CreateTechnicalConditionsData) => {
+  const save = async (values: FormData) => {
     if (!saved) return create.mutateAsync(values);
-    const current: CreateTechnicalConditionsData = {
+    const current: FormData = {
       tuNumber: saved.tuNumber,
       preparedDate: saved.preparedDate,
+      customer: saved.customer,
+      address: saved.address,
       engineer: saved.engineer.id,
       gasFlow: saved.gasFlow,
       connectionType: saved.connectionType,
       gasPressure: saved.gasPressure,
       connectionPoint: saved.connectionPoint,
     };
-    const changed = (Object.keys(current) as (keyof CreateTechnicalConditionsData)[]).filter(
+    const changed = (Object.keys(current) as (keyof FormData)[]).filter(
       (field) => values[field] !== current[field],
     );
     if (changed.length === 0) return saved;
@@ -136,18 +147,14 @@ export function TechnicalConditionsDialog({
 
   return (
     <Dialog
+      busy={isSubmitting}
       open
       title={initial ? `Технічні умови № ${initial.tuNumber}` : 'Нові технічні умови'}
       onClose={onClose}
       footer={
-        <>
-          <Button onClick={onClose} disabled={isSubmitting}>
-            {saved && !initial ? 'Закрити' : 'Скасувати'}
-          </Button>
-          <Button type="submit" form={FORM_ID} variant="primary" loading={isSubmitting}>
-            {saved ? 'Зберегти' : 'Додати'}
-          </Button>
-        </>
+        <Button type="submit" form={FORM_ID} variant="primary" loading={isSubmitting}>
+          {saved ? 'Зберегти' : 'Додати'}
+        </Button>
       }
     >
       <form id={FORM_ID} onSubmit={onSubmit} noValidate className={styles.formContents}>
@@ -165,6 +172,20 @@ export function TechnicalConditionsDialog({
           max={kyivCalendarDate()}
           error={errors.preparedDate?.message}
           {...register('preparedDate')}
+        />
+        <TextField
+          label="Замовник за ТУ"
+          autoComplete="off"
+          hint="Із заяви; змініть, якщо в ТУ записано інакше"
+          error={errors.customer?.message}
+          {...register('customer')}
+        />
+        <TextField
+          label="Адреса за ТУ"
+          autoComplete="off"
+          hint="Із заяви: населений пункт і адреса"
+          error={errors.address?.message}
+          {...register('address')}
         />
         {engineers.isPending ? (
           // An uncontrolled select would otherwise settle on whichever option comes first.
@@ -211,9 +232,18 @@ export function TechnicalConditionsDialog({
           {...register('connectionPoint')}
         />
         <div>
+          {saved && (
+            <CurrentScan
+              scan={saved.scan}
+              owner={`ТУ № ${saved.tuNumber}`}
+              load={() => technicalConditionsApi.scanFile(app.id, saved.id)}
+              onRemove={async () => setSaved(await removeScan.mutateAsync(saved.id))}
+              disabled={isSubmitting}
+            />
+          )}
           <p className={styles.muted}>
             {saved?.scan
-              ? `Скан: ${saved.scan.name}. Новий файл замінить його; попередній лишиться в історії ТУ.`
+              ? 'Новий файл замінить скан; попередній лишиться в історії ТУ.'
               : 'Скан технічних умов (PDF, необовʼязково)'}
           </p>
           <ScanDropzone

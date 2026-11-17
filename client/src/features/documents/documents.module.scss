@@ -1,4 +1,6 @@
-// Inside the blocks of the application card (CardBlock / CardItem from shared/ui).
+@use '@/styles/mixins' as *;
+
+// Inside the tabs of the application card (CardItem / CardFooter from shared/ui).
 .muted {
   color: var(--color-text-muted);
 }
@@ -28,33 +30,119 @@
   text-decoration: line-through;
 }
 
-.facts {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-1) var(--space-4);
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
 // Lets form fields take part in the dialog body's flex layout.
 .formContents {
   display: contents;
 }
 
-// A document's fields as label/value pairs.
-.fields {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-  gap: var(--space-2) var(--space-4);
+// The current scan in an edit dialog: its name, then «Переглянути» and «Видалити».
+.currentScan {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-bottom: var(--space-2);
+}
+
+.currentScanName {
+  flex: 1;
+  min-width: 0;
   margin: 0;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
 
-  dt {
+// Earlier and cancelled documents of a tab, folded under the current one.
+.others {
+  summary {
+    margin-bottom: var(--space-2);
     color: var(--color-text-muted);
-    font-size: var(--text-sm);
+    cursor: pointer;
+  }
+}
+
+// The valid document of a tab (technical conditions), inset from the tab's edge like «Заява».
+.current {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-4) var(--space-4) 0;
+}
+
+// Documents side by side, each in its frame: three in a row on a wide screen, the fourth on a
+// new row (agreed 2026-11-17); two, then one, on narrower ones. The gap between frames equals
+// the tab's padding.
+.frames {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-4);
+
+  @include up(md) {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  dd {
-    margin: 0;
+  @include up(xl) {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
+}
+
+// The frame's content on top, its actions in the bottom right corner; frames of one row are
+// equally tall, so their buttons line up.
+.frame {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  padding: 20px 20px var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+}
+
+// A cancelled response (agreed 2026-11-17): a red frame, «Скасовано» in its top right corner,
+// who cancelled it, when and why in red under the data.
+.frameCancelled {
+  border-color: var(--color-danger);
+}
+
+.frameBadge {
+  position: absolute;
+  top: var(--space-3);
+  right: var(--space-3);
+}
+
+.frameBody {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-2);
+  min-width: 0;
+
+  > dl {
+    align-self: stretch;
+  }
+}
+
+// At least 55px under the text (agreed 2026-11-17), pushed to the bottom of a taller frame:
+// the cancellation note on the left, the actions in the bottom right corner.
+.frameFooter {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--space-3);
+  margin-top: auto;
+  padding-top: 55px;
+}
+
+.frameActions {
+  display: flex;
+  flex: none;
+  gap: var(--space-1);
+  margin-left: auto;
+}
+
+.cancellationNote {
+  margin: 0;
+  color: var(--color-danger);
+  font-weight: 600;
+  font-size: var(--text-sm);
+  overflow-wrap: anywhere;
 }

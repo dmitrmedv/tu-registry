@@ -256,6 +256,36 @@ describe('responses to an application', () => {
     ).not.toContain('помилково');
   });
 
+  it('is deleted for good by an admin only, with the version seen; the stage follows', async () => {
+    const { body: response } = await add();
+    const remove = (who: ApiSession, version: unknown) =>
+      request(app)
+        .delete(url(`/${response.id}`))
+        .query(version === undefined ? {} : { version })
+        .set(who.auth);
+    const application = async () =>
+      (await request(app).get(`${APPLICATIONS}/${applicationId}`).set(admin.auth)).body as {
+        stage: string;
+      };
+    expect((await application()).stage).toBe('RESPONDED');
+
+    expect((await remove(owner, 1)).status).toBe(403);
+    expect((await remove(admin, undefined)).status).toBe(400);
+    expect((await remove(admin, 2)).body.error.code).toBe('VERSION_CONFLICT');
+    expect((await remove(admin, 1)).status).toBe(204);
+
+    expect(await ApplicationResponse.countDocuments()).toBe(0);
+    expect((await list()).body).toEqual([]);
+    expect((await application()).stage).toBe('REGISTERED');
+    expect((await remove(admin, 1)).status).toBe(404);
+    const entry = await AuditLog.findOne({ action: 'RESPONSE_DELETED' }).lean();
+    expect(entry).toMatchObject({
+      actor: admin.user._id,
+      entityType: 'ApplicationResponse',
+      details: { applicationId, outgoingNumber: '125/01-15' },
+    });
+  });
+
   it('hides another department’s application entirely and freezes an annulled one', async () => {
     const { body: response } = await add();
 

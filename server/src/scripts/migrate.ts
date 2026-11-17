@@ -8,6 +8,7 @@ import {
   backfillObjectCategory,
   backfillProcessing,
   backfillSettlement,
+  backfillTechnicalConditionsCustomer,
   dropYearWideUniqueNumberIndex,
   moveCadastralNumberIntoAddress,
   moveCountersToDefaultDepartment,
@@ -37,6 +38,9 @@ async function main() {
     logger.info({ droppedIndex }, 'Year-wide unique number index dropped');
     const processing = await backfillProcessing();
     logger.info({ processing }, 'Processing summaries filled in');
+    // After the settlements: the address of the conditions includes it.
+    const tuCustomers = await backfillTechnicalConditionsCustomer();
+    logger.info({ tuCustomers }, 'Technical conditions given the application customer and address');
   } finally {
     await disconnectDb();
   }

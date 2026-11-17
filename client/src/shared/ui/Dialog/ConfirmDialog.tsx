@@ -29,18 +29,14 @@ export function ConfirmDialog({
 }: Props) {
   return (
     <Dialog
+      busy={loading}
       open={open}
       title={title}
       onClose={onCancel}
       footer={
-        <>
-          <Button onClick={onCancel} disabled={loading}>
-            Скасувати
-          </Button>
-          <Button variant={danger ? 'danger' : 'primary'} onClick={onConfirm} loading={loading}>
-            {confirmLabel}
-          </Button>
-        </>
+        <Button variant={danger ? 'danger' : 'primary'} onClick={onConfirm} loading={loading}>
+          {confirmLabel}
+        </Button>
       }
     >
       {children}

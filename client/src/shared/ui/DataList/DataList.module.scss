@@ -1,0 +1,30 @@
+// One grid for the whole list: the labels line up, their column as wide as the longest label
+// (up to half the width), the values take the rest.
+.list {
+  display: grid;
+  grid-template-columns: fit-content(50%) minmax(0, 1fr);
+  gap: var(--space-2) var(--space-4);
+  align-content: start;
+  margin: 0;
+  min-width: 0;
+}
+
+// A fixed label column and roomier rows: the tabs «Заява» and «ТУ».
+.fixed {
+  grid-template-columns: minmax(0, 12rem) minmax(0, 1fr);
+  gap: var(--space-3) var(--space-6);
+}
+
+.row {
+  display: contents;
+
+  dt {
+    color: var(--color-text-muted);
+  }
+
+  dd {
+    margin: 0;
+    font-weight: 600;
+    overflow-wrap: anywhere;
+  }
+}

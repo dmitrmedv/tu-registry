@@ -8,15 +8,32 @@
   box-shadow: var(--shadow-lg);
   color: var(--color-text);
 
+  // Slightly blurred (agreed 2026-11-17): the page stays recognisable, the dialog in focus.
   &::backdrop {
     background: rgb(15 20 25 / 0.45);
+    backdrop-filter: blur(3px);
   }
+
+  // size="lg": content laid out in a grid, such as the tiles of «Додати модуль».
+  &.large {
+    width: min(760px, calc(100vw - 2 * var(--space-4)));
+  }
+}
+
+// The title on the left, the cross that closes the dialog in the top right corner.
+.header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4) var(--space-3) var(--space-6);
+  border-bottom: 1px solid var(--color-border);
 }
 
 .title {
   margin: 0;
-  padding: var(--space-4) var(--space-6);
-  border-bottom: 1px solid var(--color-border);
+  // Level with the cross (38px tall).
+  padding-block: 6px;
   font-size: var(--text-lg);
 }
 

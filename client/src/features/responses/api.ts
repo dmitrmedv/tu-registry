@@ -19,11 +19,16 @@ export const responsesApi = {
     http.post<ResponseDto>(`${base(applicationId)}/${id}/cancel`, input).then((r) => r.data),
   restore: (applicationId: string, id: string, version: number) =>
     http.post<ResponseDto>(`${base(applicationId)}/${id}/restore`, { version }).then((r) => r.data),
+  remove: async (applicationId: string, id: string, version: number) => {
+    await http.delete(`${base(applicationId)}/${id}`, { params: { version } });
+  },
   uploadScan: (applicationId: string, id: string, file: File) => {
     const form = new FormData();
     form.append('scan', file);
     return http.put<ResponseDto>(`${base(applicationId)}/${id}/scan`, form).then((r) => r.data);
   },
+  removeScan: (applicationId: string, id: string) =>
+    http.delete<ResponseDto>(`${base(applicationId)}/${id}/scan`).then((r) => r.data),
   /** The current scan, or an earlier one by its id. */
   scanFile: (applicationId: string, id: string, fileId?: string) =>
     fetchPdf(`${base(applicationId)}/${id}/scan`, fileId ? { file: fileId } : undefined),

@@ -4,9 +4,9 @@ import {
   changePasswordFormSchema,
   PASSWORD_MIN_LENGTH,
 } from '@tu-registry/shared';
-import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { toApiError } from '@/shared/api/apiError';
+import { notifySuccess } from '@/shared/lib/notify';
 import { Alert, Button, PasswordField } from '@/shared/ui';
 import { authApi } from './api';
 import { useAuth } from './authContext';
@@ -19,7 +19,6 @@ const SERVER_FIELD_ERRORS: Record<string, 'currentPassword' | 'newPassword'> = {
 
 export function ChangePasswordForm({ onChanged }: { onChanged: () => void }) {
   const { updateUser } = useAuth();
-  const [done, setDone] = useState(false);
   const {
     register,
     handleSubmit,
@@ -29,13 +28,12 @@ export function ChangePasswordForm({ onChanged }: { onChanged: () => void }) {
   } = useForm<ChangePasswordFormValues>({ resolver: zodResolver(changePasswordFormSchema) });
 
   const onSubmit = handleSubmit(async ({ currentPassword, newPassword }) => {
-    setDone(false);
     try {
       // The confirmation field is checked in the browser and never sent.
       const user = await authApi.changePassword({ currentPassword, newPassword });
       updateUser(user);
       reset();
-      setDone(true);
+      notifySuccess('Пароль змінено');
       onChanged();
     } catch (error) {
       const apiError = toApiError(error);
@@ -47,7 +45,6 @@ export function ChangePasswordForm({ onChanged }: { onChanged: () => void }) {
   return (
     <form className={styles.form} onSubmit={onSubmit} noValidate>
       {errors.root?.message && <Alert variant="error">{errors.root.message}</Alert>}
-      {done && <Alert variant="success">Пароль змінено</Alert>}
       <PasswordField
         label="Поточний пароль"
         autoComplete="current-password"

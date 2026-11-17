@@ -78,18 +78,14 @@ export function CalendarDayDialog({ day, onClose, onSaved }: Props) {
 
   return (
     <Dialog
+      busy={isSubmitting}
       open
       title={day ? `Редагування: ${formatCalendarDate(day.date)}` : 'Новий день у календарі'}
       onClose={onClose}
       footer={
-        <>
-          <Button onClick={onClose} disabled={isSubmitting}>
-            Скасувати
-          </Button>
-          <Button type="submit" form={FORM_ID} variant="primary" loading={isSubmitting}>
-            {day ? 'Зберегти' : 'Додати'}
-          </Button>
-        </>
+        <Button type="submit" form={FORM_ID} variant="primary" loading={isSubmitting}>
+          {day ? 'Зберегти' : 'Додати'}
+        </Button>
       }
     >
       <form id={FORM_ID} onSubmit={onSubmit} noValidate className={styles.formContents}>

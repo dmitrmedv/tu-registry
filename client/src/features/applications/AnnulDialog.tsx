@@ -29,18 +29,14 @@ export function AnnulDialog({ app, onClose }: Props) {
 
   return (
     <Dialog
+      busy={annul.isPending}
       open
       title={`Анулювати заяву ${app.regNumber}?`}
       onClose={onClose}
       footer={
-        <>
-          <Button onClick={onClose} disabled={annul.isPending}>
-            Скасувати
-          </Button>
-          <Button variant="danger" onClick={submit} loading={annul.isPending}>
-            Анулювати
-          </Button>
-        </>
+        <Button variant="danger" onClick={submit} loading={annul.isPending}>
+          Анулювати
+        </Button>
       }
     >
       <p>

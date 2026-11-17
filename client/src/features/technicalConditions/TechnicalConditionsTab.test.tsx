@@ -8,7 +8,7 @@ import { screen, within } from '@testing-library/react';
 import { http as mock, HttpResponse } from 'msw';
 import { describe, expect, it } from 'vitest';
 import { makeApplication, makePdf, makeProcessing, makeTechnicalConditions } from '@/test/fixtures';
-import { renderApp } from '@/test/renderApp';
+import { addModule, renderApp } from '@/test/renderApp';
 import { apiError, makeUser, server, signedInAs } from '@/test/server';
 
 const owner = makeUser({ id: 'owner000000000000000001', role: 'USER' });
@@ -51,44 +51,48 @@ function openCard(
     mock.get(TU, () => HttpResponse.json(current.rows)),
     mock.get('*/api/v1/engineers', () => HttpResponse.json(engineers)),
   );
-  return { ...renderApp(`/applications/${app.id}`), current };
+  return { ...renderApp(`/applications/${app.id}?tab=tu`), current };
 }
 
-const section = () => screen.findByRole('region', { name: 'Технічні умови' });
+const section = () => screen.findByRole('tabpanel', { name: 'ТУ' });
+const validSet = () => screen.findByRole('article', { name: /^Технічні умови/ });
 
 describe('technical conditions in the application card', () => {
-  it('shows the valid set in full first, cancelled ones struck below; no second «Додати»', async () => {
-    openCard([cancelled(), makeTechnicalConditions({ workingDays: 12 })]);
+  it('shows the valid set in full, cancelled ones folded below; no second «Додати»', async () => {
+    const { user } = openCard([cancelled(), makeTechnicalConditions({ workingDays: 12 })]);
 
-    const items = await within(await section()).findAllByRole('listitem', {
-      name: /^Технічні умови/,
-    });
-    expect(items.map((item) => item.getAttribute('aria-label'))).toEqual([
-      'Технічні умови № 0032/ТУ від 20.03.2026',
-      'Технічні умови № 0031/ТУ від 20.03.2026',
-    ]);
-    const [valid, old] = items as [HTMLElement, HTMLElement];
-    for (const text of [
-      'Бойко Андрій',
-      '12 робочих днів з 10',
-      'строк перевищено на 2 робочі дні',
-      '2,5 м³/год',
-      'Стандартне',
-      'Низький',
-      'Підземний газопровід',
+    const valid = await validSet();
+    expect(valid).toHaveAccessibleName('Технічні умови № 0032/ТУ від 20.03.2026');
+    // Label and value per row, as on the mock-up; no deadline figures.
+    for (const row of [
+      'Тип приєднанняСтандартне',
+      'Технічні умови№ 0032/ТУ від 20.03.2026',
+      'Замовник за ТУТОВ «Приклад»',
+      'Адреса за ТУм. Київ, вул. Прикладна, 1',
+      'ТискНизький',
+      'Точка приєднанняПідземний газопровід',
+      'Витрати газу2,5 м³/год',
+      'ВиконавецьБойко А.',
+      'Фактична дата отримання ТУ',
     ]) {
-      expect(valid).toHaveTextContent(text);
+      expect(valid).toHaveTextContent(row);
     }
+    expect(valid).not.toHaveTextContent('робоч');
+    await user.click(screen.getByText('Скасовані технічні умови (1)'));
+    const old = within(await section()).getByRole('listitem', {
+      name: 'Технічні умови № 0031/ТУ від 20.03.2026',
+    });
     expect(old).toHaveTextContent('Скасовано');
     expect(old).toHaveTextContent('Помилка в розрахунку');
     expect(screen.queryByRole('button', { name: 'Додати ТУ' })).toBeNull();
   });
 
-  it('says when there are none', async () => {
-    openCard([]);
+  it('offers a new set in the tab once the valid one is cancelled', async () => {
+    openCard([cancelled()]);
     expect(
-      await within(await section()).findByText('Технічні умови ще не підготовлено.'),
+      await within(await section()).findByText('Чинних технічних умов немає: усі скасовано.'),
     ).toBeVisible();
+    expect(screen.getByRole('button', { name: 'Додати ТУ' })).toBeVisible();
   });
 
   it('adds technical conditions with a scan, the gas flow written with a comma', async () => {
@@ -110,6 +114,12 @@ describe('technical conditions in the application card', () => {
     await user.click(await within(await section()).findByRole('button', { name: 'Додати ТУ' }));
     const dialog = screen.getByRole('dialog', { name: 'Нові технічні умови' });
     await user.type(within(dialog).getByLabelText('Реєстраційний номер ТУ'), '0032/ТУ');
+    // Filled in from the application; the conditions may name the customer otherwise.
+    expect(within(dialog).getByLabelText('Адреса за ТУ')).toHaveValue('м. Київ, вул. Прикладна, 1');
+    const customer = within(dialog).getByLabelText('Замовник за ТУ');
+    expect(customer).toHaveValue('ТОВ «Приклад»');
+    await user.clear(customer);
+    await user.type(customer, 'Франко Іван Якович');
     await user.clear(within(dialog).getByLabelText('Дата підготовки ТУ'));
     await user.type(within(dialog).getByLabelText('Дата підготовки ТУ'), '2026-03-20');
     await user.selectOptions(
@@ -133,15 +143,17 @@ describe('technical conditions in the application card', () => {
         connectionType: 'STANDARD',
         gasPressure: 'LOW',
         connectionPoint: 'UNDERGROUND',
+        customer: 'Франко Іван Якович',
+        address: 'м. Київ, вул. Прикладна, 1',
       },
     ]);
     expect(uploaded!.name).toBe('ТУ.pdf');
-    expect(await screen.findByRole('listitem', { name: /0032\/ТУ/ })).toBeVisible();
+    expect(await validSet()).toHaveAccessibleName('Технічні умови № 0032/ТУ від 20.03.2026');
   });
 
   it('checks the form before sending', async () => {
     const { user } = openCard([]);
-    await user.click(await within(await section()).findByRole('button', { name: 'Додати ТУ' }));
+    await addModule(user, 'Технічні умови');
     const dialog = screen.getByRole('dialog', { name: 'Нові технічні умови' });
     await within(dialog).findByLabelText('Інженер, який розробив ТУ');
     await user.type(within(dialog).getByLabelText('Витрати газу, м³/год'), '0,0001');
@@ -215,17 +227,19 @@ describe('technical conditions in the application card', () => {
       ),
     );
 
-    await user.click(await within(await section()).findByRole('button', { name: 'Відновити' }));
+    await user.click(await screen.findByText('Скасовані технічні умови (1)'));
+    await user.click(within(await section()).getByRole('button', { name: 'Відновити' }));
     expect(
       await screen.findByText('У заяви вже є інші чинні технічні умови: спершу скасуйте їх.'),
     ).toBeVisible();
   });
 
   it('offers nothing to change on an annulled application', async () => {
-    openCard([], owner, makeApplication({ status: 'ANNULLED' }));
+    openCard([cancelled()], owner, makeApplication({ status: 'ANNULLED' }));
     expect(
-      await within(await section()).findByText('Технічні умови ще не підготовлено.'),
+      await within(await section()).findByText('Чинних технічних умов немає: усі скасовано.'),
     ).toBeVisible();
     expect(screen.queryByRole('button', { name: 'Додати ТУ' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Додати модуль' })).toBeNull();
   });
 });

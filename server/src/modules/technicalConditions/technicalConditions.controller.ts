@@ -93,6 +93,11 @@ export const uploadScan: RequestHandler = async (req, res) => {
   );
 };
 
+export const removeScan: RequestHandler = async (req, res) => {
+  const { params } = parseRequest(req, { params: paramsSchema });
+  res.json(await scanService.removeScan(params.id, params.tid, req.user!, requestContext(req)));
+};
+
 export const downloadScan: RequestHandler = async (req, res, next) => {
   const { params, query } = parseRequest(req, {
     params: paramsSchema,

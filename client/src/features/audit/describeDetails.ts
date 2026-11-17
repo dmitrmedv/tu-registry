@@ -32,6 +32,8 @@ const DOCUMENT_FIELD_LABELS: Record<string, string> = {
   connectionType: 'тип приєднання',
   gasPressure: 'тиск',
   connectionPoint: 'точка приєднання',
+  customer: 'замовник за ТУ',
+  address: 'адреса за ТУ',
 };
 
 const TU_VALUE_LABELS: Record<string, Record<string, string>> = {
@@ -126,7 +128,10 @@ export function describeDetails(entry: AuditLogDto): string {
             ? c.from
               ? 'замінено скан'
               : 'додано скан'
-            : `${DOCUMENT_FIELD_LABELS[c.field] ?? c.field}: ${show(c.field, c.from)} → ${show(c.field, c.to)}`,
+            : // Customer data is not journalled: only that it changed.
+              c.field === 'customer' || c.field === 'address'
+              ? `${DOCUMENT_FIELD_LABELS[c.field]}: змінено`
+              : `${DOCUMENT_FIELD_LABELS[c.field] ?? c.field}: ${show(c.field, c.from)} → ${show(c.field, c.to)}`,
         )
         .join(', ');
     }

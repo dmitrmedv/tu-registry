@@ -1,58 +1,33 @@
 @use '@/styles/mixins' as *;
 
-.groups {
+// Two columns from a medium width (the mock-up), one on phones. Inset from the tab's edge like
+// the technical conditions (`documentStyles.current`).
+.details {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
-  gap: var(--space-4) var(--space-6);
+  gap: var(--space-8) var(--space-6);
+  align-content: start;
+  padding: var(--space-4) var(--space-4) 0;
 
-  @include up(lg) {
+  @include up(md) {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 
-.group {
+// Groups of one column, with room between them.
+.column {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-8);
   min-width: 0;
-
-  h3 {
-    margin: 0 0 var(--space-2);
-    color: var(--color-text-muted);
-    font-size: var(--text-sm);
-    font-weight: 600;
-  }
-
-  dl {
-    display: flex;
-    flex-direction: column;
-    gap: var(--space-2);
-    margin: 0;
-  }
 }
 
-.wide,
 .annulled {
   grid-column: 1 / -1;
-}
-
-.annulled {
   padding: var(--space-3);
   border: 1px solid var(--color-danger);
   border-radius: var(--radius-md);
   background: var(--color-danger-bg);
-}
-
-.field {
-  display: grid;
-  grid-template-columns: minmax(140px, 35%) 1fr;
-  gap: var(--space-3);
-
-  dt {
-    color: var(--color-text-muted);
-  }
-
-  dd {
-    margin: 0;
-    overflow-wrap: anywhere;
-  }
 }
 
 .history {
@@ -95,48 +70,8 @@
 }
 
 .comment {
-  margin: 0;
+  font-weight: 400;
   // Keep the line breaks people typed.
   white-space: pre-wrap;
   overflow-wrap: anywhere;
-}
-
-.historyBlock {
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-lg);
-  background: var(--color-surface);
-}
-
-.historyToggle {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  width: 100%;
-  padding: var(--space-3) var(--space-4);
-  border: 0;
-  border-radius: var(--radius-lg);
-  background: transparent;
-  color: var(--color-text);
-  font: inherit;
-  font-weight: 600;
-  text-align: left;
-  cursor: pointer;
-
-  &:hover {
-    background: var(--color-surface-hover);
-  }
-}
-
-.chevron,
-.chevronOpen {
-  display: inline-flex;
-  transition: transform 0.15s ease;
-}
-
-.chevron {
-  transform: rotate(-90deg);
-}
-
-.historyPanel {
-  padding: 0 var(--space-4) var(--space-4);
 }

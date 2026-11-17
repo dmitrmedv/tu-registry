@@ -1,6 +1,6 @@
 import { expect, type APIRequestContext, test } from '@playwright/test';
 import { ADMIN } from '../support/accounts';
-import { apiLogin, createApplication, signIn, uniqueName } from '../support/api';
+import { addModule, apiLogin, createApplication, signIn, uniqueName } from '../support/api';
 
 /**
  * The checks of §13 of the processing module's specification, end to end (stage 17.7).
@@ -18,6 +18,17 @@ const WORKING_SATURDAY = '2025-11-08';
 const PDF = Buffer.from('%PDF-1.4\n% E2E journey\n%%EOF\n');
 
 type Headers = Awaited<ReturnType<typeof apiLogin>>;
+type Deadline = { used: number; norm: number; overdueBy: number; done: boolean };
+/** The part of GET …/processing these checks read. */
+type Processing = {
+  deadlines: { response: Deadline | null; tu: Deadline };
+  events: {
+    type: string;
+    workingDays: number;
+    overdueBy: number;
+    sinceDocumentsReceived: number | null;
+  }[];
+};
 
 async function post(request: APIRequestContext, headers: Headers, url: string, data: unknown) {
   const response = await request.post(url, { headers, data });
@@ -86,10 +97,12 @@ test('a back-dated application through responses to technical conditions, by the
 
   // Technical conditions through the card.
   await signIn(page, ADMIN, `/applications/${app.id}`);
-  const title = page.getByRole('heading', { level: 1 }).locator('..');
-  await expect(title).toContainText('Відповідь надана');
-  const tuSection = page.getByRole('region', { name: 'Технічні умови' });
-  await tuSection.getByRole('button', { name: 'Додати ТУ' }).click();
+  // The responses have their tab; the title shows no stage (the registry does).
+  await expect(page.getByRole('tab', { name: 'Відповідь' })).toBeVisible();
+  await expect(page.getByRole('heading', { level: 1 }).locator('..')).not.toContainText(
+    'Відповідь надана',
+  );
+  await addModule(page, 'Технічні умови');
   const dialog = page.getByRole('dialog', { name: 'Нові технічні умови' });
   await dialog.getByLabel('Реєстраційний номер ТУ').fill('0032/ТУ');
   await dialog.getByLabel('Дата підготовки ТУ').fill('2025-11-17');
@@ -100,35 +113,50 @@ test('a back-dated application through responses to technical conditions, by the
   await dialog.getByRole('radio', { name: 'Підземний газопровід' }).check();
   await dialog.getByRole('button', { name: 'Додати' }).click();
   await expect(page.getByText('Технічні умови № 0032/ТУ додано')).toBeVisible();
-  await expect(title).toContainText('ТУ підготовлені');
 
-  // Deadlines: the first response counts; the working Saturday makes up for the day off.
+  // The timeline in the card: a document and its date per line.
   const history = page.getByRole('region', { name: 'Історія опрацювання' });
-  const deadlines = history.getByRole('list', { name: 'Строки опрацювання' });
-  await expect(deadlines).toContainText('Відповідь: 3 робочі дні з 5 вчасно');
-  await expect(deadlines).toContainText('Технічні умови: 10 робочих днів з 10 вчасно');
   const events = history.getByRole('listitem', { name: /, \d\d\.\d\d\.\d{4}$/ });
   await expect(events).toHaveCount(5);
-  await expect(events.nth(0)).toContainText('Зареєстрував(ла)');
-  await expect(events.nth(1)).toContainText('3 робочі дні з 5');
+  await expect(events.nth(0)).toContainText('від 03.11.2025');
   await expect(events.nth(2)).toContainText('Документи надійшли');
-  await expect(events.nth(2)).toContainText('5 робочих днів від реєстрації');
-  await expect(events.nth(3)).toContainText('6 робочих днів з 5');
-  await expect(events.nth(3)).toContainText('строк перевищено на 1 робочий день');
-  await expect(events.nth(4)).toContainText(
-    '10 робочих днів з 10 (5 робочих днів від надходження документів)',
-  );
+  await expect(events.nth(4)).toContainText('Технічні умови № 0032/ТУ');
+
+  // The deadlines are counted by the server (the card does not show them for now): the first
+  // response counts; the working Saturday makes up for the day off.
+  const processing = async () => {
+    const response = await page.request.get(`/api/v1/applications/${app.id}/processing`, {
+      headers: await apiLogin(page.request, ADMIN),
+    });
+    expect(response.ok(), await response.text()).toBe(true);
+    return (await response.json()) as Processing;
+  };
+  const counted = await processing();
+  expect(counted.deadlines.response).toMatchObject({ used: 3, norm: 5, overdueBy: 0, done: true });
+  expect(counted.deadlines.tu).toMatchObject({ used: 10, norm: 10, overdueBy: 0, done: true });
+  expect(
+    counted.events.map((event) => [
+      event.type,
+      event.workingDays,
+      event.overdueBy,
+      event.sinceDocumentsReceived,
+    ]),
+  ).toEqual([
+    ['REGISTERED', 0, 0, null],
+    ['RESPONSE', 3, 0, null],
+    ['DOCUMENTS_RECEIVED', 5, 0, null],
+    ['RESPONSE', 6, 1, null],
+    ['TECHNICAL_CONDITIONS', 10, 0, 5],
+  ]);
 
   // Without the working Saturday the same conditions take 9 working days; with it, 10 again.
   const calendarDay = await page.request.delete(`/api/v1/calendar/${WORKING_SATURDAY}`, {
     headers: await apiLogin(page.request, ADMIN),
   });
   expect(calendarDay.status()).toBe(204);
-  await page.reload();
-  await expect(deadlines).toContainText('Технічні умови: 9 робочих днів з 10');
+  expect((await processing()).deadlines.tu.used).toBe(9);
   await addCalendarDay(page.request, await apiLogin(page.request, ADMIN), WORKING_SATURDAY);
-  await page.reload();
-  await expect(deadlines).toContainText('Технічні умови: 10 робочих днів з 10');
+  expect((await processing()).deadlines.tu.used).toBe(10);
 
   // The registry: the stage and the TU; the search finds the response number.
   await page.goto(`/?q=${encodeURIComponent(`${answerNumber}-2`)}`);
@@ -150,12 +178,11 @@ test('a back-dated application through responses to technical conditions, by the
     .getByRole('button', { name: 'Деактивувати' })
     .click();
   await expect(page.getByRole('row').filter({ hasText: leaving })).toContainText('Неактивний');
-  await page.goto(`/applications/${app.id}`);
-  await expect(events.nth(1)).toContainText(`Інженер: ${leaving}`);
-  await page
-    .getByRole('region', { name: 'Відповіді' })
-    .getByRole('button', { name: 'Додати відповідь' })
-    .click();
+  await page.goto(`/applications/${app.id}?tab=response`);
+  const responsesTab = page.getByRole('tabpanel', { name: 'Відповідь' });
+  // The deactivated engineer stays on the responses they gave.
+  await expect(responsesTab.getByRole('article').getByTitle(leaving)).toHaveCount(2);
+  await responsesTab.getByRole('button', { name: 'Додати відповідь' }).click();
   const engineers = page.getByRole('dialog', { name: 'Нова відповідь' }).getByLabel('Інженер');
   await expect(engineers.getByRole('option', { name: staying })).toHaveCount(1);
   await expect(engineers.getByRole('option', { name: leaving })).toHaveCount(0);
@@ -215,13 +242,15 @@ test('technical conditions without any response: no response was due', async ({ 
   });
 
   await signIn(page, ADMIN, `/applications/${id}`);
-  await expect(page.getByRole('heading', { level: 1 }).locator('..')).toContainText(
-    'ТУ підготовлені',
-  );
-  const deadlines = page.getByRole('list', { name: 'Строки опрацювання' });
-  await expect(deadlines.getByRole('listitem')).toHaveCount(1);
-  await expect(deadlines).toContainText('Технічні умови: 0 робочих днів з 10 вчасно');
-  await expect(page.getByRole('region', { name: 'Відповіді' })).toContainText(
-    'Відповідей на заяву не надавали.',
-  );
+  await expect(
+    page.getByRole('region', { name: 'Історія опрацювання' }).getByText('Технічні умови № 0050/ТУ'),
+  ).toBeVisible();
+  const processing = await page.request.get(`/api/v1/applications/${id}/processing`, {
+    headers: await apiLogin(page.request, ADMIN),
+  });
+  const { deadlines } = (await processing.json()) as Processing;
+  expect(deadlines.response).toBeNull();
+  expect(deadlines.tu).toMatchObject({ used: 0, norm: 10, overdueBy: 0 });
+  await expect(page.getByRole('tab', { name: 'ТУ' })).toBeVisible();
+  await expect(page.getByRole('tab', { name: 'Відповідь' })).toHaveCount(0);
 });

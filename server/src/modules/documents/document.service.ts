@@ -57,6 +57,7 @@ export async function auditDocument<R extends DocumentRecord>(
   record: R,
   context: RequestContext,
   extra: Record<string, unknown> = {},
+  session?: ClientSession,
 ) {
   await recordAudit(
     {
@@ -72,6 +73,7 @@ export async function auditDocument<R extends DocumentRecord>(
       },
     },
     context,
+    session,
   );
 }
 
@@ -244,6 +246,37 @@ export async function attachDocumentScan<R extends DocumentRecord>(
     // Whatever happened, nothing stays in the upload folder (a moved file is already gone).
     await removeFile(file.path);
   }
+}
+
+/**
+ * Removes a document's current scan, e.g. a wrong file (agreed 2026-11-17): like the
+ * application's own scan, the file is deleted for good; scans replaced earlier stay. `load`
+ * checks access and returns the document as changeable.
+ */
+export async function removeDocumentScan<R extends DocumentRecord>(
+  kind: DocumentKind<R>,
+  load: () => Promise<{ app: ApplicationDocument; current: R }>,
+  actor: Actor,
+  context: RequestContext,
+) {
+  const { app, current } = await load();
+  if (!current.scan) throw ApiError.notFound('У документа немає скану');
+  // The scan seen is the one removed: a concurrent upload makes this a conflict.
+  const { matchedCount } = await kind.model.updateOne(
+    {
+      _id: current._id,
+      cancellation: mongoose.trusted({ $exists: false }),
+      'scan.fileId': current.scan.fileId,
+    },
+    { $unset: { scan: 1 }, $set: { updatedBy: actor.id } },
+  );
+  if (matchedCount === 0) throw versionConflict(kind);
+  await auditDocument(kind, kind.actions.updated, actor, app, current, context, {
+    changes: [{ field: 'scan', from: 'файл', to: null }],
+  });
+  // After the change: a refused removal must not lose the file of a scan still in place.
+  await deleteScanFile(current.scan.fileId);
+  return app;
 }
 
 /** The current scan, or one replaced earlier (`fileId`), of a document the actor may see. */

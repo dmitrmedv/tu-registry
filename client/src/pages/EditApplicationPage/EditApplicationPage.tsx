@@ -10,6 +10,7 @@ import {
 import { useCurrentUser } from '@/features/auth';
 import { toApiError } from '@/shared/api/apiError';
 import { Alert, LinkButton, Spinner } from '@/shared/ui';
+import { notifySuccess } from '@/shared/lib/notify';
 import type { ApplicationPageState } from '../ApplicationPage';
 import pageStyles from '../page.module.scss';
 
@@ -61,9 +62,10 @@ export function EditApplicationPage() {
           canChangeDepartment={canChangeDepartment(app, user)}
           cancelTo={cardPath}
           onReload={() => application.refetch()}
-          onSaved={() =>
-            navigate(cardPath, { replace: true, state: { ...state, notice: 'Зміни збережено' } })
-          }
+          onSaved={() => {
+            notifySuccess('Зміни збережено');
+            navigate(cardPath, { replace: true, state });
+          }}
         />
       </div>
     </section>

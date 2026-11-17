@@ -1,4 +1,5 @@
 import { existsSync } from 'node:fs';
+import { Types } from 'mongoose';
 import request from 'supertest';
 import { afterEach, beforeEach, describe, expect, it, type MockInstance, vi } from 'vitest';
 import { createApp } from '../../app';
@@ -10,6 +11,7 @@ import {
 } from '../../test/applications';
 import { useTestDb } from '../../test/db';
 import { clock } from '../../utils/clock';
+import { backfillTechnicalConditionsCustomer } from '../applications/application.migration';
 import { AuditLog } from '../audit/auditLog.model';
 import { Engineer } from '../engineers/engineer.model';
 import { scanPath } from '../scans/scan.storage';
@@ -101,6 +103,72 @@ describe('technical conditions of an application', () => {
     });
     const journal = await request(app).get('/api/v1/audit').set(admin.auth);
     expect(journal.body.data[0].entityLabel).toBe('0032/ТУ до заяви 1т/26-8');
+  });
+
+  it('takes the application customer and address unless the conditions name their own', async () => {
+    const { body: application } = await request(app)
+      .get(`${APPLICATIONS}/${applicationId}`)
+      .set(owner.auth);
+    const res = await add();
+    expect(res.body).toMatchObject({
+      customer: application.customer,
+      address: `${application.settlement}, ${application.objectAddress}`,
+    });
+
+    await cancel(res.body.id, 1);
+    const own = await add({ customer: '  ТОВ «Інший»  ', address: 'м. Одеса, вул. Нова, 2' });
+    expect(own.status).toBe(201);
+    expect(own.body).toMatchObject({ customer: 'ТОВ «Інший»', address: 'м. Одеса, вул. Нова, 2' });
+    expect((await add({ customer: ' ' })).body.error.details.fieldErrors.customer).toEqual([
+      'Вкажіть: замовник за ТУ',
+    ]);
+  });
+
+  it('journals a changed customer or address without the values', async () => {
+    const { body: tu } = await add();
+    const edited = await patch(tu.id, {
+      version: 1,
+      customer: 'Франко Іван Якович',
+      address: 'м. Одеса, вул. Лесі Українки, 34',
+    });
+    expect(edited.body).toMatchObject({
+      customer: 'Франко Іван Якович',
+      address: 'м. Одеса, вул. Лесі Українки, 34',
+      version: 2,
+    });
+    const audit = await AuditLog.findOne({ action: 'TU_UPDATED' }).lean();
+    expect(audit?.details).toMatchObject({ regNumber: '1т/26-8', tuNumber: '0032/ТУ' });
+    expect((audit?.details as { changes: unknown }).changes).toEqual([
+      { field: 'customer' },
+      { field: 'address' },
+    ]);
+    expect(JSON.stringify(audit)).not.toMatch(/Франко|Українки/);
+  });
+
+  it('gives sets prepared before the fields the application customer and address, once', async () => {
+    const { body: application } = await request(app)
+      .get(`${APPLICATIONS}/${applicationId}`)
+      .set(owner.auth);
+    const { body: old } = await add({ customer: 'Свій', address: 'Своя' });
+    await cancel(old.id, 1);
+    const { body: current } = await add({ customer: 'Свій', address: 'Своя' });
+    await TechnicalConditions.collection.updateOne(
+      { _id: new Types.ObjectId(old.id) },
+      { $unset: { customer: '', address: '' } },
+    );
+
+    expect(await backfillTechnicalConditionsCustomer()).toBe(1);
+    expect(await backfillTechnicalConditionsCustomer()).toBe(0);
+    const rows = (await list()).body as { id: string; customer: string; address: string }[];
+    expect(rows.find((row) => row.id === old.id)).toMatchObject({
+      customer: application.customer,
+      address: `${application.settlement}, ${application.objectAddress}`,
+    });
+    // Written by a person: never overwritten.
+    expect(rows.find((row) => row.id === current.id)).toMatchObject({
+      customer: 'Свій',
+      address: 'Своя',
+    });
   });
 
   it('follows a response whose documents came, without closing anything', async () => {
@@ -264,5 +332,24 @@ describe('technical conditions of an application', () => {
       .set(admin.auth);
     expect(await TechnicalConditions.countDocuments()).toBe(0);
     expect(files.map((file) => existsSync(scanPath(file)))).toEqual([false, false]);
+  });
+
+  it('removes the current scan for the department of the application only', async () => {
+    const { body: tu } = await add();
+    const scan = url(`/${tu.id}/scan`);
+    await request(app)
+      .put(scan)
+      .set(owner.auth)
+      .attach('scan', pdf('перші'), { filename: 'перші.pdf', contentType: 'application/pdf' });
+    const fileId = (await TechnicalConditions.findById(tu.id).lean())!.scan!.fileId;
+
+    expect((await request(app).delete(scan).set(elsewhere.auth)).status).toBe(404);
+    const res = await request(app).delete(scan).set(owner.auth);
+    expect(res.status).toBe(200);
+    expect(res.body.scan).toBeNull();
+    expect(existsSync(scanPath(fileId))).toBe(false);
+    expect((await request(app).delete(scan).set(owner.auth)).status).toBe(404);
+    const entry = await AuditLog.findOne({ action: 'TU_UPDATED' }).sort({ createdAt: -1 }).lean();
+    expect(entry!.details).toMatchObject({ changes: [{ field: 'scan', from: 'файл', to: null }] });
   });
 });

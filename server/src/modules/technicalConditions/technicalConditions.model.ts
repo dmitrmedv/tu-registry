@@ -3,6 +3,8 @@ import {
   CONNECTION_TYPES,
   GAS_FLOW_MAX,
   GAS_PRESSURES,
+  TU_ADDRESS_MAX,
+  TU_CUSTOMER_MAX,
   TU_NUMBER_MAX,
 } from '@tu-registry/shared';
 import { type InferSchemaType, Schema, model } from 'mongoose';
@@ -26,6 +28,9 @@ const technicalConditionsSchema = new Schema(
     connectionType: { type: String, enum: CONNECTION_TYPES, required: true },
     gasPressure: { type: String, enum: GAS_PRESSURES, required: true },
     connectionPoint: { type: String, enum: CONNECTION_POINTS, required: true },
+    // «Замовник за ТУ», «Адреса за ТУ»: as written in the conditions (stage 19).
+    customer: { type: String, required: true, trim: true, maxlength: TU_CUSTOMER_MAX },
+    address: { type: String, required: true, trim: true, maxlength: TU_ADDRESS_MAX },
     scan: { type: scanRecordSchema, default: undefined },
     previousScans: { type: [scanRecordSchema], default: [] },
     cancellation: { type: cancellationSchema, default: undefined },

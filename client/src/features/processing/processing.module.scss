@@ -1,22 +1,23 @@
-.summary {
+// The panel on the left of the card: «Історія змін» centred on top, then the timeline.
+.panel {
   display: flex;
   flex-direction: column;
-  gap: var(--space-2);
-  font-size: var(--text-sm);
-  margin: 0;
-  padding: var(--space-3);
+  gap: var(--space-4);
+  padding: var(--space-4) var(--space-6) var(--space-6);
+  background: var(--color-surface);
   border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
-  background: var(--color-surface-muted);
-  list-style: none;
+  border-radius: var(--radius-lg);
+  min-width: 0;
 }
 
-.term {
-  font-weight: 600;
+.toolbar {
+  display: flex;
+  justify-content: center;
 }
 
-.muted {
-  color: var(--color-text-muted);
+.heading {
+  margin: 0;
+  font-size: var(--text-md);
 }
 
 .timeline {
@@ -30,6 +31,7 @@
   position: relative;
   display: flex;
   flex-direction: column;
+  align-items: flex-start;
   gap: var(--space-1);
   padding: 0 0 var(--space-4) var(--space-6);
 
@@ -55,32 +57,43 @@
   }
 }
 
+// The document and its date, one under the other.
+.eventText,
+.eventLink {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  margin: 0;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+// The event opens its tab: a link-like button with the text's own look.
+.eventLink {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+
+  &:hover .eventName {
+    color: var(--color-primary);
+    text-decoration: underline;
+  }
+}
+
 .cancelled {
   color: var(--color-text-muted);
 
-  // The title and date, not the «скасовано» badge after them.
-  .eventTitle > span:not(:last-child) {
+  .eventText,
+  .eventLink {
     text-decoration: line-through;
   }
 
   &::before {
     background: var(--color-border-strong);
   }
-}
-
-.eventTitle {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--space-2);
-  margin: 0;
-  font-weight: 600;
-  overflow-wrap: anywhere;
-}
-
-.facts {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--space-1) var(--space-3);
 }

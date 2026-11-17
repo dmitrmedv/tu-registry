@@ -1,4 +1,4 @@
-import { DEFAULT_DEPARTMENT } from '@tu-registry/shared';
+import { DEFAULT_DEPARTMENT, fullAddress } from '@tu-registry/shared';
 import mongoose, { Types } from 'mongoose';
 import { Counter } from '../numbering/counter.model';
 import { recomputeProcessing } from '../processing/processing.summary';
@@ -189,4 +189,38 @@ export async function backfillProcessing() {
     await recomputeProcessing(new Types.ObjectId(id));
   }
   return missing.length;
+}
+
+/**
+ * Stage 19: «Замовник за ТУ» and «Адреса за ТУ» became fields of the technical conditions.
+ * Sets prepared before take the application's customer and address. Works on the raw
+ * collection: the model would refuse to load records without the now required fields.
+ * Idempotent: returns how many sets were filled in.
+ */
+export async function backfillTechnicalConditionsCustomer() {
+  const rows = await TechnicalConditions.collection
+    .find(
+      { $or: [{ customer: { $exists: false } }, { address: { $exists: false } }] },
+      { projection: { applicationId: 1 } },
+    )
+    .toArray();
+  if (rows.length === 0) return 0;
+  const apps = await Application.find({
+    _id: mongoose.trusted({ $in: rows.map((row) => row.applicationId) }),
+  })
+    .select('customer settlement objectAddress')
+    .lean();
+  const byId = new Map(apps.map((app) => [String(app._id), app]));
+  const updates = rows.flatMap((row) => {
+    const app = byId.get(String(row.applicationId));
+    if (!app) return [];
+    const $set = {
+      customer: app.customer,
+      address: fullAddress(app.settlement ?? null, app.objectAddress),
+    };
+    return [{ updateOne: { filter: { _id: row._id }, update: { $set } } }];
+  });
+  if (updates.length === 0) return 0;
+  const { modifiedCount } = await TechnicalConditions.collection.bulkWrite(updates);
+  return modifiedCount;
 }

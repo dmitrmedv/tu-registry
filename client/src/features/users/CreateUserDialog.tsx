@@ -58,18 +58,14 @@ export function CreateUserDialog({ open, onClose, onCreated }: Props) {
 
   return (
     <Dialog
+      busy={isSubmitting}
       open={open}
       title="Новий користувач"
       onClose={close}
       footer={
-        <>
-          <Button onClick={close} disabled={isSubmitting}>
-            Скасувати
-          </Button>
-          <Button type="submit" form={FORM_ID} variant="primary" loading={isSubmitting}>
-            Створити
-          </Button>
-        </>
+        <Button type="submit" form={FORM_ID} variant="primary" loading={isSubmitting}>
+          Створити
+        </Button>
       }
     >
       <form id={FORM_ID} onSubmit={onSubmit} noValidate className={styles.formContents}>

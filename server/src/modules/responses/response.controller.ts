@@ -1,6 +1,7 @@
 import {
   cancelDocumentSchema,
   createResponseSchema,
+  deleteDocumentQuerySchema,
   documentScanQuerySchema,
   restoreDocumentSchema,
   updateResponseSchema,
@@ -82,6 +83,21 @@ export const restore: RequestHandler = async (req, res) => {
   );
 };
 
+export const remove: RequestHandler = async (req, res) => {
+  const { params, query } = parseRequest(req, {
+    params: responseParamsSchema,
+    query: deleteDocumentQuerySchema,
+  });
+  await responseService.deleteResponse(
+    params.id,
+    params.rid,
+    query.version,
+    req.user!,
+    requestContext(req),
+  );
+  res.status(204).end();
+};
+
 export const checkScanEditable: RequestHandler = async (req, _res, next) => {
   const { params } = parseRequest(req, { params: responseParamsSchema });
   await scanService.assertResponseScanEditable(params.id, params.rid, req.user!);
@@ -99,6 +115,13 @@ export const uploadScan: RequestHandler = async (req, res) => {
       req.user!,
       requestContext(req),
     ),
+  );
+};
+
+export const removeScan: RequestHandler = async (req, res) => {
+  const { params } = parseRequest(req, { params: responseParamsSchema });
+  res.json(
+    await scanService.removeResponseScan(params.id, params.rid, req.user!, requestContext(req)),
   );
 };
 

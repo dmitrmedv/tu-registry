@@ -32,3 +32,6 @@ export const canManageDocuments = canEdit;
 
 /** A cancelled response or technical conditions come back by an admin's decision. */
 export const canRestoreDocument = (app: Application, user: User) => isActive(app) && isAdmin(user);
+
+/** A response entered by mistake is deleted for good, by an admin, while the application is active. */
+export const canDeleteDocument = canRestoreDocument;

@@ -1,1 +1,1 @@
-export { CardBlock, CardItem, CardItems } from './CardBlock';
+export { CardBlock, CardFooter, CardItem, CardItems } from './CardBlock';

@@ -10,3 +10,5 @@ export * from './MenuButton';
 export * from './Icon';
 export * from './IconButton';
 export * from './CardBlock';
+export * from './Tabs';
+export * from './DataList';

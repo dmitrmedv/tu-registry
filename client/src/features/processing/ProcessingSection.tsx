@@ -1,30 +1,30 @@
 import type { ApplicationDto, TimelineEventDto } from '@tu-registry/shared';
-import { useState } from 'react';
+import { type ReactNode, useId } from 'react';
 import { toApiError } from '@/shared/api/apiError';
-import { openPdf } from '@/shared/lib/pdf';
-import { Alert, Button, CardBlock, Spinner } from '@/shared/ui';
-import { processingApi } from './api';
-import { DeadlineSummary } from './DeadlineSummary';
+import { Alert, Button, Spinner } from '@/shared/ui';
+import styles from './processing.module.scss';
 import { ProcessingTimeline } from './ProcessingTimeline';
 import { useProcessing } from './queries';
 
-/** «Історія опрацювання» of the card: the deadlines and the timeline of the documents. */
-export function ProcessingSection({ app }: { app: ApplicationDto }) {
-  const processing = useProcessing(app.id);
-  const [scanError, setScanError] = useState<string>();
+type Props = {
+  app: ApplicationDto;
+  /** Opens the event's document in the card. */
+  onSelectEvent?: (event: TimelineEventDto) => void;
+  /** Centred above the title (e.g. «Історія змін»). */
+  toolbar?: ReactNode;
+};
 
-  const openScan = async (event: TimelineEventDto) => {
-    setScanError(undefined);
-    try {
-      await openPdf(() => processingApi.scanOf(app.id, event), event.scanName ?? '');
-    } catch (e) {
-      setScanError(`Не вдалося відкрити скан: ${toApiError(e).message}`);
-    }
-  };
+/** «Історія опрацювання» of the card: the documents of the application, in the order made. */
+export function ProcessingSection({ app, onSelectEvent, toolbar }: Props) {
+  const processing = useProcessing(app.id);
+  const titleId = useId();
 
   return (
-    <CardBlock title="Історія опрацювання">
-      {scanError && <Alert variant="error">{scanError}</Alert>}
+    <section className={styles.panel} aria-labelledby={titleId}>
+      {toolbar && <div className={styles.toolbar}>{toolbar}</div>}
+      <h2 id={titleId} className={styles.heading}>
+        Історія опрацювання
+      </h2>
       {processing.isPending ? (
         <Spinner label="Завантаження історії опрацювання…" />
       ) : processing.isError ? (
@@ -35,16 +35,8 @@ export function ProcessingSection({ app }: { app: ApplicationDto }) {
           </Button>
         </Alert>
       ) : (
-        <>
-          {/* An annulled application is not being processed: its deadlines do not run. */}
-          {app.status === 'ACTIVE' && <DeadlineSummary deadlines={processing.data.deadlines} />}
-          <ProcessingTimeline
-            events={processing.data.events}
-            tracked={processing.data.deadlines.tracked}
-            onOpenScan={openScan}
-          />
-        </>
+        <ProcessingTimeline events={processing.data.events} onSelect={onSelectEvent} />
       )}
-    </CardBlock>
+    </section>
   );
 }

@@ -44,6 +44,7 @@ export function TemporaryPasswordDialog({ result, reason, onClose }: Props) {
           Копіювати
         </Button>
       </div>
+      {/* Inline, not a notification: the open dialog's backdrop would cover one. */}
       {copy === 'done' && <Alert variant="success">Скопійовано</Alert>}
       {copy === 'failed' && (
         <Alert variant="warning">Не вдалося скопіювати автоматично — виділіть пароль вручну.</Alert>

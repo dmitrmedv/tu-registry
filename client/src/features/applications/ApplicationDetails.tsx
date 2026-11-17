@@ -1,99 +1,60 @@
 import { type ApplicationDto, formatPhone } from '@tu-registry/shared';
-import clsx from 'clsx';
-import type { ReactNode } from 'react';
-import { useDepartments } from '@/features/departments';
 import { formatCalendarDate, formatDateTime } from '@/shared/lib/format';
 import { AREA_TYPE_LABELS, formatObjectCategory, OBJECT_TYPE_LABELS } from '@/shared/lib/labels';
+import { DataList, DataRow } from '@/shared/ui';
 import styles from './ApplicationDetails.module.scss';
 
-function Field({ label, children }: { label: string; children: ReactNode }) {
-  return (
-    <div className={styles.field}>
-      <dt>{label}</dt>
-      <dd>{children ?? '—'}</dd>
-    </div>
-  );
-}
-
-/** A titled group of fields inside the «Заява» block. */
-function Group({
-  title,
-  wide = false,
-  danger = false,
-  children,
-}: {
-  title: string;
-  wide?: boolean;
-  danger?: boolean;
-  children: ReactNode;
-}) {
-  return (
-    <div className={clsx(styles.group, wide && styles.wide, danger && styles.annulled)}>
-      <h3>{title}</h3>
-      {children}
-    </div>
-  );
-}
-
-/** The application's own data, grouped, for the «Заява» block of the card. */
+/**
+ * The «Заява» tab, as on the mock-up (agreed 2026-11-17): the registration and, under it, the
+ * object on the left, the customer on the right; one column on narrow screens. The annulment
+ * above them, the comment under the customer.
+ */
 export function ApplicationDetails({ app }: { app: ApplicationDto }) {
-  const { nameOf } = useDepartments();
   return (
-    <div className={styles.groups}>
+    <div className={styles.details}>
       {app.annulment && (
-        <Group title="Анулювання" wide danger>
-          <dl>
-            <Field label="Причина">{app.annulment.reason}</Field>
-            <Field label="Анулював">{app.annulment.by.fullName}</Field>
-            <Field label="Коли">{formatDateTime(app.annulment.at)}</Field>
-          </dl>
-        </Group>
+        <div className={styles.annulled}>
+          <DataList labels="fixed">
+            <DataRow label="Анульовано">{formatDateTime(app.annulment.at)}</DataRow>
+            <DataRow label="Анулював">{app.annulment.by.fullName}</DataRow>
+            <DataRow label="Причина">{app.annulment.reason}</DataRow>
+          </DataList>
+        </div>
       )}
-
-      <Group title="Реєстрація">
-        <dl>
-          <Field label="Номер">{app.regNumber}</Field>
-          <Field label="Управління">{nameOf(app.department)}</Field>
-          <Field label="Дата реєстрації">{formatCalendarDate(app.regDate)}</Field>
-          <Field label="Спосіб">
-            {app.registrationMode === 'MANUAL' ? 'Внесено вручну' : 'Автоматично'}
-          </Field>
-          <Field label="Зареєстрував">{app.createdBy.fullName}</Field>
-          <Field label="Фактично внесено">{formatDateTime(app.createdAt)}</Field>
-          <Field label="Скан документів">{app.scan?.name}</Field>
-        </dl>
-      </Group>
-
-      <Group title="Замовник">
-        <dl>
-          <Field label="Замовник">{app.customer}</Field>
-          <Field label="Представник замовника">{app.customerRepresentative}</Field>
-          <Field label="Телефон">
-            <a href={`tel:${app.phone}`}>{formatPhone(app.phone)}</a>
-          </Field>
-          <Field label="Email">
-            {app.email && <a href={`mailto:${app.email}`}>{app.email}</a>}
-          </Field>
-        </dl>
-      </Group>
-
-      <Group title="Обʼєкт">
-        <dl>
-          <Field label="Населений пункт">{app.settlement}</Field>
-          <Field label="Адреса">{app.objectAddress}</Field>
-          <Field label="Місцевість">{app.areaType && AREA_TYPE_LABELS[app.areaType]}</Field>
-          <Field label="Тип обʼєкта">{OBJECT_TYPE_LABELS[app.objectType]}</Field>
-          <Field label="Категорія">
+      <div className={styles.column}>
+        <DataList labels="fixed">
+          <DataRow label="Номер реєстрації">{app.regNumber}</DataRow>
+          <DataRow label="Дата реєстрації">{formatCalendarDate(app.regDate)}</DataRow>
+          <DataRow label="Зареєстрував">{app.createdBy.fullName}</DataRow>
+          <DataRow label="Фактично внесено">{formatDateTime(app.createdAt)}</DataRow>
+        </DataList>
+        <DataList labels="fixed">
+          <DataRow label="Населений пункт">{app.settlement}</DataRow>
+          <DataRow label="Адреса">{app.objectAddress}</DataRow>
+          <DataRow label="Місцевість">{app.areaType && AREA_TYPE_LABELS[app.areaType]}</DataRow>
+          <DataRow label="Тип обʼєкта">{OBJECT_TYPE_LABELS[app.objectType]}</DataRow>
+          <DataRow label="Категорія">
             {formatObjectCategory(app.objectCategory, app.objectCategoryOther)}
-          </Field>
-        </dl>
-      </Group>
-
-      {app.comment && (
-        <Group title="Коментар" wide>
-          <p className={styles.comment}>{app.comment}</p>
-        </Group>
-      )}
+          </DataRow>
+        </DataList>
+      </div>
+      <div className={styles.column}>
+        <DataList labels="fixed">
+          <DataRow label="Замовник">{app.customer}</DataRow>
+          <DataRow label="Представник замовника">{app.customerRepresentative}</DataRow>
+          <DataRow label="Телефон">
+            <a href={`tel:${app.phone}`}>{formatPhone(app.phone)}</a>
+          </DataRow>
+          <DataRow label="Email">
+            {app.email && <a href={`mailto:${app.email}`}>{app.email}</a>}
+          </DataRow>
+          {app.comment && (
+            <DataRow label="Коментар">
+              <span className={styles.comment}>{app.comment}</span>
+            </DataRow>
+          )}
+        </DataList>
+      </div>
     </div>
   );
 }

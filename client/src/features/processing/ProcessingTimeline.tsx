@@ -1,7 +1,7 @@
 import type { ProcessingDto, TimelineEventDto } from '@tu-registry/shared';
 import clsx from 'clsx';
-import { formatCalendarDate, workingDaysLabel } from '@/shared/lib/format';
-import { Badge, IconButton } from '@/shared/ui';
+import { formatCalendarDate } from '@/shared/lib/format';
+import { Badge } from '@/shared/ui';
 import styles from './processing.module.scss';
 
 const TITLES: Record<TimelineEventDto['type'], string> = {
@@ -13,55 +13,41 @@ const TITLES: Record<TimelineEventDto['type'], string> = {
 
 type Props = {
   events: ProcessingDto['events'];
-  /** No overdue warnings for applications registered before deadlines were tracked. */
-  tracked: boolean;
-  onOpenScan: (event: TimelineEventDto) => void;
+  /** Opens the event's document in the card. */
+  onSelect?: (event: TimelineEventDto) => void;
 };
 
-/** What happened, in the order it happened: registration, responses, documents, TU. */
-export function ProcessingTimeline({ events, tracked, onOpenScan }: Props) {
+/** What happened, in the order it happened: a document and its date per line. */
+export function ProcessingTimeline({ events, onSelect }: Props) {
   return (
     <ol className={styles.timeline}>
       {events.map((event, index) => {
         const title = `${TITLES[event.type]}${event.number ? ` № ${event.number}` : ''}`;
+        const date = `від ${formatCalendarDate(event.date)}`;
+        const text = (
+          <>
+            <span className={styles.eventName}>{title}</span> <span>{date}</span>
+          </>
+        );
         return (
           <li
             key={`${event.type}-${event.documentId ?? 'application'}-${index}`}
             className={clsx(styles.event, event.cancelled && styles.cancelled)}
             aria-label={`${title}, ${formatCalendarDate(event.date)}`}
           >
-            <p className={styles.eventTitle}>
-              <span>{title}</span>
-              <span>від {formatCalendarDate(event.date)}</span>
-              {event.cancelled && <Badge tone="danger">скасовано</Badge>}
-            </p>
-            <div className={styles.facts}>
-              {event.person && (
-                <span>
-                  {event.type === 'REGISTERED' ? 'Зареєстрував(ла)' : 'Інженер'}: {event.person}
-                </span>
-              )}
-              {event.type !== 'REGISTERED' && (
-                <span>
-                  {event.norm
-                    ? `${workingDaysLabel(event.workingDays)} з ${event.norm}`
-                    : `${workingDaysLabel(event.workingDays)} від реєстрації`}
-                  {event.sinceDocumentsReceived !== null &&
-                    ` (${workingDaysLabel(event.sinceDocumentsReceived)} від надходження документів)`}
-                </span>
-              )}
-              {tracked && !event.cancelled && event.overdueBy > 0 && (
-                <Badge tone="danger">строк перевищено на {workingDaysLabel(event.overdueBy)}</Badge>
-              )}
-              {event.scanName && (
-                <IconButton
-                  icon="eye"
-                  label={`Скан: ${title}`}
-                  title={event.scanName}
-                  onClick={() => onOpenScan(event)}
-                />
-              )}
-            </div>
+            {onSelect ? (
+              <button
+                type="button"
+                className={styles.eventLink}
+                title="Відкрити у картці"
+                onClick={() => onSelect(event)}
+              >
+                {text}
+              </button>
+            ) : (
+              <p className={styles.eventText}>{text}</p>
+            )}
+            {event.cancelled && <Badge tone="danger">скасовано</Badge>}
           </li>
         );
       })}

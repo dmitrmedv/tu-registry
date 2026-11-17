@@ -39,6 +39,10 @@ afterEach(() => {
   tokenStore.set(null);
   // Form drafts must not leak from one test into the next.
   localStorage.clear();
+  // Notifications live in <body>, outside what cleanup() removes.
+  document
+    .querySelectorAll('#NotiflixNotifyWrap, #NotiflixNotifyOverlay')
+    .forEach((element) => element.remove());
 });
 
 afterAll(() => server.close());

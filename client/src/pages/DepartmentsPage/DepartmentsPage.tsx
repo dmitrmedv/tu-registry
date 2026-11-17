@@ -9,6 +9,7 @@ import {
   useRestoreDepartment,
 } from '@/features/departments';
 import { toApiError } from '@/shared/api/apiError';
+import { notifySuccess } from '@/shared/lib/notify';
 import { Alert, Button, ConfirmDialog, Spinner } from '@/shared/ui';
 import pageStyles from '../page.module.scss';
 
@@ -25,7 +26,6 @@ export function DepartmentsPage() {
   const restore = useRestoreDepartment();
   const remove = useDeleteDepartment();
   const [dialog, setDialog] = useState<DialogState>({ kind: 'none' });
-  const [notice, setNotice] = useState<string>();
   const [error, setError] = useState<string>();
   const close = () => setDialog({ kind: 'none' });
 
@@ -37,7 +37,7 @@ export function DepartmentsPage() {
     setError(undefined);
     try {
       await action();
-      setNotice(done);
+      notifySuccess(done);
       close();
     } catch (e) {
       const message = toApiError(e).message;
@@ -62,8 +62,6 @@ export function DepartmentsPage() {
         Код іде в номер заяви (1т/26-8). Управління з користувачами чи заявами не видаляється, а
         архівується: його заяви лишаються, але нових користувачів і заяв у ньому створити не можна.
       </p>
-
-      {notice && <Alert variant="success">{notice}</Alert>}
       {error && <Alert variant="error">{error}</Alert>}
 
       {list.isPending ? (
@@ -96,7 +94,7 @@ export function DepartmentsPage() {
           suggestedCode={nextCode}
           onClose={close}
           onSaved={(saved) => {
-            setNotice(
+            notifySuccess(
               dialog.kind === 'edit'
                 ? `Управління «${saved.name}» збережено`
                 : `Управління «${saved.name}» додано`,

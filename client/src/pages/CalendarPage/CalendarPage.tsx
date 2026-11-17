@@ -10,6 +10,7 @@ import {
 } from '@/features/calendar';
 import { toApiError } from '@/shared/api/apiError';
 import { formatCalendarDate } from '@/shared/lib/format';
+import { notifySuccess } from '@/shared/lib/notify';
 import { Alert, Button, ConfirmDialog, SelectField, Spinner } from '@/shared/ui';
 import pageStyles from '../page.module.scss';
 
@@ -39,7 +40,6 @@ export function CalendarPage() {
   const days = useCalendarDays(year);
   const remove = useDeleteCalendarDay();
   const [dialog, setDialog] = useState<DialogState>({ kind: 'none' });
-  const [notice, setNotice] = useState<string>();
   const close = () => setDialog({ kind: 'none' });
 
   const describe = (day: CalendarDayDto) =>
@@ -66,8 +66,6 @@ export function CalendarPage() {
         onChange={(e) => setYear(Number(e.target.value))}
       />
 
-      {notice && <Alert variant="success">{notice}</Alert>}
-
       {days.isPending ? (
         <Spinner label="Завантаження календаря…" />
       ) : days.isError ? (
@@ -92,7 +90,7 @@ export function CalendarPage() {
           day={dialog.kind === 'edit' ? dialog.day : undefined}
           onClose={close}
           onSaved={(saved) => {
-            setNotice(
+            notifySuccess(
               dialog.kind === 'edit'
                 ? `День ${describe(saved)} збережено`
                 : `День ${describe(saved)} додано`,
@@ -116,7 +114,7 @@ export function CalendarPage() {
           onConfirm={async () => {
             try {
               await remove.mutateAsync(dialog.day.date);
-              setNotice(`День ${describe(dialog.day)} видалено з календаря`);
+              notifySuccess(`День ${describe(dialog.day)} видалено з календаря`);
               close();
             } catch (e) {
               setDialog({ ...dialog, error: toApiError(e).message });

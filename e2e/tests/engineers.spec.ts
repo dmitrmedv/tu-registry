@@ -24,7 +24,7 @@ test('an admin adds, renames and deactivates an engineer of a department', async
   await dialog.getByLabel('ПІБ').fill(name);
   await dialog.getByRole('button', { name: 'Додати' }).click();
   await expect(dialog.getByText('Інженер з таким ПІБ в управлінні вже є')).toBeVisible();
-  await dialog.getByRole('button', { name: 'Скасувати' }).click();
+  await dialog.getByRole('button', { name: 'Закрити' }).click();
 
   await row.getByRole('button', { name: 'Редагувати' }).click();
   const edit = page.getByRole('dialog', { name: `Редагування: ${name}` });

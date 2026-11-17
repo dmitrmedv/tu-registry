@@ -1,110 +1,60 @@
 import { zodResolver } from '@hookform/resolvers/zod';
-import {
-  type ApplicationDto,
-  CONNECTION_POINTS,
-  CONNECTION_TYPES,
-  createTechnicalConditionsSchema,
-  type CreateTechnicalConditionsData,
-  GAS_PRESSURES,
-  kyivCalendarDate,
-  type TechnicalConditionsDto,
-} from '@tu-registry/shared';
+import type { ApplicationDto, TechnicalConditionsDto } from '@tu-registry/shared';
 import { useState } from 'react';
-import { type FieldPath, useForm } from 'react-hook-form';
-import type { z } from 'zod';
+import { FormProvider, useForm } from 'react-hook-form';
 import { ScanDropzone } from '@/features/applications';
 import { documentStyles as styles } from '@/features/documents';
-import { useEngineerOptions } from '@/features/engineers';
 import { toApiError } from '@/shared/api/apiError';
-import {
-  CONNECTION_POINT_LABELS,
-  CONNECTION_TYPE_LABELS,
-  GAS_PRESSURE_LABELS,
-} from '@/shared/lib/labels';
-import { Alert, Button, ChoiceField, Dialog, SelectField, Spinner, TextField } from '@/shared/ui';
+import { Alert, Button, Dialog } from '@/shared/ui';
 import {
   useCreateTechnicalConditions,
   useUpdateTechnicalConditions,
   useUploadTechnicalConditionsScan,
 } from './queries';
-
-type FormInput = z.input<typeof createTechnicalConditionsSchema>;
-type ServerErrorDetails = { fieldErrors?: Record<string, string[] | undefined> };
+import {
+  changedFields,
+  type FormData,
+  formDefaults,
+  type FormInput,
+  formSchema,
+  showServerError,
+} from './technicalConditionsForm';
+import { ConnectionFields, CustomerFields, DocumentFields } from './TechnicalConditionsFields';
 
 const FORM_ID = 'technical-conditions-form';
-const options = <Code extends string>(codes: readonly Code[], labels: Record<Code, string>) =>
-  codes.map((code) => ({ value: code, label: labels[code] }));
 
 type Props = {
   app: ApplicationDto;
-  /** Editing these; new technical conditions when absent. */
-  technicalConditions?: TechnicalConditionsDto;
   onClose: () => void;
   onSaved: (saved: TechnicalConditionsDto) => void;
 };
 
 /**
- * Technical conditions with their scan. The scan is a second request: if only it fails, the
- * conditions are already saved — the dialog switches to editing them, and saving again sends
- * just the file.
+ * New technical conditions with their scan; saved ones are edited on their own page. The scan
+ * is a second request: if only it fails, the conditions are already saved — the dialog then
+ * edits them, and saving again sends just the file.
  */
-export function TechnicalConditionsDialog({
-  app,
-  technicalConditions: initial,
-  onClose,
-  onSaved,
-}: Props) {
-  const [saved, setSaved] = useState(initial);
+export function TechnicalConditionsDialog({ app, onClose, onSaved }: Props) {
+  const [saved, setSaved] = useState<TechnicalConditionsDto>();
   const [file, setFile] = useState<File | null>(null);
   const [scanError, setScanError] = useState<string>();
-  const { query: engineers, options: engineerOptions } = useEngineerOptions(
-    app.department,
-    initial?.engineer.id,
-  );
   const create = useCreateTechnicalConditions(app.id);
   const update = useUpdateTechnicalConditions(app.id);
   const uploadScan = useUploadTechnicalConditionsScan(app.id);
+  const form = useForm<FormInput, unknown, FormData>({
+    resolver: zodResolver(formSchema),
+    defaultValues: formDefaults(app),
+  });
   const {
-    register,
     handleSubmit,
     setError,
     formState: { errors, isSubmitting },
-  } = useForm<FormInput, unknown, CreateTechnicalConditionsData>({
-    resolver: zodResolver(createTechnicalConditionsSchema),
-    defaultValues: {
-      tuNumber: initial?.tuNumber ?? '',
-      preparedDate: initial?.preparedDate ?? kyivCalendarDate(),
-      engineer: initial?.engineer.id ?? '',
-      // As people write it: "2,5".
-      gasFlow: initial ? String(initial.gasFlow).replace('.', ',') : '',
-      connectionType: initial?.connectionType,
-      gasPressure: initial?.gasPressure,
-      connectionPoint: initial?.connectionPoint,
-    },
-  });
+  } = form;
 
-  const save = async (values: CreateTechnicalConditionsData) => {
+  const save = async (values: FormData) => {
     if (!saved) return create.mutateAsync(values);
-    const current: CreateTechnicalConditionsData = {
-      tuNumber: saved.tuNumber,
-      preparedDate: saved.preparedDate,
-      engineer: saved.engineer.id,
-      gasFlow: saved.gasFlow,
-      connectionType: saved.connectionType,
-      gasPressure: saved.gasPressure,
-      connectionPoint: saved.connectionPoint,
-    };
-    const changed = (Object.keys(current) as (keyof CreateTechnicalConditionsData)[]).filter(
-      (field) => values[field] !== current[field],
-    );
-    if (changed.length === 0) return saved;
-    return update.mutateAsync({
-      id: saved.id,
-      input: {
-        version: saved.version,
-        ...Object.fromEntries(changed.map((field) => [field, values[field]])),
-      },
-    });
+    const input = changedFields(saved, values);
+    return input ? update.mutateAsync({ id: saved.id, input }) : saved;
   };
 
   const onSubmit = handleSubmit(async (values) => {
@@ -113,14 +63,7 @@ export function TechnicalConditionsDialog({
     try {
       result = await save(values);
     } catch (error) {
-      const apiError = toApiError(error);
-      const fieldErrors = (apiError.details as ServerErrorDetails | undefined)?.fieldErrors ?? {};
-      const fields = Object.entries(fieldErrors);
-      for (const [field, messages] of fields) {
-        if (messages?.[0]) setError(field as FieldPath<FormInput>, { message: messages[0] });
-      }
-      if (fields.length === 0) setError('root', { message: apiError.message });
-      return;
+      return showServerError(error, setError);
     }
     if (file) {
       try {
@@ -136,94 +79,29 @@ export function TechnicalConditionsDialog({
 
   return (
     <Dialog
+      busy={isSubmitting}
       open
-      title={initial ? `Технічні умови № ${initial.tuNumber}` : 'Нові технічні умови'}
+      title={saved ? `Технічні умови № ${saved.tuNumber}` : 'Нові технічні умови'}
       onClose={onClose}
       footer={
-        <>
-          <Button onClick={onClose} disabled={isSubmitting}>
-            {saved && !initial ? 'Закрити' : 'Скасувати'}
-          </Button>
-          <Button type="submit" form={FORM_ID} variant="primary" loading={isSubmitting}>
-            {saved ? 'Зберегти' : 'Додати'}
-          </Button>
-        </>
+        <Button type="submit" form={FORM_ID} variant="primary" loading={isSubmitting}>
+          {saved ? 'Зберегти' : 'Додати'}
+        </Button>
       }
     >
-      <form id={FORM_ID} onSubmit={onSubmit} noValidate className={styles.formContents}>
-        {errors.root?.message && <Alert variant="error">{errors.root.message}</Alert>}
-        {scanError && <Alert variant="error">{scanError}</Alert>}
-        <TextField
-          label="Реєстраційний номер ТУ"
-          autoComplete="off"
-          error={errors.tuNumber?.message}
-          {...register('tuNumber')}
-        />
-        <TextField
-          label="Дата підготовки ТУ"
-          type="date"
-          max={kyivCalendarDate()}
-          error={errors.preparedDate?.message}
-          {...register('preparedDate')}
-        />
-        {engineers.isPending ? (
-          // An uncontrolled select would otherwise settle on whichever option comes first.
-          <Spinner label="Завантаження інженерів…" />
-        ) : engineers.isError ? (
-          <Alert variant="error">{toApiError(engineers.error).message}</Alert>
-        ) : (
-          <SelectField
-            label="Інженер, який розробив ТУ"
-            options={engineerOptions}
-            hint={
-              engineerOptions.length === 1
-                ? 'В управлінні ще немає інженерів: їх додає адміністратор'
-                : undefined
-            }
-            error={errors.engineer?.message}
-            {...register('engineer')}
-          />
-        )}
-        <TextField
-          label="Витрати газу, м³/год"
-          inputMode="decimal"
-          autoComplete="off"
-          hint="Наприклад 2,5; до трьох знаків після коми"
-          error={errors.gasFlow?.message}
-          {...register('gasFlow')}
-        />
-        <ChoiceField
-          legend="Тип приєднання"
-          options={options(CONNECTION_TYPES, CONNECTION_TYPE_LABELS)}
-          error={errors.connectionType?.message}
-          {...register('connectionType')}
-        />
-        <ChoiceField
-          legend="Тиск газу"
-          options={options(GAS_PRESSURES, GAS_PRESSURE_LABELS)}
-          error={errors.gasPressure?.message}
-          {...register('gasPressure')}
-        />
-        <ChoiceField
-          legend="Точка приєднання"
-          options={options(CONNECTION_POINTS, CONNECTION_POINT_LABELS)}
-          error={errors.connectionPoint?.message}
-          {...register('connectionPoint')}
-        />
-        <div>
-          <p className={styles.muted}>
-            {saved?.scan
-              ? `Скан: ${saved.scan.name}. Новий файл замінить його; попередній лишиться в історії ТУ.`
-              : 'Скан технічних умов (PDF, необовʼязково)'}
-          </p>
-          <ScanDropzone
-            file={file}
-            onChange={setFile}
-            chooseLabel={saved?.scan ? 'Замінити скан' : 'Обрати файл'}
-            disabled={isSubmitting}
-          />
-        </div>
-      </form>
+      <FormProvider {...form}>
+        <form id={FORM_ID} onSubmit={onSubmit} noValidate className={styles.formContents}>
+          {errors.root?.message && <Alert variant="error">{errors.root.message}</Alert>}
+          {scanError && <Alert variant="error">{scanError}</Alert>}
+          <DocumentFields department={app.department} />
+          <CustomerFields />
+          <ConnectionFields />
+          <div>
+            <p className={styles.muted}>Скан технічних умов (PDF, необовʼязково)</p>
+            <ScanDropzone file={file} onChange={setFile} disabled={isSubmitting} />
+          </div>
+        </form>
+      </FormProvider>
     </Dialog>
   );
 }

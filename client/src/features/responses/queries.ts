@@ -45,6 +45,14 @@ export const useRestoreResponse = (applicationId: string) =>
     responsesApi.restore(applicationId, id, version),
   );
 
+export const useDeleteResponse = (applicationId: string) =>
+  useResponseMutation(({ id, version }: { id: string; version: number }) =>
+    responsesApi.remove(applicationId, id, version),
+  );
+
+export const useRemoveResponseScan = (applicationId: string) =>
+  useResponseMutation((id: string) => responsesApi.removeScan(applicationId, id));
+
 export const useUploadResponseScan = (applicationId: string) =>
   useResponseMutation(({ id, file }: { id: string; file: File }) =>
     responsesApi.uploadScan(applicationId, id, file),

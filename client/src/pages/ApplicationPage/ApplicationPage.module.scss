@@ -1,18 +1,57 @@
 @use '@/styles/mixins' as *;
 
-.back {
-  align-self: flex-start;
-}
-
+// The title of the card: stays under the app header while the card scrolls. On wide screens
+// the number, address and customer first, the department and category 50px to their right
+// (agreed 2026-11-17), «Додати модуль» at the far end.
 .header {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-1);
+  position: sticky;
+  top: var(--app-header-height, 0px);
+  z-index: 5;
+  display: grid;
+  grid-template-areas:
+    'heading add'
+    'meta meta';
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+  gap: var(--space-2) var(--space-4);
+  // Covers what scrolls under it; the negative margin keeps the page's own spacing.
+  margin-block: calc(-1 * var(--space-2));
+  padding-block: var(--space-2);
+  background: var(--color-bg);
+  border-bottom: 1px solid var(--color-border);
 
   p {
     margin: 0;
     overflow-wrap: anywhere;
   }
+
+  @include up(lg) {
+    grid-template-areas: 'heading meta add';
+    grid-template-columns: fit-content(60%) fit-content(30%) minmax(0, 1fr);
+    column-gap: 50px;
+  }
+}
+
+.meta {
+  grid-area: meta;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  color: var(--color-text-muted);
+  font-weight: 600;
+}
+
+.heading {
+  grid-area: heading;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+.addModule {
+  grid-area: add;
+  justify-self: end;
 }
 
 .title {
@@ -26,16 +65,12 @@
   }
 }
 
-.customer {
+.strong {
   font-size: var(--text-lg);
   font-weight: 600;
 }
 
-.address {
-  color: var(--color-text-muted);
-}
-
-// The processing timeline on the left, the blocks on the right; one column on phones.
+// The processing timeline on the left, the tabs on the right; one column on phones.
 .layout {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
@@ -43,7 +78,7 @@
   align-items: start;
 
   @include up(lg) {
-    grid-template-columns: minmax(240px, 280px) minmax(0, 1fr);
+    grid-template-columns: 270px minmax(0, 1fr);
   }
 }
 
@@ -51,16 +86,19 @@
   min-width: 0;
 
   @include up(lg) {
+    $top: calc(var(--app-header-height, 0px) + var(--card-header-height, 0px) + var(--space-4));
     position: sticky;
-    top: calc(var(--app-header-height, 0px) + var(--space-4));
-    max-height: calc(100vh - var(--app-header-height, 0px) - 2 * var(--space-4));
+    top: $top;
+    max-height: calc(100vh - #{$top} - var(--space-4));
     overflow-y: auto;
   }
 }
 
-.blocks {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-4);
-  min-width: 0;
+// Every tab the same height on a wide screen (agreed 2026-11-17): what does not fit scrolls
+// inside the tab, its footer stays at the bottom. Phones show just the content.
+.tabPanel {
+  @include up(lg) {
+    height: 520px;
+    overflow-y: auto;
+  }
 }

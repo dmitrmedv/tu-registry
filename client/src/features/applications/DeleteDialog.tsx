@@ -25,23 +25,14 @@ export function DeleteDialog({ app, onClose, onDeleted }: Props) {
 
   return (
     <Dialog
+      busy={remove.isPending}
       open
       title={`Видалити заяву ${app.regNumber}?`}
       onClose={onClose}
       footer={
-        <>
-          <Button onClick={onClose} disabled={remove.isPending}>
-            Скасувати
-          </Button>
-          <Button
-            variant="danger"
-            onClick={submit}
-            disabled={!confirmed}
-            loading={remove.isPending}
-          >
-            Видалити назавжди
-          </Button>
-        </>
+        <Button variant="danger" onClick={submit} disabled={!confirmed} loading={remove.isPending}>
+          Видалити назавжди
+        </Button>
       }
     >
       <p>

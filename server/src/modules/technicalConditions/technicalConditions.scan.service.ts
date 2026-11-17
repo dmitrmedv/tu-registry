@@ -4,6 +4,7 @@ import type { RequestContext } from '../audit/audit.service';
 import {
   attachDocumentScan,
   documentScanFile,
+  removeDocumentScan,
   loadChangeable,
   loadDocument,
 } from '../documents/document.service';
@@ -32,6 +33,21 @@ export async function attachScan(
     TECHNICAL_CONDITIONS,
     () => loadScanEditable(applicationId, id, actor),
     file,
+    actor,
+    context,
+  );
+  return technicalConditionsDto(app, id);
+}
+
+export async function removeScan(
+  applicationId: string,
+  id: string,
+  actor: Actor,
+  context: RequestContext,
+) {
+  const app = await removeDocumentScan(
+    TECHNICAL_CONDITIONS,
+    () => loadScanEditable(applicationId, id, actor),
     actor,
     context,
   );

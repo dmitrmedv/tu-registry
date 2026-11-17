@@ -9,11 +9,17 @@ import { useState } from 'react';
 import { type FieldPath, useForm } from 'react-hook-form';
 import type { z } from 'zod';
 import { ScanDropzone } from '@/features/applications';
-import { documentStyles as styles } from '@/features/documents';
+import { CurrentScan, documentStyles as styles } from '@/features/documents';
 import { useEngineerOptions } from '@/features/engineers';
 import { toApiError } from '@/shared/api/apiError';
 import { Alert, Button, Dialog, SelectField, Spinner, TextField } from '@/shared/ui';
-import { useCreateResponse, useUpdateResponse, useUploadResponseScan } from './queries';
+import { responsesApi } from './api';
+import {
+  useCreateResponse,
+  useRemoveResponseScan,
+  useUpdateResponse,
+  useUploadResponseScan,
+} from './queries';
 
 type FormInput = z.input<typeof createResponseSchema>;
 type FormOutput = z.output<typeof createResponseSchema>;
@@ -44,6 +50,7 @@ export function ResponseDialog({ app, response: initial, onClose, onSaved }: Pro
   const create = useCreateResponse(app.id);
   const update = useUpdateResponse(app.id);
   const uploadScan = useUploadResponseScan(app.id);
+  const removeScan = useRemoveResponseScan(app.id);
   const {
     register,
     handleSubmit,
@@ -107,18 +114,14 @@ export function ResponseDialog({ app, response: initial, onClose, onSaved }: Pro
 
   return (
     <Dialog
+      busy={isSubmitting}
       open
       title={initial ? `Відповідь № ${initial.outgoingNumber}` : 'Нова відповідь'}
       onClose={onClose}
       footer={
-        <>
-          <Button onClick={onClose} disabled={isSubmitting}>
-            {response && !initial ? 'Закрити' : 'Скасувати'}
-          </Button>
-          <Button type="submit" form={FORM_ID} variant="primary" loading={isSubmitting}>
-            {response ? 'Зберегти' : 'Додати'}
-          </Button>
-        </>
+        <Button type="submit" form={FORM_ID} variant="primary" loading={isSubmitting}>
+          {response ? 'Зберегти' : 'Додати'}
+        </Button>
       }
     >
       <form id={FORM_ID} onSubmit={onSubmit} noValidate className={styles.formContents}>
@@ -156,9 +159,18 @@ export function ResponseDialog({ app, response: initial, onClose, onSaved }: Pro
           />
         )}
         <div>
+          {response && (
+            <CurrentScan
+              scan={response.scan}
+              owner={`відповіді № ${response.outgoingNumber}`}
+              load={() => responsesApi.scanFile(app.id, response.id)}
+              onRemove={async () => setResponse(await removeScan.mutateAsync(response.id))}
+              disabled={isSubmitting}
+            />
+          )}
           <p className={styles.muted}>
             {response?.scan
-              ? `Скан: ${response.scan.name}. Новий файл замінить його; попередній лишиться в історії відповіді.`
+              ? 'Новий файл замінить скан; попередній лишиться в історії відповіді.'
               : 'Скан відповіді (PDF, необовʼязково)'}
           </p>
           <ScanDropzone

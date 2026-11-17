@@ -91,6 +91,8 @@ export function makeTechnicalConditions(
     connectionType: 'STANDARD',
     gasPressure: 'LOW',
     connectionPoint: 'UNDERGROUND',
+    customer: 'ТОВ «Приклад»',
+    address: 'м. Київ, вул. Прикладна, 1',
     workingDays: 6,
     scan: null,
     previousScans: [],

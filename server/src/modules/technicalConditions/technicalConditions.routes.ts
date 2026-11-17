@@ -22,3 +22,4 @@ technicalConditionsRouter.put(
   controller.uploadScan,
 );
 technicalConditionsRouter.get('/:tid/scan', controller.downloadScan);
+technicalConditionsRouter.delete('/:tid/scan', controller.removeScan);

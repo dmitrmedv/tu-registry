@@ -7,6 +7,7 @@ import type {
   TechnicalConditionsDto,
   UpdateTechnicalConditionsData,
 } from '@tu-registry/shared';
+import { fullAddress } from '@tu-registry/shared';
 import { ApiError } from '../../utils/ApiError';
 import { isDuplicateKey } from '../../utils/db';
 import { fromIsoDate, toIsoDate } from '../../utils/kyivDate';
@@ -37,6 +38,8 @@ export type TechnicalConditionsRecord = DocumentRecord & {
   connectionType: ConnectionType;
   gasPressure: GasPressure;
   connectionPoint: ConnectionPoint;
+  customer: string;
+  address: string;
 };
 
 const ALREADY_VALID =
@@ -76,6 +79,8 @@ async function toDtos(
     connectionType: row.connectionType,
     gasPressure: row.gasPressure,
     connectionPoint: row.connectionPoint,
+    customer: row.customer,
+    address: row.address,
     workingDays: countWorkingDays(regDate, toIsoDate(row.preparedDate), exceptions),
   }));
 }
@@ -112,6 +117,8 @@ export async function createTechnicalConditions(
         [
           {
             ...input,
+            customer: input.customer ?? app.customer,
+            address: input.address ?? fullAddress(app.settlement ?? null, app.objectAddress),
             applicationId: app._id,
             preparedDate: fromIsoDate(input.preparedDate),
             engineer: engineer._id,
@@ -151,9 +158,17 @@ export async function updateTechnicalConditions(
 ) {
   const app = await loadEditableApplication(applicationId, actor);
   const current = await loadChangeable(TECHNICAL_CONDITIONS, app, id, input.version);
-  const changes: { field: string; from: unknown; to: unknown }[] = [];
+  const changes: { field: string; from?: unknown; to?: unknown }[] = [];
   const $set: Record<string, unknown> = { updatedBy: actor.id };
 
+  // Customer data stays out of the journal: only which of them changed.
+  for (const field of ['customer', 'address'] as const) {
+    const value = input[field];
+    if (value !== undefined && value !== current[field]) {
+      changes.push({ field });
+      $set[field] = value;
+    }
+  }
   for (const field of PLAIN_FIELDS) {
     const value = input[field];
     if (value !== undefined && value !== current[field]) {

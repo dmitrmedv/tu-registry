@@ -85,6 +85,7 @@ export const AUDIT_ACTION_LABELS: Record<AuditAction, string> = {
   RESPONSE_UPDATED: 'Змінено відповідь на заяву',
   RESPONSE_CANCELLED: 'Скасовано відповідь на заяву',
   RESPONSE_RESTORED: 'Відновлено відповідь на заяву',
+  RESPONSE_DELETED: 'Видалено відповідь на заяву',
   TU_CREATED: 'Внесено технічні умови',
   TU_UPDATED: 'Змінено технічні умови',
   TU_CANCELLED: 'Скасовано технічні умови',

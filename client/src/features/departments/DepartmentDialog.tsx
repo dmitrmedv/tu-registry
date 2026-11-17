@@ -59,18 +59,14 @@ export function DepartmentDialog({ department, suggestedCode, onClose, onSaved }
 
   return (
     <Dialog
+      busy={isSubmitting}
       open
       title={department ? `Редагування: ${department.name}` : 'Нове управління'}
       onClose={onClose}
       footer={
-        <>
-          <Button onClick={onClose} disabled={isSubmitting}>
-            Скасувати
-          </Button>
-          <Button type="submit" form={FORM_ID} variant="primary" loading={isSubmitting}>
-            {department ? 'Зберегти' : 'Додати'}
-          </Button>
-        </>
+        <Button type="submit" form={FORM_ID} variant="primary" loading={isSubmitting}>
+          {department ? 'Зберегти' : 'Додати'}
+        </Button>
       }
     >
       <form id={FORM_ID} onSubmit={onSubmit} noValidate className={styles.formContents}>

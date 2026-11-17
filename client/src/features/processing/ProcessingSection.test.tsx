@@ -3,8 +3,8 @@ import { screen, within } from '@testing-library/react';
 import { http as mock, HttpResponse } from 'msw';
 import { describe, expect, it } from 'vitest';
 import { makeApplication, makeProcessing, makeResponse } from '@/test/fixtures';
-import { renderApp } from '@/test/renderApp';
-import { apiError, makeUser, server, signedInAs } from '@/test/server';
+import { addModule, renderApp } from '@/test/renderApp';
+import { makeUser, server, signedInAs } from '@/test/server';
 
 const owner = makeUser({ id: 'owner000000000000000001', role: 'USER' });
 const APP = makeApplication();
@@ -43,102 +43,26 @@ function openCard(processing: ProcessingDto, app: ApplicationDto = APP) {
 }
 
 const section = () => screen.findByRole('region', { name: 'Історія опрацювання' });
-const summary = async () =>
-  within(await section()).findByRole('list', { name: 'Строки опрацювання' });
 
 describe('processing in the application card', () => {
-  it('shows the stage next to the number', async () => {
+  it('shows no stage next to the number: the timeline and the tabs tell it', async () => {
     openCard(makeProcessing(), makeApplication({ stage: 'RESPONDED' }));
     const heading = await screen.findByRole('heading', { name: 'Заява 14т/26-8' });
-    expect(heading.parentElement).toHaveTextContent('Відповідь надана');
+    expect(heading.parentElement).not.toHaveTextContent('Відповідь надана');
   });
 
-  it('shows «Анульовано» and no running deadlines for an annulled application', async () => {
+  it('marks an annulled application next to its number', async () => {
     openCard(makeProcessing(), makeApplication({ status: 'ANNULLED', stage: 'RESPONDED' }));
     const heading = await screen.findByRole('heading', { name: 'Заява 14т/26-8' });
     expect(heading.parentElement).toHaveTextContent('Анульовано');
     expect(heading.parentElement).not.toHaveTextContent('Відповідь надана');
-    await within(await section()).findByRole('list');
+  });
+
+  it('shows no deadline figures: the timeline only', async () => {
+    openCard(makeProcessing());
+    await within(await section()).findByRole('listitem', { name: /^Заява/ });
     expect(screen.queryByRole('list', { name: 'Строки опрацювання' })).toBeNull();
-  });
-
-  it('shows how much time is left while documents are awaited', async () => {
-    openCard(
-      makeProcessing({
-        deadlines: {
-          tracked: true,
-          response: {
-            norm: 5,
-            used: 3,
-            remaining: 2,
-            dueDate: '2026-03-19',
-            overdueBy: 0,
-            done: false,
-          },
-          tu: { norm: 10, used: 3, remaining: 7, dueDate: '2026-03-26', overdueBy: 0, done: false },
-        },
-      }),
-    );
-    const [response, tu] = within(await summary()).getAllByRole('listitem');
-    expect(response).toHaveTextContent(
-      'Відповідь: минуло 3 з 5 робочих днів, лишилось 2 (до 19.03.2026)',
-    );
-    expect(tu).toHaveTextContent('Технічні умови: минуло 3 з 10 робочих днів, лишилось 7');
-  });
-
-  it('shows documents given in time and late, and no response line when none was needed', async () => {
-    openCard(
-      makeProcessing({
-        deadlines: {
-          tracked: true,
-          response: null,
-          tu: {
-            norm: 10,
-            used: 12,
-            remaining: -2,
-            dueDate: '2026-03-26',
-            overdueBy: 2,
-            done: true,
-          },
-        },
-      }),
-    );
-    const lines = within(await summary()).getAllByRole('listitem');
-    expect(lines).toHaveLength(1);
-    expect(lines[0]).toHaveTextContent(
-      'Технічні умови: 12 робочих днів з 10 Строк перевищено на 2 робочі дні',
-    );
-  });
-
-  it('gives no warnings for an application from before the deadlines were tracked', async () => {
-    openCard(
-      makeProcessing({
-        deadlines: {
-          tracked: false,
-          response: {
-            norm: 5,
-            used: 400,
-            remaining: -395,
-            dueDate: '2025-03-10',
-            overdueBy: 395,
-            done: false,
-          },
-          tu: {
-            norm: 10,
-            used: 400,
-            remaining: -390,
-            dueDate: '2025-03-17',
-            overdueBy: 390,
-            done: false,
-          },
-        },
-      }),
-    );
-    const list = await summary();
-    expect(list).not.toHaveTextContent('Строк перевищено');
-    expect(list).toHaveTextContent(
-      'Строки не контролюються: заяву зареєстровано до запуску модуля опрацювання.',
-    );
+    expect(await section()).not.toHaveTextContent('робоч');
   });
 
   it('lays out the timeline as the server orders it, cancelled documents struck', async () => {
@@ -180,41 +104,11 @@ describe('processing in the application card', () => {
       'Документи надійшли, 18.03.2026',
       'Технічні умови № 0032/ТУ, 27.03.2026',
     ]);
-    expect(items[0]).toHaveTextContent('Зареєстрував(ла): Олена Коваль');
-    expect(items[1]).toHaveTextContent('Інженер: Бойко Андрій');
-    expect(items[1]).toHaveTextContent('2 робочі дні з 5');
+    // A document and its date per line, nothing else.
+    expect(items[0]).toHaveTextContent(/^Заява № 14т\/26-8 від 12\.03\.2026$/);
+    expect(items[1]).toHaveTextContent(/^Відповідь № 125\/01-15 від 16\.03\.2026$/);
     expect(items[2]).toHaveTextContent('скасовано');
-    expect(items[3]).toHaveTextContent('4 робочі дні від реєстрації');
-    expect(items[4]).toHaveTextContent(
-      '11 робочих днів з 10 (7 робочих днів від надходження документів)',
-    );
-    expect(items[4]).toHaveTextContent('строк перевищено на 1 робочий день');
-  });
-
-  it('opens a document scan from the timeline and reports a failure', async () => {
-    const { user } = openCard(
-      makeProcessing({
-        events: [
-          event({
-            number: '125/01-15',
-            documentId: 'resp0000000000000000001',
-            scanName: 'Відповідь.pdf',
-          }),
-        ],
-      }),
-    );
-    server.use(
-      mock.get(`*/api/v1/applications/${APP.id}/responses/resp0000000000000000001/scan`, () =>
-        apiError(404, 'NOT_FOUND', 'Файл скану не знайдено'),
-      ),
-    );
-
-    await user.click(
-      await within(await section()).findByRole('button', { name: 'Скан: Відповідь № 125/01-15' }),
-    );
-    expect(
-      await screen.findByText('Не вдалося відкрити скан: Файл скану не знайдено'),
-    ).toBeVisible();
+    expect(items[4]).toHaveTextContent(/^Технічні умови № 0032\/ТУ від 27\.03\.2026$/);
   });
 
   it('refreshes the stage and the timeline after a document is added', async () => {
@@ -237,7 +131,7 @@ describe('processing in the application card', () => {
     await section();
     const before = asked.count;
 
-    await user.click(await screen.findByRole('button', { name: 'Додати відповідь' }));
+    await addModule(user, 'Відповідь');
     const dialog = screen.getByRole('dialog', { name: 'Нова відповідь' });
     await user.type(within(dialog).getByLabelText('Номер вихідного'), '125/01-15');
     await user.selectOptions(await within(dialog).findByLabelText('Інженер'), 'Бойко Андрій');
@@ -245,5 +139,34 @@ describe('processing in the application card', () => {
 
     expect(await screen.findByText('Відповідь № 125/01-15 додано')).toBeVisible();
     await expect.poll(() => asked.count).toBeGreaterThan(before);
+  });
+
+  it('opens the tab of an event from its title', async () => {
+    const { user } = openCard(
+      makeProcessing({
+        events: [
+          ...makeProcessing().events,
+          event({ number: '125/01-15', documentId: 'resp0000000000000000001' }),
+        ],
+      }),
+    );
+    server.use(
+      mock.get(`*/api/v1/applications/${APP.id}/responses`, () =>
+        HttpResponse.json([makeResponse()]),
+      ),
+    );
+
+    const timeline = await section();
+    await user.click(
+      await within(timeline).findByRole('button', { name: 'Відповідь № 125/01-15 від 16.03.2026' }),
+    );
+    expect(await screen.findByRole('tab', { name: 'Відповідь' })).toHaveAttribute(
+      'aria-selected',
+      'true',
+    );
+    expect(screen.getByRole('tabpanel', { name: 'Відповідь' })).toBeVisible();
+
+    await user.click(within(timeline).getByRole('button', { name: /^Заява № 14т\/26-8/ }));
+    expect(screen.getByRole('tab', { name: 'Заява' })).toHaveAttribute('aria-selected', 'true');
   });
 });

@@ -11,7 +11,7 @@ import { loadApplication, loadEditableApplication } from '../applications/applic
 import type { RequestContext } from '../audit/audit.service';
 import { loadExceptions } from '../calendar/calendar.service';
 import { countWorkingDays } from '../calendar/workingDays';
-import { type DocumentRecord, documentDtoParts } from '../documents/document.dto';
+import { type DocumentRecord, documentDtoParts, documentFileIds } from '../documents/document.dto';
 import { assertDocumentDate, fieldError, resolveEngineer } from '../documents/document.rules';
 import {
   auditDocument,
@@ -22,7 +22,9 @@ import {
   changeDocuments,
   restoreDocument,
   updateSeen,
+  versionConflict,
 } from '../documents/document.service';
+import { deleteScanFile } from '../scans/scan.storage';
 import { ApplicationResponse } from './response.model';
 
 export type ResponseRecord = DocumentRecord & {
@@ -204,4 +206,31 @@ export async function restoreResponse(
   const app = await loadEditableApplication(applicationId, actor);
   await restoreDocument(RESPONSE, app, responseId, version, actor, context);
   return responseDto(app, responseId);
+}
+
+/**
+ * Admin only (enforced by the route): removes a response entered by mistake, valid or
+ * cancelled, with every scan it had. The application's stage and timeline are recomputed in
+ * the same transaction; the audit entry keeps the outgoing number only.
+ */
+export async function deleteResponse(
+  applicationId: string,
+  responseId: string,
+  version: number,
+  actor: Actor,
+  context: RequestContext,
+) {
+  const app = await loadEditableApplication(applicationId, actor);
+  const current = await loadDocument(RESPONSE, app, responseId);
+  if (version !== current.version) throw versionConflict(RESPONSE);
+  await changeDocuments(app, async (session) => {
+    const { deletedCount } = await ApplicationResponse.deleteOne(
+      { _id: current._id, version },
+      { session },
+    );
+    if (deletedCount === 0) throw versionConflict(RESPONSE);
+    await auditDocument(RESPONSE, 'RESPONSE_DELETED', actor, app, current, context, {}, session);
+  });
+  // After the commit: a failed deletion must not lose the files of a still existing response.
+  await Promise.all(documentFileIds([current]).map(deleteScanFile));
 }

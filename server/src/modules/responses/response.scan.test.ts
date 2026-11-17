@@ -135,4 +135,50 @@ describe('scans of responses', () => {
       .set(admin.auth);
     expect(files.map((file) => existsSync(scanPath(file)))).toEqual([false, false]);
   });
+
+  it('removes every scan of a response an admin deletes', async () => {
+    await upload(owner, pdf('перша'));
+    const { body } = await upload(owner, pdf('друга'));
+    const stored = await ApplicationResponse.findById(responseId).lean();
+    const files = [stored!.scan!.fileId, body.previousScans[0].id as string];
+
+    const res = await request(app)
+      .delete(`${APPLICATIONS}/${applicationId}/responses/${responseId}`)
+      .query({ version: stored!.version })
+      .set(admin.auth);
+    expect(res.status).toBe(204);
+    expect(files.map((file) => existsSync(scanPath(file)))).toEqual([false, false]);
+  });
+
+  it('removes the current scan for good, keeping the ones it replaced', async () => {
+    const remove = (who: ApiSession) => request(app).delete(scanUrl()).set(who.auth);
+    expect((await remove(owner)).status).toBe(404);
+    await upload(owner, pdf('перша'));
+    const { body } = await upload(owner, pdf('друга'));
+    const current = (await ApplicationResponse.findById(responseId).lean())!.scan!.fileId;
+    const earlier = body.previousScans[0].id as string;
+
+    expect((await remove(elsewhere)).status).toBe(404);
+    const res = await remove(owner);
+    expect(res.status).toBe(200);
+    expect(res.body.scan).toBeNull();
+    expect(res.body.previousScans.map((scan: { id: string }) => scan.id)).toEqual([earlier]);
+    expect([existsSync(scanPath(current)), existsSync(scanPath(earlier))]).toEqual([false, true]);
+    expect((await download(owner)).status).toBe(404);
+    expect((await download(owner, earlier)).status).toBe(200);
+    const entry = await AuditLog.findOne({ action: 'RESPONSE_UPDATED' })
+      .sort({ createdAt: -1 })
+      .lean();
+    expect(entry!.details).toMatchObject({ changes: [{ field: 'scan', from: 'файл', to: null }] });
+  });
+
+  it('keeps the scan of a cancelled response', async () => {
+    await upload(owner, pdf('перша'));
+    await request(app)
+      .post(`${APPLICATIONS}/${applicationId}/responses/${responseId}/cancel`)
+      .set(owner.auth)
+      .send({ version: 1, reason: 'Помилка' });
+    const res = await request(app).delete(scanUrl()).set(owner.auth);
+    expect(res.body.error.code).toBe('DOCUMENT_CANCELLED');
+  });
 });

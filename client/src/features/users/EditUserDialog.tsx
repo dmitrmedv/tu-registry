@@ -51,18 +51,14 @@ export function EditUserDialog({ user, isSelf, onClose, onSubmit, error }: Props
 
   return (
     <Dialog
+      busy={isSubmitting}
       open
       title={`Редагування: ${user.login}`}
       onClose={onClose}
       footer={
-        <>
-          <Button onClick={onClose} disabled={isSubmitting}>
-            Скасувати
-          </Button>
-          <Button type="submit" form={FORM_ID} variant="primary" loading={isSubmitting}>
-            Зберегти
-          </Button>
-        </>
+        <Button type="submit" form={FORM_ID} variant="primary" loading={isSubmitting}>
+          Зберегти
+        </Button>
       }
     >
       <form id={FORM_ID} onSubmit={submit} noValidate className={styles.formContents}>

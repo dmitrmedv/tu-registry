@@ -58,3 +58,24 @@ export function CardItem({ label, cancelled = false, actions, children }: ItemPr
 export function CardItems({ children }: { children: ReactNode }) {
   return <ol className={styles.items}>{children}</ol>;
 }
+
+type FooterProps = {
+  /** The main action, labelled, on the left (e.g. «Відкрити скан»). */
+  start?: ReactNode;
+  /** Icon actions on the right. */
+  actions?: ReactNode;
+};
+
+/**
+ * The bottom row of a tab of the card: the main action on the left, the icon actions in the
+ * bottom right corner — the same place in every tab, apart from the data.
+ */
+export function CardFooter({ start, actions }: FooterProps) {
+  if (!start && !actions) return null;
+  return (
+    <div className={styles.footer}>
+      {start}
+      {actions && <div className={styles.actions}>{actions}</div>}
+    </div>
+  );
+}

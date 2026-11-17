@@ -2,7 +2,13 @@ import type { ApplicationDto } from '@tu-registry/shared';
 import { screen, within } from '@testing-library/react';
 import { http as mock, HttpResponse } from 'msw';
 import { describe, expect, it, vi } from 'vitest';
-import { makeApplication, makeChange, makeProcessing } from '@/test/fixtures';
+import {
+  makeApplication,
+  makeChange,
+  makeProcessing,
+  makeResponse,
+  makeTechnicalConditions,
+} from '@/test/fixtures';
 import { renderApp } from '@/test/renderApp';
 import { apiError, makeUser, server, signedInAs } from '@/test/server';
 
@@ -25,16 +31,25 @@ const colleague = makeUser({
 });
 const admin = makeUser({ id: 'admin000000000000000001', role: 'ADMIN' });
 
-/** How many times the change history was fetched (it loads only when unfolded). */
+/** How many times the change history was fetched (it loads only when its dialog opens). */
 let historyRequests = 0;
 
-function openCard(user = owner, app: ApplicationDto = makeApplication()) {
+function openCard(
+  user = owner,
+  app: ApplicationDto = makeApplication(),
+  { search = '', withDocuments = false } = {},
+) {
   historyRequests = 0;
   server.use(
     signedInAs(user),
     mock.get(`*/api/v1/applications/${app.id}`, () => HttpResponse.json(app)),
-    mock.get(`*/api/v1/applications/${app.id}/responses`, () => HttpResponse.json([])),
-    mock.get(`*/api/v1/applications/${app.id}/technical-conditions`, () => HttpResponse.json([])),
+    mock.get(`*/api/v1/applications/${app.id}/responses`, () =>
+      HttpResponse.json(withDocuments ? [makeResponse()] : []),
+    ),
+    mock.get(`*/api/v1/applications/${app.id}/technical-conditions`, () =>
+      HttpResponse.json(withDocuments ? [makeTechnicalConditions()] : []),
+    ),
+    mock.get('*/api/v1/engineers', () => HttpResponse.json([])),
     mock.get(`*/api/v1/applications/${app.id}/processing`, () =>
       HttpResponse.json(makeProcessing()),
     ),
@@ -54,7 +69,7 @@ function openCard(user = owner, app: ApplicationDto = makeApplication()) {
       ]);
     }),
   );
-  return renderApp(`/applications/${app.id}`);
+  return renderApp(`/applications/${app.id}${search}`);
 }
 
 describe('ApplicationPage', () => {
@@ -71,14 +86,12 @@ describe('ApplicationPage', () => {
     expect(screen.getByText('м. Київ')).toBeInTheDocument();
     expect(screen.getByText('вул. Прикладна, 1')).toBeInTheDocument();
 
-    // Folded and not loaded until asked for.
-    const toggle = screen.getByRole('button', { name: 'Історія змін' });
-    expect(toggle).toHaveAttribute('aria-expanded', 'false');
+    // In a dialog, and not loaded until asked for.
     expect(screen.queryByRole('list', { name: 'Історія змін' })).toBeNull();
     expect(historyRequests).toBe(0);
-    await user.click(toggle);
-    expect(toggle).toHaveAttribute('aria-expanded', 'true');
-    const history = await screen.findByRole('list', { name: 'Історія змін' });
+    await user.click(screen.getByRole('button', { name: 'Історія змін' }));
+    const dialog = screen.getByRole('dialog', { name: 'Історія змін' });
+    const history = await within(dialog).findByRole('list', { name: 'Історія змін' });
     const entries = within(history)
       .getAllByRole('listitem')
       .filter((li) => li.parentElement === history);
@@ -87,9 +100,11 @@ describe('ApplicationPage', () => {
     expect(entries[0]).toHaveTextContent('Телефон: +380 67 123 45 67 → +380 50 111 22 33');
     expect(entries[0]).toHaveTextContent('Представник замовника: Петренко Іван → —');
     expect(entries[1]).toHaveTextContent('Зареєстровано');
+    await user.click(within(dialog).getByRole('button', { name: 'Закрити' }));
+    expect(screen.queryByRole('dialog')).toBeNull();
   });
 
-  it('puts the customer and the address in the title, and every action in the block', async () => {
+  it('puts the application in the title, and its actions in the «Заява» tab', async () => {
     openCard(
       owner,
       makeApplication({
@@ -106,20 +121,82 @@ describe('ApplicationPage', () => {
     const header = heading.closest('header')!;
     expect(header).toHaveTextContent('ТОВ «Приклад»');
     expect(header).toHaveTextContent('м. Київ, вул. Прикладна, 1');
-    expect(within(header).queryAllByRole('button')).toHaveLength(0);
+    expect(header).toHaveTextContent('Одеське');
+    // Only «Додати модуль» in the title: the application's own actions are in its tab.
+    expect(
+      within(header)
+        .queryAllByRole('button')
+        .map((button) => button.textContent),
+    ).toEqual(['Додати модуль']);
     expect(within(header).queryAllByRole('link')).toHaveLength(0);
+    // No «← До реєстру» on the card: the app header leads to the registry.
+    expect(screen.queryByRole('link', { name: /До реєстру/ })).toBeNull();
 
-    const block = screen.getByRole('region', { name: 'Заява' });
-    for (const name of ['Переглянути скан', 'Анулювати']) {
-      const button = within(block).getByRole('button', { name });
-      // Icon only: the name is read out and shown on hover.
-      expect(button).toHaveAttribute('title', name);
-      expect(button).not.toHaveTextContent(name);
-    }
-    expect(within(block).getByRole('link', { name: 'Редагувати' })).toHaveAttribute(
+    const tab = screen.getByRole('tabpanel', { name: 'Заява' });
+    expect(within(tab).getByRole('button', { name: 'Відкрити скан' })).toHaveAttribute(
+      'title',
+      'Скан.pdf',
+    );
+    const annul = within(tab).getByRole('button', { name: 'Анулювати' });
+    // Icon only: the name is read out and shown on hover.
+    expect(annul).toHaveAttribute('title', 'Анулювати');
+    expect(annul).not.toHaveTextContent('Анулювати');
+    expect(within(tab).getByRole('link', { name: 'Редагувати' })).toHaveAttribute(
       'href',
       '/applications/app00000000000000000001/edit',
     );
+  });
+
+  it('keeps the tab in the address, switches tabs with the arrows', async () => {
+    const { user } = openCard(owner, makeApplication(), { search: '?tab=tu', withDocuments: true });
+
+    const tu = await screen.findByRole('tab', { name: 'ТУ' });
+    expect(tu).toHaveAttribute('aria-selected', 'true');
+    expect(screen.getAllByRole('tab').map((tab) => tab.textContent)).toEqual([
+      'Заява',
+      'Відповідь',
+      'ТУ',
+    ]);
+    expect(await screen.findByRole('article', { name: /^Технічні умови № 0032/ })).toBeVisible();
+
+    await user.click(tu);
+    await user.keyboard('{ArrowLeft}');
+    const response = screen.getByRole('tab', { name: 'Відповідь' });
+    expect(response).toHaveAttribute('aria-selected', 'true');
+    expect(response).toHaveFocus();
+    expect(screen.getByRole('tabpanel', { name: 'Відповідь' })).toBeVisible();
+    await user.keyboard('{Home}');
+    expect(screen.getByRole('tab', { name: 'Заява' })).toHaveFocus();
+    expect(screen.getByRole('link', { name: 'Редагувати' })).toBeVisible();
+    await user.keyboard('{ArrowLeft}');
+    expect(screen.getByRole('tab', { name: 'ТУ' })).toHaveFocus();
+
+    // Every module is there: the dialog lists them all, none can be added again.
+    await user.click(screen.getByRole('button', { name: 'Додати модуль' }));
+    const modules = within(screen.getByRole('dialog', { name: 'Додати модуль' })).getByRole(
+      'list',
+      {
+        name: 'Модулі',
+      },
+    );
+    const choices = within(modules).getAllByRole('button');
+    expect(choices.map((choice) => choice.textContent)).toEqual([
+      'Відповідьуже додано',
+      'Технічні умовиуже додано',
+    ]);
+    for (const choice of choices) {
+      expect(choice).toBeDisabled();
+      expect(choice).toHaveAccessibleDescription('уже додано');
+    }
+  });
+
+  it('opens «Заява» for an unknown tab in the address', async () => {
+    openCard(owner, makeApplication(), { search: '?tab=tu' });
+    expect(await screen.findByRole('tab', { name: 'Заява' })).toHaveAttribute(
+      'aria-selected',
+      'true',
+    );
+    expect(screen.queryByRole('tab', { name: 'ТУ' })).toBeNull();
   });
 
   it('offers editing and annulment to the owner, but not restoring', async () => {
@@ -134,10 +211,10 @@ describe('ApplicationPage', () => {
   it('offers editing and annulment to a colleague of the same department', async () => {
     openCard(colleague);
 
-    await screen.findByRole('heading', { name: 'Заява 14т/26-8' });
+    const heading = await screen.findByRole('heading', { name: 'Заява 14т/26-8' });
     expect(screen.getByRole('link', { name: 'Редагувати' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Анулювати' })).toBeInTheDocument();
-    expect(screen.getByText('Одеське')).toBeInTheDocument();
+    expect(heading.closest('header')).toHaveTextContent('Одеське управління');
   });
 
   it("offers no actions on another department's application", async () => {
@@ -234,7 +311,9 @@ describe('ApplicationPage', () => {
     );
 
     expect(await screen.findByText('Інше: Котельня')).toBeInTheDocument();
-    const comment = screen.getByRole('heading', { name: 'Коментар' }).parentElement!;
+    // The title has it too, as a line starting in lower case.
+    expect(screen.getByText('інше: Котельня')).toBeInTheDocument();
+    const comment = screen.getByText('Коментар').parentElement!;
     expect(comment).toHaveTextContent('Перший рядок Другий рядок');
   });
 
@@ -307,7 +386,7 @@ describe('ApplicationPage — scan', () => {
       ),
     );
 
-    const view = await screen.findByRole('button', { name: 'Переглянути скан' });
+    const view = await screen.findByRole('button', { name: 'Відкрити скан' });
     const edit = screen.getByRole('link', { name: 'Редагувати' });
     expect(view.compareDocumentPosition(edit) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     // Changes to the scan are on the edit page only.
@@ -326,7 +405,7 @@ describe('ApplicationPage — scan', () => {
     openCard(owner);
 
     await screen.findByRole('link', { name: 'Редагувати' });
-    expect(screen.queryByRole('button', { name: 'Переглянути скан' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Відкрити скан' })).not.toBeInTheDocument();
   });
 
   it('says when the scan cannot be opened', async () => {
@@ -339,7 +418,7 @@ describe('ApplicationPage — scan', () => {
       ),
     );
 
-    await user.click(await screen.findByRole('button', { name: 'Переглянути скан' }));
+    await user.click(await screen.findByRole('button', { name: 'Відкрити скан' }));
 
     expect(
       await screen.findByText('Не вдалося відкрити скан: Скан не знайдено'),

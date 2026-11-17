@@ -54,4 +54,19 @@ describe('Dialog', () => {
     fireEvent(dialog, new Event('cancel', { cancelable: true }));
     expect(onClose).toHaveBeenCalledTimes(1);
   });
+
+  it('closes with the cross in its header, which waits while saving', () => {
+    const { onClose } = openDialog();
+    fireEvent.click(screen.getByRole('button', { name: 'Закрити' }));
+    expect(onClose).toHaveBeenCalledTimes(1);
+
+    const onBusyClose = vi.fn();
+    render(
+      <Dialog open busy title="Збереження" onClose={onBusyClose}>
+        <p>…</p>
+      </Dialog>,
+    );
+    const busy = screen.getByRole('dialog', { name: 'Збереження' });
+    expect(busy.querySelector('button[aria-label="Закрити"]')).toBeDisabled();
+  });
 });

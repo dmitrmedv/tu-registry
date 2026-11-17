@@ -94,7 +94,7 @@ test('registers an application with a scan of the documents and opens it from th
     .click();
   const [pdfTab] = await Promise.all([
     context.waitForEvent('page'),
-    page.getByRole('button', { name: 'Переглянути скан' }).click(),
+    page.getByRole('button', { name: 'Відкрити скан' }).click(),
   ]);
   // A real Chrome shows the PDF in the tab; the headless shell used in tests has no PDF viewer
   // and turns it into a download. Either way, the tab must receive the PDF itself.

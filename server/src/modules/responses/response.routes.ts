@@ -14,6 +14,8 @@ responseRouter.post('/', controller.create);
 responseRouter.patch('/:rid', controller.update);
 responseRouter.post('/:rid/cancel', controller.cancel);
 responseRouter.post('/:rid/restore', requireRole('ADMIN'), controller.restore);
+responseRouter.delete('/:rid', requireRole('ADMIN'), controller.remove);
 // Access is checked before the file is read, so a refusal costs no upload.
 responseRouter.put('/:rid/scan', controller.checkScanEditable, uploadScan, controller.uploadScan);
 responseRouter.get('/:rid/scan', controller.downloadScan);
+responseRouter.delete('/:rid/scan', controller.removeScan);

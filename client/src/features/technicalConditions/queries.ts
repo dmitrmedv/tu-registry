@@ -45,6 +45,9 @@ export const useRestoreTechnicalConditions = (applicationId: string) =>
     api.restore(applicationId, id, version),
   );
 
+export const useRemoveTechnicalConditionsScan = (applicationId: string) =>
+  useTuMutation((id: string) => api.removeScan(applicationId, id));
+
 export const useUploadTechnicalConditionsScan = (applicationId: string) =>
   useTuMutation(({ id, file }: { id: string; file: File }) =>
     api.uploadScan(applicationId, id, file),

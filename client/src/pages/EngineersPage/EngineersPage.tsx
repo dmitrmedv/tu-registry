@@ -10,6 +10,7 @@ import {
   useUpdateEngineer,
 } from '@/features/engineers';
 import { toApiError } from '@/shared/api/apiError';
+import { notifySuccess } from '@/shared/lib/notify';
 import { Alert, Button, ConfirmDialog, SelectField, Spinner } from '@/shared/ui';
 import pageStyles from '../page.module.scss';
 
@@ -28,7 +29,6 @@ export function EngineersPage() {
   const list = useEngineers({ department: department || undefined });
   const update = useUpdateEngineer();
   const [dialog, setDialog] = useState<DialogState>({ kind: 'none' });
-  const [notice, setNotice] = useState<string>();
   const [error, setError] = useState<string>();
   const close = () => setDialog({ kind: 'none' });
 
@@ -40,7 +40,7 @@ export function EngineersPage() {
     setError(undefined);
     try {
       await update.mutateAsync({ id: engineer.id, input: { isActive } });
-      setNotice(
+      notifySuccess(
         isActive
           ? `Інженера «${engineer.fullName}» активовано`
           : `Інженера «${engineer.fullName}» деактивовано`,
@@ -75,8 +75,6 @@ export function EngineersPage() {
           setSearch(e.target.value ? { department: e.target.value } : {}, { replace: true })
         }
       />
-
-      {notice && <Alert variant="success">{notice}</Alert>}
       {error && <Alert variant="error">{error}</Alert>}
 
       {list.isPending ? (
@@ -105,7 +103,7 @@ export function EngineersPage() {
           department={newEngineerDepartment}
           onClose={close}
           onSaved={(saved) => {
-            setNotice(
+            notifySuccess(
               dialog.kind === 'edit'
                 ? `Інженера «${saved.fullName}» збережено`
                 : `Інженера «${saved.fullName}» додано`,

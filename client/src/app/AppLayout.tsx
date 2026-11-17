@@ -1,8 +1,8 @@
 import clsx from 'clsx';
-import { useEffect, useRef } from 'react';
 import { NavLink, Outlet } from 'react-router';
 import { CHANGE_PASSWORD_PATH, useAuth, useCurrentUser } from '@/features/auth';
 import { useDepartments } from '@/features/departments';
+import { useHeightVariable } from '@/shared/hooks/useHeightVariable';
 import { ROLE_LABELS } from '@/shared/lib/labels';
 import { type MenuItem, MenuButton } from '@/shared/ui';
 import styles from './AppLayout.module.scss';
@@ -10,34 +10,13 @@ import styles from './AppLayout.module.scss';
 const navClass = ({ isActive }: { isActive: boolean }) =>
   clsx(styles.navLink, isActive && styles.navLinkActive);
 
-/**
- * Publishes the header's height as --app-header-height, so other sticky blocks (registry
- * filters) can sit right under it. The height changes when the header wraps.
- */
-function useHeaderHeightVariable() {
-  const ref = useRef<HTMLElement>(null);
-  useEffect(() => {
-    const header = ref.current;
-    if (!header || typeof ResizeObserver === 'undefined') return;
-    const root = document.documentElement;
-    const observer = new ResizeObserver(() =>
-      root.style.setProperty('--app-header-height', `${header.offsetHeight}px`),
-    );
-    observer.observe(header);
-    return () => {
-      observer.disconnect();
-      root.style.removeProperty('--app-header-height');
-    };
-  }, []);
-  return ref;
-}
-
 export function AppLayout() {
   const user = useCurrentUser();
   const { logout } = useAuth();
   // Until the temporary password is replaced, only the password page is reachable.
   const restricted = user.mustChangePassword;
-  const headerRef = useHeaderHeightVariable();
+  // Sticky blocks below the header (registry filters, the card's title) sit right under it.
+  const headerRef = useHeightVariable<HTMLElement>('--app-header-height');
   const { nameOf } = useDepartments();
 
   const settings: MenuItem[] = [

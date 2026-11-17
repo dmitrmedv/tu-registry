@@ -31,6 +31,8 @@ export const technicalConditionsApi = {
       .put<TechnicalConditionsDto>(`${base(applicationId)}/${id}/scan`, form)
       .then((r) => r.data);
   },
+  removeScan: (applicationId: string, id: string) =>
+    http.delete<TechnicalConditionsDto>(`${base(applicationId)}/${id}/scan`).then((r) => r.data),
   /** The current scan, or an earlier one by its id. */
   scanFile: (applicationId: string, id: string, fileId?: string) =>
     fetchPdf(`${base(applicationId)}/${id}/scan`, fileId ? { file: fileId } : undefined),

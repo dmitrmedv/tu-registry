@@ -19,9 +19,9 @@ test('a dialog is usable from the keyboard and returns focus when closed', async
   await expect(dialog.getByLabel('Причина анулювання')).toBeFocused();
 
   // Submitting without a reason keeps the dialog open and explains why.
+  // No «Скасувати» in the footer (the cross closes the dialog): the next stop is the action.
   await page.keyboard.press('Tab');
-  await expect(dialog.getByRole('button', { name: 'Скасувати' })).toBeFocused();
-  await page.keyboard.press('Tab');
+  await expect(dialog.getByRole('button', { name: 'Анулювати' })).toBeFocused();
   await page.keyboard.press('Enter');
   await expect(dialog.getByText('Вкажіть причину анулювання')).toBeVisible();
 

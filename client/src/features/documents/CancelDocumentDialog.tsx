@@ -37,18 +37,14 @@ export function CancelDocumentDialog({ title, onConfirm, onClose }: Props) {
 
   return (
     <Dialog
+      busy={pending}
       open
       title={title}
       onClose={onClose}
       footer={
-        <>
-          <Button onClick={onClose} disabled={pending}>
-            Не скасовувати
-          </Button>
-          <Button variant="danger" onClick={submit} loading={pending}>
-            Скасувати документ
-          </Button>
-        </>
+        <Button variant="danger" onClick={submit} loading={pending}>
+          Скасувати документ
+        </Button>
       }
     >
       <p>

@@ -1,0 +1,13 @@
+@use '@/styles/mixins' as *;
+
+// «Технічні умови»: number, date and engineer side by side on a wide screen (mockup 2026-11-17).
+.documentRow {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--space-4);
+  align-items: start;
+
+  @include up(md) {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}

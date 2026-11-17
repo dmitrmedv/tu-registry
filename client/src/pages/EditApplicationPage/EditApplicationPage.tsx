@@ -4,12 +4,18 @@ import {
   canChangeDepartment,
   canEditRegistration,
   EditApplicationForm,
+  openScan,
   ScanPanel,
+  scanChangeMessage,
   useApplication,
+  useRemoveScan,
+  useScanChange,
+  useUploadScan,
 } from '@/features/applications';
 import { useCurrentUser } from '@/features/auth';
 import { toApiError } from '@/shared/api/apiError';
 import { Alert, LinkButton, Spinner } from '@/shared/ui';
+import { notifySuccess } from '@/shared/lib/notify';
 import type { ApplicationPageState } from '../ApplicationPage';
 import pageStyles from '../page.module.scss';
 
@@ -20,6 +26,12 @@ export function EditApplicationPage() {
   const state = useLocation().state as ApplicationPageState;
   const application = useApplication(id);
   const cardPath = `/applications/${id}`;
+  const upload = useUploadScan();
+  const remove = useRemoveScan();
+  const scanChange = useScanChange({
+    upload: (file, onProgress) => upload.mutateAsync({ id, file, onProgress }),
+    remove: () => remove.mutateAsync(id),
+  });
 
   if (application.isPending) return <Spinner label="Завантаження заяви…" />;
   if (application.isError) {
@@ -46,12 +58,16 @@ export function EditApplicationPage() {
   }
 
   return (
-    <section className={pageStyles.wide}>
+    <section className={pageStyles.centered}>
       <h1>Редагування заяви {app.regNumber}</h1>
       <div className={pageStyles.withSide}>
         <div className={pageStyles.side}>
-          {/* Scan changes are saved at once and do not touch the form's unsaved edits. */}
-          <ScanPanel app={app} />
+          <ScanPanel
+            title="Скан пакета документів"
+            scan={app.scan}
+            scanChange={scanChange}
+            onView={() => openScan(app.id, app.scan!.name)}
+          />
         </div>
         <EditApplicationForm
           // A new version (after a conflict reload) rebuilds the form from fresh data.
@@ -60,10 +76,15 @@ export function EditApplicationPage() {
           canEditRegistration={canEditRegistration(app, user)}
           canChangeDepartment={canChangeDepartment(app, user)}
           cancelTo={cardPath}
+          scanChanged={scanChange.changed}
+          applyScan={scanChange.apply}
           onReload={() => application.refetch()}
-          onSaved={() =>
-            navigate(cardPath, { replace: true, state: { ...state, notice: 'Зміни збережено' } })
-          }
+          onSaved={({ fields }) => {
+            notifySuccess(
+              fields ? 'Зміни збережено' : scanChangeMessage(scanChange.change, app.scan !== null),
+            );
+            navigate(cardPath, { replace: true, state });
+          }}
         />
       </div>
     </section>

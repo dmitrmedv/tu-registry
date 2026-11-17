@@ -1,7 +1,6 @@
 import { PAGE_SIZES } from '@tu-registry/shared';
 import clsx from 'clsx';
 import { useEffect } from 'react';
-import { useLocation } from 'react-router';
 import { useCurrentUser } from '@/features/auth';
 import {
   ColumnsPicker,
@@ -20,12 +19,8 @@ import pageStyles from '../page.module.scss';
 
 const PAGE_SIZE_OPTIONS = PAGE_SIZES.map((size) => ({ value: String(size), label: `по ${size}` }));
 
-/** Navigation state: a one-off message, e.g. after deleting an application. */
-export type RegistryPageState = { notice?: string } | null;
-
 export function RegistryPage() {
   const user = useCurrentUser();
-  const notice = (useLocation().state as RegistryPageState)?.notice;
   const { params, update, reset, activeFilterCount } = useRegistryParams();
   const list = useApplicationList(toApiQuery(params, user));
   const isAdmin = user.role === 'ADMIN';
@@ -52,8 +47,6 @@ export function RegistryPage() {
           Нова заява
         </LinkButton>
       </div>
-
-      {notice && <Alert variant="success">{notice}</Alert>}
 
       {/* Filters and the result bar (count, pages, page size) stay on screen while scrolling. */}
       <div className={styles.stickyBar}>

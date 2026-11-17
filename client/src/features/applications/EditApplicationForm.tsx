@@ -80,7 +80,11 @@ type Props = {
   canEditRegistration: boolean;
   /** Admins may move the application to another department (its number moves with it). */
   canChangeDepartment: boolean;
-  onSaved: () => void;
+  /** The scan change chosen beside the form: «Зберегти» applies it after the fields. */
+  scanChanged: boolean;
+  applyScan: () => Promise<void>;
+  /** `fields`: whether the application's fields changed, not only its scan. */
+  onSaved: (saved: { fields: boolean }) => void;
   /** Loads the latest version after a conflict; the form is then rebuilt from it. */
   onReload: () => void;
   cancelTo: string;
@@ -90,6 +94,8 @@ export function EditApplicationForm({
   app,
   canEditRegistration,
   canChangeDepartment,
+  scanChanged,
+  applyScan,
   onSaved,
   onReload,
   cancelTo,
@@ -120,10 +126,9 @@ export function EditApplicationForm({
     formState: { errors, isSubmitting, isDirty },
   } = form;
 
-  const save = async (changes: UpdateApplicationInput) => {
+  const save = async (changes: UpdateApplicationInput | null) => {
     try {
-      await update.mutateAsync(changes);
-      onSaved();
+      if (changes) await update.mutateAsync(changes);
     } catch (error) {
       const apiError = toApiError(error);
       if (apiError.code === 'VERSION_CONFLICT') return setConflict(true);
@@ -136,18 +141,25 @@ export function EditApplicationForm({
           setError(field as FieldPath<ManualApplicationInput>, { message: messages[0] });
         }
       }
-      setError('root', { message: apiError.message });
+      return setError('root', { message: apiError.message });
     } finally {
       setPending(null);
     }
+    try {
+      await applyScan();
+    } catch {
+      // The scan panel shows why; the fields, if any, are saved.
+      return;
+    }
+    onSaved({ fields: changes !== null });
   };
 
   const onSubmit = handleSubmit(async (values) => {
     const changes = changedFields(app, values, canEditRegistration);
     if (department !== app.department) changes.department = department;
     const changedKeys = Object.keys(changes).filter((key) => key !== 'version');
-    setNothingChanged(changedKeys.length === 0);
-    if (changedKeys.length === 0) return;
+    setNothingChanged(changedKeys.length === 0 && !scanChanged);
+    if (changedKeys.length === 0) return scanChanged ? save(null) : undefined;
     // Changing the registration date, number or department is confirmed separately.
     if (
       changes.regDate !== undefined ||
@@ -243,7 +255,7 @@ export function EditApplicationForm({
             type="submit"
             variant="primary"
             loading={isSubmitting}
-            disabled={(!isDirty && department === app.department) || conflict}
+            disabled={(!isDirty && department === app.department && !scanChanged) || conflict}
           >
             Зберегти
           </Button>

@@ -28,6 +28,7 @@ import {
   DataList,
   DataRow,
   IconButton,
+  IconLink,
   Spinner,
 } from '@/shared/ui';
 import { technicalConditionsApi } from './api';
@@ -39,10 +40,7 @@ import {
 import { TechnicalConditionsDialog } from './TechnicalConditionsDialog';
 
 type DialogState =
-  | { kind: 'none' }
-  | { kind: 'create' }
-  | { kind: 'edit'; tu: TechnicalConditionsDto }
-  | { kind: 'cancel'; tu: TechnicalConditionsDto };
+  { kind: 'none' } | { kind: 'create' } | { kind: 'cancel'; tu: TechnicalConditionsDto };
 
 const gasFlowText = (value: number) => `${String(value).replace('.', ',')} м³/год`;
 const titleOf = (tu: TechnicalConditionsDto) =>
@@ -183,10 +181,10 @@ export function TechnicalConditionsTab({ app }: { app: ApplicationDto }) {
           manage &&
           (valid ? (
             <>
-              <IconButton
+              <IconLink
                 icon="pencil"
                 label="Редагувати"
-                onClick={() => setDialog({ kind: 'edit', tu: valid })}
+                to={`/applications/${app.id}/technical-conditions/${valid.id}/edit`}
               />
               <IconButton
                 icon="ban"
@@ -205,18 +203,13 @@ export function TechnicalConditionsTab({ app }: { app: ApplicationDto }) {
         }
       />
 
-      {(dialog.kind === 'create' || dialog.kind === 'edit') && (
+      {dialog.kind === 'create' && (
         <TechnicalConditionsDialog
           app={app}
-          technicalConditions={dialog.kind === 'edit' ? dialog.tu : undefined}
           onClose={close}
           onSaved={(saved) => {
             setError(undefined);
-            notifySuccess(
-              dialog.kind === 'edit'
-                ? `Технічні умови № ${saved.tuNumber} збережено`
-                : `Технічні умови № ${saved.tuNumber} додано`,
-            );
+            notifySuccess(`Технічні умови № ${saved.tuNumber} додано`);
             close();
           }}
         />

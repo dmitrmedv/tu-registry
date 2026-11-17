@@ -102,6 +102,22 @@ test('technical conditions after a response: one valid set, replaced only after 
   await section.getByText('Скасовані технічні умови (1)').click();
   await expect(section.getByRole('listitem', { name: /0032\/ТУ/ })).toContainText('Скасовано');
 
+  // Saved conditions are edited on their own page; the scan is sent only with «Зберегти».
+  await section.getByRole('link', { name: 'Редагувати' }).click();
+  await expect(page.getByRole('heading', { name: /Редагування ТУ № 0033\/ТУ/ })).toBeVisible();
+  await page.getByLabel('Витрати газу, м³/год').fill('14,5');
+  await page.getByLabel('PDF-файл скану').setInputFiles({
+    name: 'ТУ 0033.pdf',
+    mimeType: 'application/pdf',
+    buffer: Buffer.from('%PDF-1.4\n% ТУ\n%%EOF\n'),
+  });
+  await expect(page.getByText('Файл буде додано після збереження.')).toBeVisible();
+  await page.getByRole('button', { name: 'Зберегти' }).click();
+  await expect(page.getByText('Технічні умови № 0033/ТУ збережено')).toBeVisible();
+  const valid = section.getByRole('article', { name: /^Технічні умови № 0033\/ТУ/ });
+  await expect(valid).toContainText('Витрати газу14,5 м³/год');
+  await expect(section.getByRole('button', { name: 'Відкрити скан' })).toBeVisible();
+
   // The timeline: registration, response, documents, the cancelled TU and the valid one.
   const history = page.getByRole('region', { name: 'Історія опрацювання' });
   const events = history.getByRole('listitem', { name: /, \d\d\.\d\d\.\d{4}$/ });

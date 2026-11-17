@@ -224,29 +224,37 @@ describe('EditApplicationPage — scan', () => {
     uploadedBy: { id: owner.id, fullName: owner.fullName },
   };
 
-  it('replaces the scan at once, without touching unsaved edits of the form', async () => {
-    const uploaded: string[] = [];
-    const { user } = openEdit(owner, [makeApplication({ scan })]);
+  it('replaces the scan only on «Зберегти», after the edits of the form', async () => {
+    const calls: string[] = [];
+    captureUpdates(() => {
+      calls.push('patch');
+      return HttpResponse.json(makeApplication({ version: 4, scan }));
+    });
+    const { user, router } = openEdit(owner, [makeApplication({ scan })]);
     server.use(
       mock.put('*/api/v1/applications/:id/scan', async ({ request }) => {
-        uploaded.push(((await request.formData()).get('scan') as File).name);
+        calls.push(`put ${((await request.formData()).get('scan') as File).name}`);
         return HttpResponse.json(makeApplication({ scan: { ...scan, name: 'новий.pdf' } }));
       }),
     );
 
     const customer = await screen.findByLabelText('Замовник');
     await user.clear(customer);
-    await user.type(customer, 'Незбережена правка');
+    await user.type(customer, 'ТОВ «Нова назва»');
     await user.upload(screen.getByLabelText('PDF-файл скану'), makePdf('новий.pdf'));
+    expect(screen.getByText('Новий файл замінить скан після збереження.')).toBeVisible();
+    expect(calls).toEqual([]);
+    await user.click(screen.getByRole('button', { name: 'Зберегти' }));
 
-    expect(await screen.findByText('Скан замінено')).toBeInTheDocument();
-    expect(uploaded).toEqual(['новий.pdf']);
-    expect(screen.getByLabelText('Замовник')).toHaveValue('Незбережена правка');
+    expect(await screen.findByText('Зміни збережено')).toBeInTheDocument();
+    expect(calls).toEqual(['patch', 'put новий.pdf']);
+    expect(router.state.location.pathname).toBe('/applications/app00000000000000000001');
   });
 
-  it('removes the scan after confirmation', async () => {
+  it('removes the scan only on «Зберегти», which needs no other change', async () => {
     const removed = vi.fn();
-    const { user } = openEdit(owner, [makeApplication({ scan })]);
+    const sent = captureUpdates();
+    const { user, router } = openEdit(owner, [makeApplication({ scan })]);
     server.use(
       mock.delete('*/api/v1/applications/:id/scan', () => {
         removed();
@@ -254,12 +262,33 @@ describe('EditApplicationPage — scan', () => {
       }),
     );
 
-    await user.click(await screen.findByRole('button', { name: 'Видалити скан' }));
-    const dialog = screen.getByRole('dialog', { name: 'Видалити скан?' });
-    expect(dialog).toHaveTextContent('Файл «старий.pdf» буде видалено');
-    await user.click(within(dialog).getByRole('button', { name: 'Видалити' }));
+    const save = await screen.findByRole('button', { name: 'Зберегти' });
+    expect(save).toBeDisabled();
+    await user.click(screen.getByRole('button', { name: 'Видалити скан' }));
+    expect(screen.getByText('Скан буде видалено після збереження.')).toBeVisible();
+    await user.click(screen.getByRole('button', { name: 'Не видаляти' }));
+    expect(save).toBeDisabled();
+    await user.click(screen.getByRole('button', { name: 'Видалити скан' }));
+    expect(removed).not.toHaveBeenCalled();
+    await user.click(save);
 
     expect(await screen.findByText('Скан видалено')).toBeInTheDocument();
     expect(removed).toHaveBeenCalledTimes(1);
+    expect(sent).toEqual([]);
+    expect(router.state.location.pathname).toBe('/applications/app00000000000000000001');
+  });
+
+  it('keeps the chosen file and says why when the upload fails', async () => {
+    const { user, router } = openEdit(owner, [makeApplication({ scan })]);
+    server.use(
+      mock.put('*/api/v1/applications/:id/scan', () => apiError(400, 'SCAN_NOT_PDF', 'Це не PDF')),
+    );
+
+    await user.upload(await screen.findByLabelText('PDF-файл скану'), makePdf('новий.pdf'));
+    await user.click(screen.getByRole('button', { name: 'Зберегти' }));
+
+    expect(await screen.findByText('Скан не завантажено: Це не PDF')).toBeVisible();
+    expect(screen.getByText('новий.pdf')).toBeVisible();
+    expect(router.state.location.pathname).toBe('/applications/app00000000000000000001/edit');
   });
 });

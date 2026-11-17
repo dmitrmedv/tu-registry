@@ -7,7 +7,9 @@ export { EditApplicationForm } from './EditApplicationForm';
 export { HistoryDialog } from './HistoryDialog';
 export { openScan } from './openScan';
 export { ScanDropzone } from './ScanDropzone';
+export { default as applicationFormStyles } from './ApplicationForm.module.scss';
 export { ScanPanel } from './ScanPanel';
+export { scanChangeMessage, type ScanChangeState, useScanChange } from './useScanChange';
 export {
   canAnnul,
   canChangeDepartment,
@@ -19,4 +21,4 @@ export {
   canRestoreDocument,
   canDeleteDocument,
 } from './permissions';
-export { useApplication, useRestoreApplication, useUploadScan } from './queries';
+export { useApplication, useRemoveScan, useRestoreApplication, useUploadScan } from './queries';

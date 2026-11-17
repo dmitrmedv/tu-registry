@@ -53,6 +53,15 @@
   color: var(--color-text-muted);
 }
 
+// Edit pages: the form (at most 880px) and its scan column, centred as one block; the gap
+// between them equals the gap between the form's sections.
+.centered {
+  composes: wide;
+  width: 100%;
+  max-width: calc(880px + var(--space-6) + 300px);
+  margin-inline: auto;
+}
+
 // Pages rendered outside AppLayout (errors, 404).
 .standalone {
   composes: narrow;

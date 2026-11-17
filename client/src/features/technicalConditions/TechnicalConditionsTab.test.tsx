@@ -174,9 +174,9 @@ describe('technical conditions in the application card', () => {
     );
   });
 
-  it('edits only what changed', async () => {
+  it('edits on its own page only what changed, then returns to the tab', async () => {
     const patched: unknown[] = [];
-    const { user } = openCard([makeTechnicalConditions()]);
+    const { user, router } = openCard([makeTechnicalConditions()]);
     server.use(
       mock.patch(`${TU}/${TU_ID}`, async ({ request }) => {
         patched.push(await request.json());
@@ -184,16 +184,43 @@ describe('technical conditions in the application card', () => {
       }),
     );
 
-    await user.click(await within(await section()).findByRole('button', { name: 'Редагувати' }));
-    const dialog = screen.getByRole('dialog', { name: 'Технічні умови № 0032/ТУ' });
-    expect(within(dialog).getByLabelText('Витрати газу, м³/год')).toHaveValue('2,5');
-    await user.clear(within(dialog).getByLabelText('Витрати газу, м³/год'));
-    await user.type(within(dialog).getByLabelText('Витрати газу, м³/год'), '3,25');
-    await user.click(within(dialog).getByRole('radio', { name: 'Середній' }));
-    await user.click(within(dialog).getByRole('button', { name: 'Зберегти' }));
+    await user.click(await within(await section()).findByRole('link', { name: 'Редагувати' }));
+    expect(await screen.findByRole('heading', { name: /Редагування ТУ № 0032\/ТУ/ })).toBeVisible();
+    const gasFlow = await screen.findByLabelText('Витрати газу, м³/год');
+    expect(gasFlow).toHaveValue('2,5');
+    await user.clear(gasFlow);
+    await user.type(gasFlow, '3,25');
+    await user.click(screen.getByRole('radio', { name: 'Середній' }));
+    await user.click(screen.getByRole('button', { name: 'Зберегти' }));
 
     expect(await screen.findByText('Технічні умови № 0032/ТУ збережено')).toBeVisible();
     expect(patched).toEqual([{ version: 1, gasFlow: 3.25, gasPressure: 'MEDIUM' }]);
+    expect(router.state.location.search).toBe('?tab=tu');
+  });
+
+  it('removes the scan on the edit page only on «Зберегти»', async () => {
+    const scan = {
+      name: 'ТУ.pdf',
+      size: 2048,
+      uploadedAt: '2026-03-17T10:00:00.000Z',
+      uploadedBy: { id: owner.id, fullName: 'Олена Коваль' },
+    };
+    let removed = 0;
+    const { user } = openCard([makeTechnicalConditions({ scan })]);
+    server.use(
+      mock.delete(`${TU}/${TU_ID}/scan`, () => {
+        removed += 1;
+        return HttpResponse.json(makeTechnicalConditions());
+      }),
+    );
+
+    await user.click(await within(await section()).findByRole('link', { name: 'Редагувати' }));
+    await user.click(await screen.findByRole('button', { name: 'Видалити скан' }));
+    expect(removed).toBe(0);
+    await user.click(screen.getByRole('button', { name: 'Зберегти' }));
+
+    expect(await screen.findByText('Скан видалено')).toBeVisible();
+    expect(removed).toBe(1);
   });
 
   it('cancels with a reason', async () => {

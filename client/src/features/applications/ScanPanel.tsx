@@ -1,60 +1,45 @@
-import { type ApplicationDto, formatFileSize } from '@tu-registry/shared';
-import { useState } from 'react';
+import { formatFileSize, type ScanDto } from '@tu-registry/shared';
+import { useId, useState } from 'react';
 import { toApiError } from '@/shared/api/apiError';
 import { formatDateTime } from '@/shared/lib/format';
-import { Alert, Button, ConfirmDialog, Icon } from '@/shared/ui';
-import { openScan } from './openScan';
-import { useRemoveScan, useUploadScan } from './queries';
+import { Alert, Button, Icon } from '@/shared/ui';
 import { ScanDropzone } from './ScanDropzone';
 import styles from './ScanPanel.module.scss';
+import type { ScanChangeState } from './useScanChange';
 
-/** The application's scanned documents on the edit page: what is stored, opening and changing it. */
-export function ScanPanel({ app }: { app: ApplicationDto }) {
-  const upload = useUploadScan();
-  const remove = useRemoveScan();
-  const [progress, setProgress] = useState<number | null>(null);
-  const [message, setMessage] = useState<{ tone: 'success' | 'error'; text: string }>();
-  const [confirmRemove, setConfirmRemove] = useState(false);
-  const scan = app.scan;
+type Props = {
+  title: string;
+  /** The stored scan. */
+  scan: ScanDto | null;
+  /** The change chosen here; the page's «Зберегти» applies it. */
+  scanChange: ScanChangeState;
+  onView: () => Promise<void>;
+  disabled?: boolean;
+};
+
+/**
+ * The scan on an edit page: what is stored, opening it, and choosing to replace or remove it.
+ * Nothing changes until «Зберегти» (agreed 2026-11-17).
+ */
+export function ScanPanel({ title, scan, scanChange, onView, disabled = false }: Props) {
+  const titleId = useId();
+  const [viewError, setViewError] = useState<string>();
+  const { change, choose, keep, progress, error } = scanChange;
+  const busy = disabled || progress !== null;
 
   const view = async () => {
-    setMessage(undefined);
+    setViewError(undefined);
     try {
-      await openScan(app.id, scan!.name);
-    } catch (error) {
-      setMessage({ tone: 'error', text: toApiError(error).message });
-    }
-  };
-
-  const replace = async (file: File | null) => {
-    if (!file) return;
-    setMessage(undefined);
-    setProgress(0);
-    try {
-      await upload.mutateAsync({ id: app.id, file, onProgress: setProgress });
-      setMessage({ tone: 'success', text: scan ? 'Скан замінено' : 'Скан додано' });
-    } catch (error) {
-      setMessage({ tone: 'error', text: `Скан не завантажено: ${toApiError(error).message}` });
-    } finally {
-      setProgress(null);
-    }
-  };
-
-  const removeScan = async () => {
-    try {
-      await remove.mutateAsync(app.id);
-      setMessage({ tone: 'success', text: 'Скан видалено' });
-    } catch (error) {
-      setMessage({ tone: 'error', text: toApiError(error).message });
-    } finally {
-      setConfirmRemove(false);
+      await onView();
+    } catch (failure) {
+      setViewError(toApiError(failure).message);
     }
   };
 
   return (
-    <section className={styles.panel} aria-labelledby="scan-title">
-      <h2 id="scan-title" className={styles.title}>
-        Скан пакета документів
+    <section className={styles.panel} aria-labelledby={titleId}>
+      <h2 id={titleId} className={styles.title}>
+        {title}
       </h2>
       {scan ? (
         <div className={styles.current}>
@@ -68,44 +53,46 @@ export function ScanPanel({ app }: { app: ApplicationDto }) {
               <Icon name="eye" />
               Переглянути
             </Button>
-            <Button size="sm" onClick={() => setConfirmRemove(true)}>
-              <Icon name="trash" />
-              Видалити скан
-            </Button>
+            {change.kind !== 'remove' && (
+              <Button size="sm" disabled={busy} onClick={() => choose({ kind: 'remove' })}>
+                <Icon name="trash" />
+                Видалити скан
+              </Button>
+            )}
           </div>
         </div>
       ) : (
         <p className={styles.meta}>Скан не додано.</p>
       )}
+      {change.kind === 'remove' && scan && (
+        <Alert variant="warning">
+          <div className={styles.pending}>
+            <span>Скан буде видалено після збереження.</span>
+            <Button size="sm" disabled={busy} onClick={keep}>
+              Не видаляти
+            </Button>
+          </div>
+        </Alert>
+      )}
       <ScanDropzone
-        file={null}
-        onChange={replace}
+        file={change.kind === 'replace' ? change.file : null}
+        onChange={(file) => (file ? choose({ kind: 'replace', file }) : keep())}
         chooseLabel={scan ? 'Замінити файл' : 'Обрати файл'}
-        disabled={progress !== null}
+        disabled={busy}
       />
+      {change.kind === 'replace' && (
+        <p className={styles.meta}>
+          {scan
+            ? 'Новий файл замінить скан після збереження.'
+            : 'Файл буде додано після збереження.'}
+        </p>
+      )}
       {progress !== null && (
         <p role="status" className={styles.meta}>
           Завантаження скану… {progress}%
         </p>
       )}
-      {message && <Alert variant={message.tone}>{message.text}</Alert>}
-
-      {confirmRemove && scan && (
-        <ConfirmDialog
-          open
-          danger
-          title="Видалити скан?"
-          confirmLabel="Видалити"
-          loading={remove.isPending}
-          onCancel={() => setConfirmRemove(false)}
-          onConfirm={removeScan}
-        >
-          <p>
-            Файл «{scan.name}» буде видалено з заяви {app.regNumber}. Запис про це лишиться в
-            історії змін.
-          </p>
-        </ConfirmDialog>
-      )}
+      {(error ?? viewError) && <Alert variant="error">{error ?? viewError}</Alert>}
     </section>
   );
 }

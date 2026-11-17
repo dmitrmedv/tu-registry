@@ -26,6 +26,11 @@ const applicationPage = lazyPage(() =>
 const editApplicationPage = lazyPage(() =>
   import('@/pages/EditApplicationPage').then((m) => ({ default: m.EditApplicationPage })),
 );
+const editTechnicalConditionsPage = lazyPage(() =>
+  import('@/pages/EditTechnicalConditionsPage').then((m) => ({
+    default: m.EditTechnicalConditionsPage,
+  })),
+);
 const usersPage = lazyPage(() =>
   import('@/pages/UsersPage').then((m) => ({ default: m.UsersPage })),
 );
@@ -55,6 +60,10 @@ export const routes: RouteObject[] = [
           { path: '/applications/new', element: <NewApplicationPage /> },
           { path: '/applications/:id', element: applicationPage },
           { path: '/applications/:id/edit', element: editApplicationPage },
+          {
+            path: '/applications/:id/technical-conditions/:tid/edit',
+            element: editTechnicalConditionsPage,
+          },
           { path: CHANGE_PASSWORD_PATH, element: <ChangePasswordPage /> },
           {
             element: <RequireRole role="ADMIN" />,

@@ -1,7 +1,7 @@
 export { AnnulDialog } from './AnnulDialog';
 export { ApplicationDetails } from './ApplicationDetails';
 export { ApplicationForm } from './ApplicationForm';
-export { ApplicationHistory } from './ApplicationHistory';
+export { ApplicationHistory, CollapsibleHistory } from './ApplicationHistory';
 export { DeleteDialog } from './DeleteDialog';
 export { EditApplicationForm } from './EditApplicationForm';
 export { openScan } from './openScan';

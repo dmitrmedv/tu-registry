@@ -19,6 +19,8 @@ test('edits, annuls and restores an application; the journal records it', async 
   await page.getByLabel('Телефон').fill('050 111 22 33');
   await page.getByRole('button', { name: 'Зберегти' }).click();
   await expect(page.getByText('Зміни збережено')).toBeVisible();
+  // The change history is folded: unfold it.
+  await page.getByRole('button', { name: 'Історія змін' }).click();
   await expect(page.getByRole('list', { name: 'Історія змін' })).toContainText(
     'Телефон: +380 67 123 45 67 → +380 50 111 22 33',
   );

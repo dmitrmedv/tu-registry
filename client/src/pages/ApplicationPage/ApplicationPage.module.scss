@@ -1,5 +1,18 @@
+@use '@/styles/mixins' as *;
+
 .back {
   align-self: flex-start;
+}
+
+.header {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+
+  p {
+    margin: 0;
+    overflow-wrap: anywhere;
+  }
 }
 
 .title {
@@ -13,13 +26,41 @@
   }
 }
 
-.actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-2);
+.customer {
+  font-size: var(--text-lg);
+  font-weight: 600;
 }
 
-.historyTitle {
-  margin: var(--space-4) 0 0;
-  font-size: var(--text-lg);
+.address {
+  color: var(--color-text-muted);
+}
+
+// The processing timeline on the left, the blocks on the right; one column on phones.
+.layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-4);
+  align-items: start;
+
+  @include up(lg) {
+    grid-template-columns: minmax(240px, 280px) minmax(0, 1fr);
+  }
+}
+
+.side {
+  min-width: 0;
+
+  @include up(lg) {
+    position: sticky;
+    top: calc(var(--app-header-height, 0px) + var(--space-4));
+    max-height: calc(100vh - var(--app-header-height, 0px) - 2 * var(--space-4));
+    overflow-y: auto;
+  }
+}
+
+.blocks {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  min-width: 0;
 }

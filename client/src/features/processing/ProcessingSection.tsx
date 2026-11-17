@@ -1,9 +1,8 @@
 import type { ApplicationDto, TimelineEventDto } from '@tu-registry/shared';
 import { useState } from 'react';
-import { documentStyles } from '@/features/documents';
 import { toApiError } from '@/shared/api/apiError';
 import { openPdf } from '@/shared/lib/pdf';
-import { Alert, Button, Spinner } from '@/shared/ui';
+import { Alert, Button, CardBlock, Spinner } from '@/shared/ui';
 import { processingApi } from './api';
 import { DeadlineSummary } from './DeadlineSummary';
 import { ProcessingTimeline } from './ProcessingTimeline';
@@ -24,10 +23,7 @@ export function ProcessingSection({ app }: { app: ApplicationDto }) {
   };
 
   return (
-    <section className={documentStyles.section} aria-labelledby="processing-title">
-      <div className={documentStyles.header}>
-        <h2 id="processing-title">Історія опрацювання</h2>
-      </div>
+    <CardBlock title="Історія опрацювання">
       {scanError && <Alert variant="error">{scanError}</Alert>}
       {processing.isPending ? (
         <Spinner label="Завантаження історії опрацювання…" />
@@ -49,6 +45,6 @@ export function ProcessingSection({ app }: { app: ApplicationDto }) {
           />
         </>
       )}
-    </section>
+    </CardBlock>
   );
 }

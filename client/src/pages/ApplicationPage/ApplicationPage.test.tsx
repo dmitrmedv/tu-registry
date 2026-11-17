@@ -25,7 +25,11 @@ const colleague = makeUser({
 });
 const admin = makeUser({ id: 'admin000000000000000001', role: 'ADMIN' });
 
+/** How many times the change history was fetched (it loads only when unfolded). */
+let historyRequests = 0;
+
 function openCard(user = owner, app: ApplicationDto = makeApplication()) {
+  historyRequests = 0;
   server.use(
     signedInAs(user),
     mock.get(`*/api/v1/applications/${app.id}`, () => HttpResponse.json(app)),
@@ -34,8 +38,9 @@ function openCard(user = owner, app: ApplicationDto = makeApplication()) {
     mock.get(`*/api/v1/applications/${app.id}/processing`, () =>
       HttpResponse.json(makeProcessing()),
     ),
-    mock.get(`*/api/v1/applications/${app.id}/history`, () =>
-      HttpResponse.json([
+    mock.get(`*/api/v1/applications/${app.id}/history`, () => {
+      historyRequests += 1;
+      return HttpResponse.json([
         makeChange({
           id: 'c2',
           action: 'UPDATED',
@@ -46,15 +51,15 @@ function openCard(user = owner, app: ApplicationDto = makeApplication()) {
           ],
         }),
         makeChange(),
-      ]),
-    ),
+      ]);
+    }),
   );
   return renderApp(`/applications/${app.id}`);
 }
 
 describe('ApplicationPage', () => {
   it('shows the card with formatted values and the history with readable fields', async () => {
-    openCard();
+    const { user } = openCard();
 
     expect(await screen.findByRole('heading', { name: 'Заява 14т/26-8' })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: '+380 67 123 45 67' })).toHaveAttribute(
@@ -66,6 +71,13 @@ describe('ApplicationPage', () => {
     expect(screen.getByText('м. Київ')).toBeInTheDocument();
     expect(screen.getByText('вул. Прикладна, 1')).toBeInTheDocument();
 
+    // Folded and not loaded until asked for.
+    const toggle = screen.getByRole('button', { name: 'Історія змін' });
+    expect(toggle).toHaveAttribute('aria-expanded', 'false');
+    expect(screen.queryByRole('list', { name: 'Історія змін' })).toBeNull();
+    expect(historyRequests).toBe(0);
+    await user.click(toggle);
+    expect(toggle).toHaveAttribute('aria-expanded', 'true');
     const history = await screen.findByRole('list', { name: 'Історія змін' });
     const entries = within(history)
       .getAllByRole('listitem')
@@ -75,6 +87,39 @@ describe('ApplicationPage', () => {
     expect(entries[0]).toHaveTextContent('Телефон: +380 67 123 45 67 → +380 50 111 22 33');
     expect(entries[0]).toHaveTextContent('Представник замовника: Петренко Іван → —');
     expect(entries[1]).toHaveTextContent('Зареєстровано');
+  });
+
+  it('puts the customer and the address in the title, and every action in the block', async () => {
+    openCard(
+      owner,
+      makeApplication({
+        scan: {
+          name: 'Скан.pdf',
+          size: 1000,
+          uploadedAt: '2026-03-12T09:00:00.000Z',
+          uploadedBy: { id: owner.id, fullName: 'Олена Коваль' },
+        },
+      }),
+    );
+
+    const heading = await screen.findByRole('heading', { level: 1, name: 'Заява 14т/26-8' });
+    const header = heading.closest('header')!;
+    expect(header).toHaveTextContent('ТОВ «Приклад»');
+    expect(header).toHaveTextContent('м. Київ, вул. Прикладна, 1');
+    expect(within(header).queryAllByRole('button')).toHaveLength(0);
+    expect(within(header).queryAllByRole('link')).toHaveLength(0);
+
+    const block = screen.getByRole('region', { name: 'Заява' });
+    for (const name of ['Переглянути скан', 'Анулювати']) {
+      const button = within(block).getByRole('button', { name });
+      // Icon only: the name is read out and shown on hover.
+      expect(button).toHaveAttribute('title', name);
+      expect(button).not.toHaveTextContent(name);
+    }
+    expect(within(block).getByRole('link', { name: 'Редагувати' })).toHaveAttribute(
+      'href',
+      '/applications/app00000000000000000001/edit',
+    );
   });
 
   it('offers editing and annulment to the owner, but not restoring', async () => {
@@ -189,7 +234,7 @@ describe('ApplicationPage', () => {
     );
 
     expect(await screen.findByText('Інше: Котельня')).toBeInTheDocument();
-    const comment = screen.getByRole('region', { name: 'Коментар' });
+    const comment = screen.getByRole('heading', { name: 'Коментар' }).parentElement!;
     expect(comment).toHaveTextContent('Перший рядок Другий рядок');
   });
 

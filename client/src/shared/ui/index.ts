@@ -8,3 +8,5 @@ export * from './Spinner';
 export * from './Table';
 export * from './MenuButton';
 export * from './Icon';
+export * from './IconButton';
+export * from './CardBlock';

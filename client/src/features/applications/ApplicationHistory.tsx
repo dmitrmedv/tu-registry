@@ -1,4 +1,5 @@
 import type { ApplicationChangeDto } from '@tu-registry/shared';
+import { useId, useState } from 'react';
 import { useDepartments } from '@/features/departments';
 import { toApiError } from '@/shared/api/apiError';
 import { formatDateTime } from '@/shared/lib/format';
@@ -7,7 +8,7 @@ import {
   CHANGE_ACTION_LABELS,
   formatFieldValue,
 } from '@/shared/lib/labels';
-import { Alert, Spinner } from '@/shared/ui';
+import { Alert, Icon, Spinner } from '@/shared/ui';
 import styles from './ApplicationDetails.module.scss';
 import { useApplicationHistory } from './queries';
 
@@ -53,5 +54,35 @@ export function ApplicationHistory({ applicationId }: { applicationId: string })
         <Entry key={entry.id} entry={entry} />
       ))}
     </ol>
+  );
+}
+
+/**
+ * «Історія змін», folded by default: opened when needed, and only then loaded — the card
+ * does not fetch what most visits never look at.
+ */
+export function CollapsibleHistory({ applicationId }: { applicationId: string }) {
+  const [open, setOpen] = useState(false);
+  const panelId = useId();
+  return (
+    <section className={styles.historyBlock} aria-label="Історія змін">
+      <button
+        type="button"
+        className={styles.historyToggle}
+        aria-expanded={open}
+        aria-controls={panelId}
+        onClick={() => setOpen((value) => !value)}
+      >
+        <span className={open ? styles.chevronOpen : styles.chevron}>
+          <Icon name="chevronDown" />
+        </span>
+        Історія змін
+      </button>
+      {open && (
+        <div id={panelId} className={styles.historyPanel}>
+          <ApplicationHistory applicationId={applicationId} />
+        </div>
+      )}
+    </section>
   );
 }

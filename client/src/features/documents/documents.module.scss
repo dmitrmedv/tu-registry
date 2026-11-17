@@ -1,3 +1,4 @@
+// Inside the blocks of the application card (CardBlock / CardItem from shared/ui).
 .muted {
   color: var(--color-text-muted);
 }
@@ -11,55 +12,6 @@
   }
 }
 
-// Sections of documents in the application card (responses, technical conditions).
-.section {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-3);
-  margin-top: var(--space-4);
-}
-
-.header {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-2);
-
-  h2 {
-    margin: 0;
-    font-size: var(--text-lg);
-  }
-}
-
-.list {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.item {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
-  padding: var(--space-3);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
-  background: var(--color-surface);
-}
-
-.cancelled {
-  color: var(--color-text-muted);
-
-  // The title, not the «Скасовано» badge after it.
-  .title > span:first-child {
-    text-decoration: line-through;
-  }
-}
-
 .title {
   display: flex;
   flex-wrap: wrap;
@@ -68,6 +20,12 @@
   margin: 0;
   font-size: var(--text-md);
   font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+// A cancelled document: its title struck through, not the «Скасовано» badge after it.
+.struck > span:first-child {
+  text-decoration: line-through;
 }
 
 .facts {
@@ -79,12 +37,6 @@
   list-style: none;
 }
 
-.actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-1);
-}
-
 // Lets form fields take part in the dialog body's flex layout.
 .formContents {
   display: contents;
@@ -93,7 +45,7 @@
 // A document's fields as label/value pairs.
 .fields {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
   gap: var(--space-2) var(--space-4);
   margin: 0;
 

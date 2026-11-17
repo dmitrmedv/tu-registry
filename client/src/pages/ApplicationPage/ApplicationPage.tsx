@@ -3,7 +3,7 @@ import { Link, useLocation, useNavigate, useParams } from 'react-router';
 import {
   AnnulDialog,
   ApplicationDetails,
-  ApplicationHistory,
+  CollapsibleHistory,
   canAnnul,
   canDelete,
   canEdit,
@@ -19,7 +19,16 @@ import { ResponsesSection } from '@/features/responses';
 import { TechnicalConditionsSection } from '@/features/technicalConditions';
 import { toApiError } from '@/shared/api/apiError';
 import { PROCESSING_STAGE_LABELS } from '@/shared/lib/labels';
-import { Alert, Badge, Button, ConfirmDialog, Icon, LinkButton, Spinner } from '@/shared/ui';
+import {
+  Alert,
+  Badge,
+  Button,
+  CardBlock,
+  ConfirmDialog,
+  IconButton,
+  IconLink,
+  Spinner,
+} from '@/shared/ui';
 import pageStyles from '../page.module.scss';
 import type { RegistryPageState } from '../RegistryPage/RegistryPage';
 import styles from './ApplicationPage.module.scss';
@@ -89,7 +98,8 @@ export function ApplicationPage() {
   return (
     <section className={pageStyles.wide}>
       {backLink}
-      <div className={pageStyles.header}>
+      {/* The title: what the application is, at a glance. Actions live in the blocks. */}
+      <header className={styles.header}>
         <div className={styles.title}>
           <h1>Заява {app.regNumber}</h1>
           {app.registrationMode === 'MANUAL' && <Badge>вручну</Badge>}
@@ -99,50 +109,67 @@ export function ApplicationPage() {
             <Badge tone="info">{PROCESSING_STAGE_LABELS[app.stage]}</Badge>
           )}
         </div>
-        <div className={styles.actions}>
-          {app.scan && (
-            <Button onClick={viewScan} title={app.scan.name}>
-              <Icon name="eye" />
-              Переглянути скан
-            </Button>
-          )}
-          {canEdit(app, user) && (
-            <LinkButton to={`/applications/${app.id}/edit`} state={state} variant="primary">
-              <Icon name="pencil" />
-              Редагувати
-            </LinkButton>
-          )}
-          {canAnnul(app, user) && (
-            <Button variant="danger" onClick={() => setDialog('annul')}>
-              <Icon name="ban" />
-              Анулювати
-            </Button>
-          )}
-          {canRestore(app, user) && (
-            <Button onClick={() => setDialog('restore')}>
-              <Icon name="restore" />
-              Відновити
-            </Button>
-          )}
-          {canDelete(app, user) && (
-            <Button variant="danger" onClick={() => setDialog('delete')}>
-              <Icon name="trash" />
-              Видалити
-            </Button>
-          )}
-        </div>
-      </div>
+        <p className={styles.customer}>{app.customer}</p>
+        <p className={styles.address}>
+          {[app.settlement, app.objectAddress].filter(Boolean).join(', ')}
+        </p>
+      </header>
 
       {state?.notice && <Alert variant="success">{state.notice}</Alert>}
       {scanError && <Alert variant="error">{scanError}</Alert>}
 
-      <ApplicationDetails app={app} />
-      <ProcessingSection app={app} />
-      <ResponsesSection app={app} />
-      <TechnicalConditionsSection app={app} />
-
-      <h2 className={styles.historyTitle}>Історія змін</h2>
-      <ApplicationHistory applicationId={app.id} />
+      <div className={styles.layout}>
+        <aside className={styles.side}>
+          <ProcessingSection app={app} />
+        </aside>
+        <div className={styles.blocks}>
+          <CardBlock
+            title="Заява"
+            tone={app.status === 'ANNULLED' ? 'danger' : 'default'}
+            actions={
+              <>
+                {app.scan && <IconButton icon="eye" label="Переглянути скан" onClick={viewScan} />}
+                {canEdit(app, user) && (
+                  <IconLink
+                    icon="pencil"
+                    label="Редагувати"
+                    to={`/applications/${app.id}/edit`}
+                    state={state}
+                  />
+                )}
+                {canAnnul(app, user) && (
+                  <IconButton
+                    icon="ban"
+                    label="Анулювати"
+                    tone="danger"
+                    onClick={() => setDialog('annul')}
+                  />
+                )}
+                {canRestore(app, user) && (
+                  <IconButton
+                    icon="restore"
+                    label="Відновити"
+                    onClick={() => setDialog('restore')}
+                  />
+                )}
+                {canDelete(app, user) && (
+                  <IconButton
+                    icon="trash"
+                    label="Видалити"
+                    tone="danger"
+                    onClick={() => setDialog('delete')}
+                  />
+                )}
+              </>
+            }
+          >
+            <ApplicationDetails app={app} />
+          </CardBlock>
+          <ResponsesSection app={app} />
+          <TechnicalConditionsSection app={app} />
+          <CollapsibleHistory applicationId={app.id} />
+        </div>
+      </div>
 
       {dialog === 'annul' && <AnnulDialog app={app} onClose={closeDialog} />}
       {dialog === 'delete' && (

@@ -7,6 +7,10 @@ const PATHS = {
   ban: 'M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18Z M5.6 5.6l12.8 12.8',
   restore: 'M3 12a9 9 0 1 0 3-6.7L3 8 M3 3v5h5',
   trash: 'M3 6h18 M8 6V4h8v2 M19 6l-1 14H6L5 6 M10 11v6 M14 11v6',
+  plus: 'M12 5v14 M5 12h14',
+  // A document with a tick: «документи надійшли».
+  fileCheck: 'M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8Z M14 3v5h5 M9 14l2 2 4-4',
+  chevronDown: 'M6 9l6 6 6-6',
 } as const;
 
 export type IconName = keyof typeof PATHS;

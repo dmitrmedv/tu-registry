@@ -20,7 +20,16 @@ import {
   GAS_PRESSURE_LABELS,
 } from '@/shared/lib/labels';
 import { openPdf } from '@/shared/lib/pdf';
-import { Alert, Badge, Button, Icon, Spinner } from '@/shared/ui';
+import {
+  Alert,
+  Badge,
+  Button,
+  CardBlock,
+  CardItem,
+  CardItems,
+  IconButton,
+  Spinner,
+} from '@/shared/ui';
 import { technicalConditionsApi } from './api';
 import {
   useCancelTechnicalConditions,
@@ -67,14 +76,16 @@ export function TechnicalConditionsSection({ app }: { app: ApplicationDto }) {
     run(() => openPdf(() => technicalConditionsApi.scanFile(app.id, tu.id, fileId), name));
 
   return (
-    <section className={styles.section} aria-labelledby="technical-conditions-title">
-      <div className={styles.header}>
-        <h2 id="technical-conditions-title">Технічні умови</h2>
-        {manage && list.isSuccess && !valid && (
-          <Button onClick={() => setDialog({ kind: 'create' })}>Додати ТУ</Button>
-        )}
-      </div>
-
+    <CardBlock
+      title="Технічні умови"
+      actions={
+        manage &&
+        list.isSuccess &&
+        !valid && (
+          <IconButton icon="plus" label="Додати ТУ" onClick={() => setDialog({ kind: 'create' })} />
+        )
+      }
+    >
       {notice && <Alert variant="success">{notice}</Alert>}
       {error && <Alert variant="error">{error}</Alert>}
 
@@ -90,18 +101,58 @@ export function TechnicalConditionsSection({ app }: { app: ApplicationDto }) {
       ) : list.data.length === 0 ? (
         <p className={styles.muted}>Технічні умови ще не підготовлено.</p>
       ) : (
-        <ol className={styles.list}>
+        <CardItems>
           {/* The valid set first, then the cancelled ones in the order prepared. */}
           {[...(valid ? [valid] : []), ...list.data.filter((tu) => tu !== valid)].map((tu) => {
             const title = `№ ${tu.tuNumber} від ${formatCalendarDate(tu.preparedDate)}`;
             const overdueBy = tu.workingDays - TU_DEADLINE_DAYS;
             return (
-              <li
+              <CardItem
                 key={tu.id}
-                className={clsx(styles.item, tu.cancellation && styles.cancelled)}
-                aria-label={`Технічні умови ${title}`}
+                label={`Технічні умови ${title}`}
+                cancelled={!!tu.cancellation}
+                actions={
+                  <>
+                    {tu.scan && (
+                      <IconButton
+                        icon="eye"
+                        label="Переглянути скан"
+                        title={tu.scan.name}
+                        onClick={() => openScanOf(tu)}
+                      />
+                    )}
+                    {manage && !tu.cancellation && (
+                      <>
+                        <IconButton
+                          icon="pencil"
+                          label="Редагувати"
+                          onClick={() => setDialog({ kind: 'edit', tu })}
+                        />
+                        <IconButton
+                          icon="ban"
+                          label="Скасувати"
+                          tone="danger"
+                          onClick={() => setDialog({ kind: 'cancel', tu })}
+                        />
+                      </>
+                    )}
+                    {tu.cancellation && canRestoreDocument(app, user) && (
+                      <IconButton
+                        icon="restore"
+                        label="Відновити"
+                        loading={restore.isPending}
+                        onClick={() =>
+                          run(
+                            () => restore.mutateAsync({ id: tu.id, version: tu.version }),
+                            `Технічні умови № ${tu.tuNumber} відновлено`,
+                          )
+                        }
+                      />
+                    )}
+                  </>
+                }
               >
-                <p className={styles.title}>
+                <p className={clsx(styles.title, tu.cancellation && styles.struck)}>
                   <span>Технічні умови {title}</span>
                   {tu.cancellation && <Badge tone="danger">Скасовано</Badge>}
                 </p>
@@ -144,49 +195,14 @@ export function TechnicalConditionsSection({ app }: { app: ApplicationDto }) {
                     {tu.cancellation.reason}
                   </p>
                 )}
-                <div className={styles.actions}>
-                  {tu.scan && (
-                    <Button size="sm" title={tu.scan.name} onClick={() => openScanOf(tu)}>
-                      <Icon name="eye" />
-                      Переглянути скан
-                    </Button>
-                  )}
-                  {manage && !tu.cancellation && (
-                    <>
-                      <Button size="sm" onClick={() => setDialog({ kind: 'edit', tu })}>
-                        <Icon name="pencil" />
-                        Редагувати
-                      </Button>
-                      <Button size="sm" onClick={() => setDialog({ kind: 'cancel', tu })}>
-                        <Icon name="ban" />
-                        Скасувати
-                      </Button>
-                    </>
-                  )}
-                  {tu.cancellation && canRestoreDocument(app, user) && (
-                    <Button
-                      size="sm"
-                      loading={restore.isPending}
-                      onClick={() =>
-                        run(
-                          () => restore.mutateAsync({ id: tu.id, version: tu.version }),
-                          `Технічні умови № ${tu.tuNumber} відновлено`,
-                        )
-                      }
-                    >
-                      <Icon name="restore" />
-                      Відновити
-                    </Button>
-                  )}
-                </div>
                 <PreviousScans
                   scans={tu.previousScans}
                   onOpen={(scan) => openScanOf(tu, scan.id, scan.name)}
                 />
-              </li>
+              </CardItem>
             );
           })}
-        </ol>
+        </CardItems>
       )}
 
       {(dialog.kind === 'create' || dialog.kind === 'edit') && (
@@ -217,6 +233,6 @@ export function TechnicalConditionsSection({ app }: { app: ApplicationDto }) {
           }
         />
       )}
-    </section>
+    </CardBlock>
   );
 }

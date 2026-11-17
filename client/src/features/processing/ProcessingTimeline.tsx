@@ -1,7 +1,7 @@
 import type { ProcessingDto, TimelineEventDto } from '@tu-registry/shared';
 import clsx from 'clsx';
 import { formatCalendarDate, workingDaysLabel } from '@/shared/lib/format';
-import { Badge, Button, Icon } from '@/shared/ui';
+import { Badge, IconButton } from '@/shared/ui';
 import styles from './processing.module.scss';
 
 const TITLES: Record<TimelineEventDto['type'], string> = {
@@ -54,16 +54,12 @@ export function ProcessingTimeline({ events, tracked, onOpenScan }: Props) {
                 <Badge tone="danger">строк перевищено на {workingDaysLabel(event.overdueBy)}</Badge>
               )}
               {event.scanName && (
-                <Button
-                  size="sm"
-                  variant="ghost"
+                <IconButton
+                  icon="eye"
+                  label={`Скан: ${title}`}
                   title={event.scanName}
-                  aria-label={`Скан: ${title}`}
                   onClick={() => onOpenScan(event)}
-                >
-                  <Icon name="eye" />
-                  Скан
-                </Button>
+                />
               )}
             </div>
           </li>

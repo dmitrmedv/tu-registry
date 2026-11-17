@@ -179,6 +179,12 @@
   min-width: 180px;
 }
 
+// A long address wraps instead of widening its column (agreed 2026-11-18).
+.address {
+  max-width: 370px;
+  overflow-wrap: anywhere;
+}
+
 .summary .pageSize {
   flex-direction: row;
   align-items: center;

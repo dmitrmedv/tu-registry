@@ -1,22 +1,31 @@
-import { type ApplicationDto, formatFileSize } from '@tu-registry/shared';
+import type { ApplicationDto } from '@tu-registry/shared';
 import { useState } from 'react';
-import { Link } from 'react-router';
+import { Link, useNavigate } from 'react-router';
 import { ApplicationForm, ScanDropzone, useUploadScan } from '@/features/applications';
 import { toApiError } from '@/shared/api/apiError';
 import { formatCalendarDate } from '@/shared/lib/format';
+import { notifySuccess } from '@/shared/lib/notify';
 import { Alert, Button } from '@/shared/ui';
 import pageStyles from '../page.module.scss';
 import styles from './NewApplicationPage.module.scss';
 
+/** «Заяву зареєстровано: 15т/26-8 від 12.03.2026»: the page and the notification say the same. */
+const registeredText = (app: ApplicationDto) =>
+  `${app.registrationMode === 'MANUAL' ? 'Заяву внесено вручну' : 'Заяву зареєстровано'}: ${
+    app.regNumber
+  } від ${formatCalendarDate(app.regDate)}`;
+
 export function NewApplicationPage() {
+  const navigate = useNavigate();
   const [created, setCreated] = useState<ApplicationDto | null>(null);
   const [scan, setScan] = useState<File | null>(null);
   const [progress, setProgress] = useState<number | null>(null);
   const [scanError, setScanError] = useState<string>();
   const upload = useUploadScan();
 
-  // The application is registered first; the scan follows. If the scan fails, the
-  // application still stands and the scan can be added from its card.
+  // The application is registered first; the scan follows. Then the registry opens with a
+  // notification (agreed 2026-11-18). If the scan fails, the application still stands: the page
+  // stays, saying where to add the scan.
   const handleCreated = async (application: ApplicationDto) => {
     let result = application;
     setScanError(undefined);
@@ -30,12 +39,15 @@ export function NewApplicationPage() {
         });
       } catch (error) {
         setScanError(toApiError(error).message);
+        setScan(null);
+        setCreated(result);
+        return;
       } finally {
         setProgress(null);
       }
     }
-    setScan(null);
-    setCreated(result);
+    notifySuccess(result.scan ? `${registeredText(result)}. Скан додано.` : registeredText(result));
+    navigate('/');
   };
 
   // The next form starts empty and in automatic mode, also after a manual entry.
@@ -56,11 +68,6 @@ export function NewApplicationPage() {
             <strong className={styles.number}>{created.regNumber}</strong> від{' '}
             {formatCalendarDate(created.regDate)}
           </Alert>
-          {created.scan && (
-            <p className={pageStyles.muted}>
-              Скан «{created.scan.name}» ({formatFileSize(created.scan.size)}) додано.
-            </p>
-          )}
           {scanError && (
             <Alert variant="warning">
               Скан не завантажено: {scanError} Додайте його в{' '}

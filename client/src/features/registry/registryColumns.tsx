@@ -8,6 +8,7 @@ import {
   OBJECT_TYPE_LABELS,
   REGISTRY_STAGE_LABELS,
 } from '@/shared/lib/labels';
+import styles from './registry.module.scss';
 
 type Row = ApplicationListItemDto;
 
@@ -62,7 +63,7 @@ export const REGISTRY_COLUMNS: RegistryColumn[] = [
   {
     id: 'objectAddress',
     label: 'Адреса',
-    cell: (row) => row.objectAddress,
+    cell: (row) => <div className={styles.address}>{row.objectAddress}</div>,
     wrap: true,
     visibleByDefault: true,
   },

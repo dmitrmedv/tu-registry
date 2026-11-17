@@ -72,13 +72,13 @@ export function ApplicationContentFields() {
           <div className={styles.location}>
             <TextField
               label="Населений пункт"
-              placeholder="м. Київ"
+              placeholder="м. Одеса"
               error={errors.settlement?.message}
               {...register('settlement')}
             />
             <TextField
               label="Адреса обʼєкта"
-              placeholder="вул. Шевченка, 1"
+              placeholder="вул. Одарія, 1"
               error={errors.objectAddress?.message}
               {...register('objectAddress')}
             />

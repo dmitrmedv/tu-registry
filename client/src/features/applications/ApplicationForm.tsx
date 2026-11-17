@@ -22,7 +22,15 @@ import { useDepartments } from '@/features/departments';
 import { toApiError } from '@/shared/api/apiError';
 import { useFormDraft } from '@/shared/hooks/useFormDraft';
 import { formatCalendarDate, formatDateTime } from '@/shared/lib/format';
-import { Alert, Button, CheckboxField, SelectField, Spinner, TextField } from '@/shared/ui';
+import {
+  Alert,
+  Button,
+  CheckboxField,
+  LinkButton,
+  SelectField,
+  Spinner,
+  TextField,
+} from '@/shared/ui';
 import { ApplicationContentFields } from './ApplicationContentFields';
 import styles from './ApplicationForm.module.scss';
 import { ManualNumberStatus } from './ManualNumberStatus';
@@ -249,6 +257,10 @@ export function ApplicationForm({ onCreated }: Props) {
         </fieldset>
 
         <div className={styles.actions}>
+          {/* Leaving on purpose drops what was typed: the draft is for an unexpected reload. */}
+          <LinkButton to="/" onClick={draft.clear}>
+            Скасувати
+          </LinkButton>
           <Button type="submit" variant="primary" loading={isSubmitting}>
             {manual ? 'Внести заяву' : 'Зареєструвати заяву'}
           </Button>

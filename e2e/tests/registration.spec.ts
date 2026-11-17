@@ -19,9 +19,11 @@ test('registers an application under the next number and finds it in the registr
   await page.getByLabel('Коментар (необовʼязково)').fill('Подано особисто');
   await page.getByRole('button', { name: 'Зареєструвати заяву' }).click();
 
+  // The registry opens with a notification of the number (agreed 2026-11-18).
   const result = page.getByText('Заяву зареєстровано:');
   await expect(result).toBeVisible();
-  const regNumber = (await result.locator('strong').textContent()) ?? '';
+  await expect(page).toHaveURL(/\/$/);
+  const regNumber = /: (\S+) від/.exec((await result.textContent()) ?? '')?.[1] ?? '';
   expect(regNumber).toMatch(/^\d+т\/\d{2}-8$/); // the admin is in Одеське (code 8)
 
   await page.getByRole('link', { name: 'Реєстр заяв на ТУ' }).click();
@@ -85,7 +87,7 @@ test('registers an application with a scan of the documents and opens it from th
   await page.getByRole('radio', { name: 'Квартира' }).check();
   await page.getByRole('button', { name: 'Зареєструвати заяву' }).click();
 
-  await expect(page.getByText('Скан «Пакет документів.pdf» (1 КБ) додано.')).toBeVisible();
+  await expect(page.getByText(/^Заяву зареєстровано: .+\. Скан додано\.$/)).toBeVisible();
 
   await page.goto(`/?q=${encodeURIComponent(customer)}`);
   await page

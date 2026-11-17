@@ -102,7 +102,7 @@ describe('NewApplicationPage', () => {
 
   it('registers the application and shows the number assigned by the server', async () => {
     let sentBody: unknown;
-    const { user } = openPage();
+    const { user, router } = openPage();
     server.use(
       mock.post('*/api/v1/applications', async ({ request }) => {
         sentBody = await request.json();
@@ -114,9 +114,11 @@ describe('NewApplicationPage', () => {
     await fillRequiredFields(user);
     await user.click(screen.getByRole('button', { name: 'Зареєструвати заяву' }));
 
-    expect(await screen.findByRole('status')).toHaveTextContent(
-      'Заяву зареєстровано: 15т/26-8 від 12.03.2026',
-    );
+    // The registry opens with a notification (agreed 2026-11-18).
+    expect(
+      await screen.findByText('Заяву зареєстровано: 15т/26-8 від 12.03.2026'),
+    ).toBeInTheDocument();
+    expect(router.state.location.pathname).toBe('/');
     // Normalized on the client; no empty email, no date or number from the browser.
     expect(sentBody).toEqual({
       customer: 'ТОВ «Приклад»',
@@ -128,9 +130,16 @@ describe('NewApplicationPage', () => {
       objectType: 'DOMESTIC',
       objectCategory: 'RESIDENTIAL_HOUSE',
     });
+  });
 
-    await user.click(screen.getByRole('button', { name: 'Зареєструвати ще' }));
-    expect(screen.getByLabelText('Замовник')).toHaveValue('');
+  it('leaves for the registry on «Скасувати», dropping what was typed', async () => {
+    const { user, router } = openPage();
+    await user.type(await screen.findByLabelText('Замовник'), 'Чернетка');
+
+    await user.click(screen.getByRole('link', { name: 'Скасувати' }));
+
+    expect(router.state.location.pathname).toBe('/');
+    expect(localStorage.length).toBe(0);
   });
 
   it('shows a server error and keeps the entered data', async () => {
@@ -312,9 +321,9 @@ describe('NewApplicationPage — manual registration', () => {
     expect(await screen.findByText(/не може бути пізнішою за сьогодні/)).toBeInTheDocument();
   });
 
-  it('sends date and digits, then starts the next entry in automatic mode', async () => {
+  it('sends date and digits, then opens the registry', async () => {
     let sentBody: unknown;
-    const { user } = await openManual();
+    const { user, router } = await openManual();
     server.use(
       mock.post('*/api/v1/applications/manual', async ({ request }) => {
         sentBody = await request.json();
@@ -337,17 +346,12 @@ describe('NewApplicationPage — manual registration', () => {
     await user.type(screen.getByLabelText('Порядковий номер'), '14');
     await user.click(screen.getByRole('button', { name: 'Внести заяву' }));
 
-    expect(await screen.findByText(/Заяву внесено вручну/)).toHaveTextContent(
-      'Заяву внесено вручну: 14т/24-8 від 20.05.2024',
-    );
+    expect(
+      await screen.findByText('Заяву внесено вручну: 14т/24-8 від 20.05.2024'),
+    ).toBeInTheDocument();
     expect(sentBody).toMatchObject({ regDate: '2024-05-20', regSeq: 14 });
     expect(sentBody).not.toHaveProperty('manual');
-
-    await user.click(screen.getByRole('button', { name: 'Зареєструвати ще' }));
-    expect(screen.getByRole('switch', { name: switchName })).not.toBeChecked();
-    expect(screen.queryByLabelText('Дата реєстрації')).not.toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Зареєструвати заяву' })).toBeInTheDocument();
-    expect(screen.getByLabelText('Замовник')).toHaveValue('');
+    expect(router.state.location.pathname).toBe('/');
   });
 
   it('shows a number taken at save time next to the number field', async () => {
@@ -564,7 +568,9 @@ describe('NewApplicationPage — scan of the documents', () => {
     await fillRequiredFields(user);
     await user.click(screen.getByRole('button', { name: 'Зареєструвати заяву' }));
 
-    expect(await screen.findByText('Скан «Скан заяви.pdf» (1 КБ) додано.')).toBeInTheDocument();
+    expect(
+      await screen.findByText('Заяву зареєстровано: 15т/26-8 від 12.03.2026. Скан додано.'),
+    ).toBeInTheDocument();
     expect(uploaded).toEqual(['a1 Скан заяви.pdf']);
   });
 

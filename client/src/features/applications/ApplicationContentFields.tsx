@@ -100,7 +100,7 @@ export function ApplicationContentFields() {
           </div>
           <ChoiceField
             className={styles.wide}
-            legend="Вид газифікації"
+            legend="Тип заяви"
             options={GASIFICATION_TYPE_OPTIONS}
             error={errors.gasificationType?.message}
             {...register('gasificationType')}

@@ -48,7 +48,7 @@ test('a user sees and numbers only their department; the admin sees all', async 
   const reniTable = reniPage.getByRole('table', { name: 'Реєстр заяв' });
   await expect(reniTable.getByRole('cell', { name: reniCustomer })).toBeVisible();
   await expect(reniTable.getByRole('cell', { name: odesaCustomer })).toHaveCount(0);
-  await expect(reniPage.getByLabel('Управління')).toHaveCount(0);
+  await expect(reniPage.getByLabel('Управління', { exact: true })).toHaveCount(0);
   await reniPage.goto(`/applications/${odesaApp.id}`);
   await expect(reniPage.getByRole('heading', { name: 'Заяву не знайдено' })).toBeVisible();
   await reniContext.close();
@@ -58,7 +58,7 @@ test('a user sees and numbers only their department; the admin sees all', async 
   const table = page.getByRole('table', { name: 'Реєстр заяв' });
   await expect(table.getByRole('cell', { name: odesaCustomer })).toBeVisible();
   await expect(table.getByRole('cell', { name: reniCustomer })).toHaveCount(0);
-  await page.getByLabel('Управління').selectOption({ label: 'Усі управління' });
+  await page.getByLabel('Управління', { exact: true }).selectOption({ label: 'Усі управління' });
   await expect(table.getByRole('cell', { name: reniCustomer })).toBeVisible();
   await expect(table.getByRole('cell', { name: 'Ренійське' }).first()).toBeVisible();
 });
@@ -67,7 +67,7 @@ test('an admin registers an application into a chosen department', async ({ page
   await apiLogin(page.request, ADMIN);
   await page.goto('/applications/new');
 
-  await page.getByLabel('Управління').selectOption({ label: 'Ренійське' });
+  await page.getByLabel('Управління', { exact: true }).selectOption({ label: 'Ренійське' });
   await expect(page.getByText(/^\d+т\/\d{2}-11$/)).toBeVisible(); // the next-number hint
   const customer = uniqueName('ТОВ Рені від адміністратора');
   await page.getByLabel('Замовник', { exact: true }).fill(customer);

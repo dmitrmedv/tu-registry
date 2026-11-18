@@ -60,12 +60,12 @@ test('the registry shows, sorts, filters and searches by responses and technical
 
   // «Стан» and «Інженер» behind «Ще фільтри».
   await page.getByRole('button', { name: /^Ще фільтри/ }).click();
-  await page.getByLabel('Стан').selectOption({ label: 'Відповідь надана' });
+  await page.getByLabel('Стан', { exact: true }).selectOption({ label: 'Відповідь надана' });
   await expect(table.getByRole('row')).toHaveCount(2);
   await expect(table.getByRole('row').nth(1)).toContainText(`${prefix} відповідь`);
   // Removing one filter and choosing another right after: both apply (no wait in between).
   await page.getByRole('button', { name: 'Прибрати фільтр «Стан: Відповідь надана»' }).click();
-  await page.getByLabel('Інженер').selectOption({ label: engineerName });
+  await page.getByLabel('Інженер', { exact: true }).selectOption({ label: engineerName });
   await expect(table.getByRole('row')).toHaveCount(3);
   await expect(rowOf(`${prefix} без документів`)).toHaveCount(0);
 

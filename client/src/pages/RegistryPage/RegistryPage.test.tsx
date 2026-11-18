@@ -574,6 +574,103 @@ describe('RegistryPage — card links and status', () => {
     expect(within(table).queryByRole('columnheader', { name: /^Витрати газу/ })).toBeNull();
     expect(window.localStorage.getItem(`tu-registry:registry-columns:${me.id}`)).toBe('{}');
   });
+
+  it('lets each user change column widths with the keyboard, remembered with the columns', async () => {
+    serveRegistry();
+    const { user } = renderApp('/');
+    const table = await screen.findByRole('table', { name: 'Реєстр заяв' });
+    const handle = within(table).getByRole('separator', { name: 'Ширина колонки «Адреса»' });
+    const headers = within(table).getAllByRole('columnheader');
+    const addressIndex = headers.findIndex((th) => th.contains(handle));
+    const addressCol = () => table.querySelectorAll('col')[addressIndex]!;
+    const widthsKey = `tu-registry:registry-widths:${me.id}`;
+
+    // 370 px until changed.
+    expect(handle).toHaveAttribute('aria-valuenow', '370');
+    expect(addressCol().style.width).toBe('370px');
+
+    handle.focus();
+    await user.keyboard('{ArrowRight}{ArrowRight}{ArrowLeft}');
+    expect(handle).toHaveAttribute('aria-valuenow', '386');
+    expect(addressCol().style.width).toBe('386px');
+    expect(JSON.parse(window.localStorage.getItem(widthsKey) ?? '{}')).toEqual({
+      objectAddress: 386,
+    });
+
+    // Not narrower than the minimum, however many times.
+    await user.keyboard('{ArrowLeft>40/}');
+    expect(handle).toHaveAttribute('aria-valuenow', '60');
+
+    await user.dblClick(handle);
+    expect(handle).toHaveAttribute('aria-valuenow', '370');
+
+    await user.keyboard('{ArrowLeft}');
+    await user.click(screen.getByRole('button', { name: /^Колонки/ }));
+    await user.click(screen.getByRole('button', { name: 'Як за замовчуванням' }));
+    expect(handle).toHaveAttribute('aria-valuenow', '370');
+    expect(window.localStorage.getItem(widthsKey)).toBe('{}');
+  });
+
+  it('moves columns from «Колонки», remembered until reset; «№» stays first', async () => {
+    serveRegistry();
+    const { user } = renderApp('/');
+    const table = await screen.findByRole('table', { name: 'Реєстр заяв' });
+    const orderKey = `tu-registry:registry-order:${me.id}`;
+    const titles = () =>
+      within(table)
+        .getAllByRole('columnheader')
+        .map((th) => th.querySelector('button')?.firstChild?.textContent);
+
+    expect(titles().slice(0, 3)).toEqual(['№', 'Дата реєстрації', 'Управління']);
+    await user.click(screen.getByRole('button', { name: /^Колонки/ }));
+    expect(screen.getByRole('button', { name: 'Вище: Дата реєстрації' })).toBeDisabled();
+    await user.click(screen.getByRole('button', { name: 'Вище: Управління' }));
+    expect(titles().slice(0, 3)).toEqual(['№', 'Управління', 'Дата реєстрації']);
+    expect(JSON.parse(window.localStorage.getItem(orderKey) ?? '[]').slice(0, 2)).toEqual([
+      'department',
+      'regDate',
+    ]);
+
+    await user.click(screen.getByRole('button', { name: 'Нижче: Управління' }));
+    await user.click(screen.getByRole('button', { name: 'Нижче: Управління' }));
+    expect(titles().slice(0, 4)).toEqual(['№', 'Дата реєстрації', 'Замовник', 'Управління']);
+
+    await user.click(screen.getByRole('button', { name: 'Як за замовчуванням' }));
+    expect(titles().slice(0, 3)).toEqual(['№', 'Дата реєстрації', 'Управління']);
+    expect(window.localStorage.getItem(orderKey)).toBe('[]');
+  });
+
+  it('restores the saved column order, ignoring unknown columns', async () => {
+    window.localStorage.setItem(
+      `tu-registry:registry-order:${me.id}`,
+      JSON.stringify(['objectAddress', 'nonsense', 'customer']),
+    );
+    serveRegistry();
+    renderApp('/');
+    const table = await screen.findByRole('table', { name: 'Реєстр заяв' });
+
+    const titles = within(table)
+      .getAllByRole('columnheader')
+      .map((th) => th.querySelector('button')?.firstChild?.textContent);
+    expect(titles.slice(0, 4)).toEqual(['№', 'Адреса', 'Замовник', 'Дата реєстрації']);
+  });
+
+  it('restores the saved widths of this user', async () => {
+    window.localStorage.setItem(
+      `tu-registry:registry-widths:${me.id}`,
+      JSON.stringify({ customer: 300, objectAddress: 'wide', unknown: 50 }),
+    );
+    serveRegistry();
+    renderApp('/');
+    const table = await screen.findByRole('table', { name: 'Реєстр заяв' });
+
+    expect(
+      within(table).getByRole('separator', { name: 'Ширина колонки «Замовник»' }),
+    ).toHaveAttribute('aria-valuenow', '300');
+    expect(
+      within(table).getByRole('separator', { name: 'Ширина колонки «Адреса»' }),
+    ).toHaveAttribute('aria-valuenow', '370');
+  });
 });
 
 afterEach(() => {

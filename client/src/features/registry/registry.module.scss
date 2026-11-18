@@ -159,7 +159,9 @@
   display: inline-flex;
   align-items: center;
   gap: var(--space-1);
+  max-width: 100%;
   padding: 0;
+  text-align: left;
   background: none;
   border: 0;
   color: inherit;
@@ -168,21 +170,8 @@
 }
 
 .sortIcon {
+  flex-shrink: 0;
   font-size: 0.7em;
-}
-
-.nowrap {
-  white-space: nowrap;
-}
-
-.wrap {
-  min-width: 180px;
-}
-
-// A long address wraps instead of widening its column (agreed 2026-11-18).
-.address {
-  max-width: 370px;
-  overflow-wrap: anywhere;
 }
 
 .summary .pageSize {
@@ -281,8 +270,15 @@
   }
 }
 
+.columnRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
 .columnOption {
   display: flex;
+  flex: 1;
   align-items: center;
   gap: var(--space-2);
   cursor: pointer;

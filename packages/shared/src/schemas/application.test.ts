@@ -14,6 +14,7 @@ const valid = {
   settlement: 'м. Київ',
   objectAddress: 'вул. Прикладна, 1',
   areaType: 'URBAN',
+  gasificationType: 'NEW',
   objectType: 'DOMESTIC',
   objectCategory: 'RESIDENTIAL_HOUSE',
 };

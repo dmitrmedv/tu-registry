@@ -2,6 +2,7 @@ import { z } from 'zod';
 import {
   AREA_TYPES,
   type ConnectionType,
+  GASIFICATION_TYPES,
   OBJECT_CATEGORIES,
   OBJECT_TYPES,
   PROCESSING_STAGES,
@@ -17,10 +18,12 @@ export const SORT_FIELDS = [
   'customer',
   'settlement',
   'areaType',
+  'gasificationType',
   'objectAddress',
   'objectType',
   'objectCategory',
   'customerRepresentative',
+  'accountNumber',
   'createdBy',
   // Stage 17.6: the processing summary.
   'stage',
@@ -67,6 +70,7 @@ export const applicationListQuerySchema = z
     objectType: z.preprocess(emptyToUndefined, z.enum(OBJECT_TYPES).optional()),
     objectCategory: z.preprocess(emptyToUndefined, z.enum(OBJECT_CATEGORIES).optional()),
     areaType: z.preprocess(emptyToUndefined, z.enum(AREA_TYPES).optional()),
+    gasificationType: z.preprocess(emptyToUndefined, z.enum(GASIFICATION_TYPES).optional()),
     stage: z.preprocess(emptyToUndefined, z.enum(STAGE_FILTERS).optional()),
     createdBy: z.preprocess(emptyToUndefined, objectId('Некоректний користувач').optional()),
     /** An engineer named in any document in force (a response or the valid TU). */
@@ -93,9 +97,11 @@ export type ApplicationListItemDto = Pick<
   | 'department'
   | 'customer'
   | 'customerRepresentative'
+  | 'accountNumber'
   | 'settlement'
   | 'objectAddress'
   | 'areaType'
+  | 'gasificationType'
   | 'objectType'
   | 'objectCategory'
   | 'objectCategoryOther'

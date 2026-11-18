@@ -13,6 +13,7 @@ export const applicationFields = {
   email: 'office@example.ua',
   settlement: 'м. Київ',
   areaType: 'URBAN',
+  gasificationType: 'NEW',
   objectAddress: 'вул. Прикладна, 1',
   objectType: 'DOMESTIC',
   objectCategory: 'RESIDENTIAL_HOUSE',

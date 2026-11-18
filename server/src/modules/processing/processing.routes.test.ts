@@ -200,6 +200,7 @@ describe('processing of an application: stage, deadlines, timeline', () => {
       phone: '+380671234567',
       settlement: 'м. Київ',
       areaType: 'URBAN',
+      gasificationType: 'NEW',
       objectAddress: 'вул. Стара, 1',
       objectType: 'DOMESTIC',
       objectCategory: 'APARTMENT',

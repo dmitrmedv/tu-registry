@@ -7,6 +7,8 @@ import {
   DEFAULT_DEPARTMENT,
   DEPARTMENT_ID_PATTERN,
   type Department,
+  GASIFICATION_TYPES,
+  type GasificationType,
   OBJECT_CATEGORIES,
   OBJECT_TYPES,
   type ObjectCategory,
@@ -27,6 +29,7 @@ export type RegistryParams = {
   type: ObjectType | '';
   category: ObjectCategory | '';
   area: AreaType | '';
+  gas: GasificationType | '';
   /** «Стан»: a processing stage of an active application, or annulled. */
   stage: StageFilter | '';
   /** An engineer named in any document in force. */
@@ -47,6 +50,7 @@ export const DEFAULT_PARAMS: RegistryParams = {
   type: '',
   category: '',
   area: '',
+  gas: '',
   stage: '',
   engineer: '',
   user: 'all',
@@ -55,7 +59,17 @@ export const DEFAULT_PARAMS: RegistryParams = {
   to: '',
 };
 
-const FILTER_KEYS = ['q', 'type', 'category', 'area', 'stage', 'engineer', 'from', 'to'] as const;
+const FILTER_KEYS = [
+  'q',
+  'type',
+  'category',
+  'area',
+  'gas',
+  'stage',
+  'engineer',
+  'from',
+  'to',
+] as const;
 const OBJECT_ID = /^[a-f\d]{24}$/i;
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -68,6 +82,7 @@ export function readParams(search: URLSearchParams): RegistryParams {
   const type = search.get('type') as ObjectType;
   const category = search.get('category') as ObjectCategory;
   const area = search.get('area') as AreaType;
+  const gas = search.get('gas') as GasificationType;
   // Links from before stage 17.6 carry ?status=ANNULLED: the same as «Стан: Анульована».
   const stage = (search.get('stage') ??
     (search.get('status') === 'ANNULLED' ? 'ANNULLED' : '')) as StageFilter;
@@ -82,6 +97,7 @@ export function readParams(search: URLSearchParams): RegistryParams {
     type: OBJECT_TYPES.includes(type) ? type : '',
     category: OBJECT_CATEGORIES.includes(category) ? category : '',
     area: AREA_TYPES.includes(area) ? area : '',
+    gas: GASIFICATION_TYPES.includes(gas) ? gas : '',
     stage: STAGE_FILTERS.includes(stage) ? stage : '',
     engineer: OBJECT_ID.test(text('engineer')) ? text('engineer') : '',
     user: user === 'mine' || OBJECT_ID.test(user) ? user : 'all',
@@ -105,9 +121,14 @@ export function writeParams(params: RegistryParams) {
 
 /** Filters behind «Ще фільтри»: the button shows how many of them are set. */
 export function countMoreFilters(params: RegistryParams) {
-  const set = [params.type, params.category, params.area, params.stage, params.engineer].filter(
-    Boolean,
-  ).length;
+  const set = [
+    params.type,
+    params.category,
+    params.area,
+    params.gas,
+    params.stage,
+    params.engineer,
+  ].filter(Boolean).length;
   return set + (params.user !== 'all' ? 1 : 0);
 }
 
@@ -136,6 +157,7 @@ export function toApiQuery(params: RegistryParams, viewer: Viewer): ApplicationL
     sort: params.sort,
     q: params.q || undefined,
     areaType: params.area || undefined,
+    gasificationType: params.gas || undefined,
     objectType: params.type || undefined,
     objectCategory: params.category || undefined,
     stage: params.stage || undefined,

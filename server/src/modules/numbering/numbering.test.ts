@@ -20,6 +20,7 @@ const input = {
   phone: '+380671234567',
   settlement: 'м. Київ',
   areaType: 'URBAN' as const,
+  gasificationType: 'NEW' as const,
   objectAddress: 'вул. Прикладна, 1',
   objectType: 'DOMESTIC' as const,
   objectCategory: 'RESIDENTIAL_HOUSE' as const,

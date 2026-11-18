@@ -73,6 +73,12 @@
   font-weight: 600;
 }
 
+// Under the object category, in the customer's font (agreed 2026-11-18).
+.gasification {
+  composes: strong;
+  color: var(--color-text);
+}
+
 // The processing timeline on the left, the tabs on the right; one column on phones.
 .layout {
   display: grid;

@@ -11,6 +11,10 @@ export type ObjectType = (typeof OBJECT_TYPES)[number];
 export const AREA_TYPES = ['URBAN', 'RURAL'] as const;
 export type AreaType = (typeof AREA_TYPES)[number];
 
+/** New gasification, or reconstruction of a connection that exists (agreed 2026-11-18). */
+export const GASIFICATION_TYPES = ['NEW', 'RECONSTRUCTION'] as const;
+export type GasificationType = (typeof GASIFICATION_TYPES)[number];
+
 /** What is being connected. `OTHER` comes with the user's own wording (objectCategoryOther). */
 export const OBJECT_CATEGORIES = [
   'LAND_PLOT',

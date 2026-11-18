@@ -2,6 +2,8 @@ import { z } from 'zod';
 import {
   AREA_TYPES,
   type AreaType,
+  GASIFICATION_TYPES,
+  type GasificationType,
   type ApplicationChangeAction,
   type ApplicationStatus,
   OBJECT_CATEGORIES,
@@ -61,6 +63,8 @@ export const emailField = z
 export const OBJECT_CATEGORY_OTHER_MAX = 200;
 export const SETTLEMENT_MAX = 100;
 export const COMMENT_MAX = 2000;
+/** A personal account (domestic) or a contract number (non-domestic), as written: free text. */
+export const ACCOUNT_NUMBER_MAX = 50;
 
 const objectCategoryField = z.enum(OBJECT_CATEGORIES, { error: 'Оберіть категорію обʼєкта' });
 const otherRequired = 'Уточніть категорію обʼєкта';
@@ -73,8 +77,12 @@ const applicationFields = z.object({
   settlement: requiredText('Населений пункт', SETTLEMENT_MAX),
   objectAddress: requiredText('Адреса обʼєкта', 500),
   areaType: z.enum(AREA_TYPES, { error: 'Оберіть місцевість' }),
+  gasificationType: z.enum(GASIFICATION_TYPES, {
+    error: 'Оберіть: нова газифікація чи реконструкція',
+  }),
   objectType: z.enum(OBJECT_TYPES, { error: 'Оберіть тип обʼєкта' }),
   objectCategory: objectCategoryField,
+  accountNumber: optionalText('Особовий рахунок / № договору', ACCOUNT_NUMBER_MAX),
   // Used only with OTHER; the server drops it for any other category.
   objectCategoryOther: optionalText('Категорія', OBJECT_CATEGORY_OTHER_MAX),
   comment: optionalText('Коментар', COMMENT_MAX),
@@ -186,8 +194,12 @@ export type ApplicationDto = {
   objectAddress: string;
   /** Null only for records from before the field whose settlement gave no clue. */
   areaType: AreaType | null;
+  /** Null only for records from before the field (2026-11-18). */
+  gasificationType: GasificationType | null;
   objectType: ObjectType;
   objectCategory: ObjectCategory;
+  /** Personal account (domestic) or contract number (non-domestic); reconstruction only. */
+  accountNumber: string | null;
   /** The user's wording for OTHER; null for any other category (and for migrated records). */
   objectCategoryOther: string | null;
   comment: string | null;
@@ -249,10 +261,12 @@ export function updateApplicationSchema(today: string) {
       settlement: applicationFields.shape.settlement.optional(),
       objectAddress: applicationFields.shape.objectAddress.optional(),
       areaType: applicationFields.shape.areaType.optional(),
+      gasificationType: applicationFields.shape.gasificationType.optional(),
       objectType: applicationFields.shape.objectType.optional(),
       // Whether OTHER has its wording is checked by the server against the stored value
       // when only one of the two is sent.
       objectCategory: objectCategoryField.optional(),
+      accountNumber: clearableText('Особовий рахунок / № договору', ACCOUNT_NUMBER_MAX).optional(),
       objectCategoryOther: clearableText('Категорія', OBJECT_CATEGORY_OTHER_MAX).optional(),
       comment: clearableText('Коментар', COMMENT_MAX).optional(),
       regDate: regDateField

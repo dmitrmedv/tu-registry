@@ -87,9 +87,11 @@ const EMPTY_VALUES: FormValues = {
   settlement: '',
   objectAddress: '',
   areaType: '' as FormValues['areaType'],
+  gasificationType: '' as FormValues['gasificationType'],
   objectType: '' as FormValues['objectType'],
   objectCategory: '' as FormValues['objectCategory'],
   objectCategoryOther: '',
+  accountNumber: '',
   comment: '',
   department: undefined,
   // Every new form starts in automatic mode, also right after a manual entry.

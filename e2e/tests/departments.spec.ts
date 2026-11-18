@@ -36,6 +36,7 @@ test('a user sees and numbers only their department; the admin sees all', async 
   await reniPage.getByLabel('Телефон').fill('067 123 45 67');
   await reniPage.getByLabel('Населений пункт').fill('м. Рені');
   await reniPage.getByLabel('Адреса обʼєкта').fill('вул. Дунайська, 1');
+  await reniPage.getByRole('radio', { name: 'Нова газифікація' }).check();
   await reniPage.getByRole('radio', { name: 'Міська' }).check();
   await reniPage.getByRole('radio', { name: 'Побутовий', exact: true }).check();
   await reniPage.getByRole('radio', { name: 'Квартира' }).check();
@@ -73,6 +74,7 @@ test('an admin registers an application into a chosen department', async ({ page
   await page.getByLabel('Телефон').fill('067 123 45 67');
   await page.getByLabel('Населений пункт').fill('м. Рені');
   await page.getByLabel('Адреса обʼєкта').fill('вул. Дунайська, 2');
+  await page.getByRole('radio', { name: 'Нова газифікація' }).check();
   await page.getByRole('radio', { name: 'Міська' }).check();
   await page.getByRole('radio', { name: 'Побутовий', exact: true }).check();
   await page.getByRole('radio', { name: 'Квартира' }).check();
@@ -104,6 +106,7 @@ test('an admin adds a department, registers into it, re-codes and archives it', 
   await page.getByLabel('Телефон').fill('067 123 45 67');
   await page.getByLabel('Населений пункт').fill('м. Одеса');
   await page.getByLabel('Адреса обʼєкта').fill('вул. Нова, 1');
+  await page.getByRole('radio', { name: 'Нова газифікація' }).check();
   await page.getByRole('radio', { name: 'Міська' }).check();
   await page.getByRole('radio', { name: 'Побутовий', exact: true }).check();
   await page.getByRole('radio', { name: 'Квартира' }).check();

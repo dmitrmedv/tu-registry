@@ -30,9 +30,11 @@ const created: ApplicationDto = {
   settlement: 'м. Київ',
   objectAddress: 'вул. Прикладна, 1',
   areaType: 'URBAN',
+  gasificationType: 'NEW',
   objectType: 'DOMESTIC',
   objectCategory: 'RESIDENTIAL_HOUSE',
   objectCategoryOther: null,
+  accountNumber: null,
   comment: null,
   registrationMode: 'AUTO',
   status: 'ACTIVE',
@@ -68,6 +70,7 @@ async function fillRequiredFields(user: ReturnType<typeof openPage>['user']) {
   await user.type(screen.getByLabelText('Населений пункт'), 'м. Київ');
   await user.type(screen.getByLabelText('Адреса обʼєкта'), 'вул. Прикладна, 1');
   await user.click(screen.getByRole('radio', { name: 'Побутовий' }));
+  await user.click(screen.getByRole('radio', { name: 'Нова газифікація' }));
   await user.click(screen.getByRole('radio', { name: 'Міська' }));
   await user.click(screen.getByRole('radio', { name: 'Житловий будинок' }));
 }
@@ -127,6 +130,7 @@ describe('NewApplicationPage', () => {
       settlement: 'м. Київ',
       objectAddress: 'вул. Прикладна, 1',
       areaType: 'URBAN',
+      gasificationType: 'NEW',
       objectType: 'DOMESTIC',
       objectCategory: 'RESIDENTIAL_HOUSE',
     });
@@ -140,6 +144,35 @@ describe('NewApplicationPage', () => {
 
     expect(router.state.location.pathname).toBe('/');
     expect(localStorage.length).toBe(0);
+  });
+
+  it('asks for the account only for a reconstruction, named by the object type', async () => {
+    let sentBody: unknown;
+    const { user } = openPage();
+    server.use(
+      mock.post('*/api/v1/applications', async ({ request }) => {
+        sentBody = await request.json();
+        return HttpResponse.json(created, { status: 201 });
+      }),
+    );
+
+    await screen.findByText('15т/26-8');
+    await fillRequiredFields(user);
+    // New gasification (chosen above): no account to enter.
+    expect(screen.queryByLabelText('Особовий рахунок')).not.toBeInTheDocument();
+    await user.click(screen.getByRole('radio', { name: 'Реконструкція' }));
+    await user.type(screen.getByLabelText('Особовий рахунок'), '0412345678');
+    await user.click(screen.getByRole('radio', { name: 'Непобутовий' }));
+    // The same value, now read as a contract number.
+    expect(screen.getByLabelText('№ договору')).toHaveValue('0412345678');
+    await user.click(screen.getByRole('button', { name: 'Зареєструвати заяву' }));
+
+    await screen.findByText(/Заяву зареєстровано/);
+    expect(sentBody).toMatchObject({
+      gasificationType: 'RECONSTRUCTION',
+      objectType: 'NON_DOMESTIC',
+      accountNumber: '0412345678',
+    });
   });
 
   it('shows a server error and keeps the entered data', async () => {

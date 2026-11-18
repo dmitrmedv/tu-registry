@@ -2,6 +2,7 @@ import {
   type ApplicationListQueryData,
   type ApplicationSort,
   AREA_TYPE_LABELS,
+  GASIFICATION_TYPE_LABELS,
   codesByLabel,
   CONNECTION_TYPE_LABELS,
   OBJECT_CATEGORY_LABELS,
@@ -28,6 +29,7 @@ function contains(text: string) {
 const QUICK_SEARCH_FIELDS = [
   'customer',
   'customerRepresentative',
+  'accountNumber',
   'settlement',
   'objectAddress',
   'comment',
@@ -81,6 +83,7 @@ export function buildListFilter(query: ApplicationListQueryData, numberDepartmen
   if (query.objectType) filter.objectType = query.objectType;
   if (query.objectCategory) filter.objectCategory = query.objectCategory;
   if (query.areaType) filter.areaType = query.areaType;
+  if (query.gasificationType) filter.gasificationType = query.gasificationType;
   if (query.stage === 'ANNULLED') filter.status = 'ANNULLED';
   else if (query.stage) {
     filter.status = 'ACTIVE';
@@ -130,6 +133,7 @@ const TEXT_SORT_FIELDS = [
   'settlement',
   'objectAddress',
   'customerRepresentative',
+  'accountNumber',
 ] as const;
 
 /** Equal values are always ordered by number, in the same direction, so pages are stable. */
@@ -154,6 +158,7 @@ export const CODES_BY_NAME = {
   objectType: codesByLabel(OBJECT_TYPE_LABELS),
   objectCategory: codesByLabel(OBJECT_CATEGORY_LABELS),
   areaType: codesByLabel(AREA_TYPE_LABELS),
+  gasificationType: codesByLabel(GASIFICATION_TYPE_LABELS),
   connectionType: codesByLabel(CONNECTION_TYPE_LABELS),
   stage: codesByLabel(REGISTRY_STAGE_LABELS),
 };

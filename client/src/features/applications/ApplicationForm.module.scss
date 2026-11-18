@@ -51,6 +51,24 @@
   }
 }
 
+// «Тип обʼєкта» and, for a reconstruction, the account / contract number beside it, about
+// 25px apart (agreed 2026-11-18).
+.typeRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: var(--space-4) 25px;
+
+  @include up(md) {
+    grid-column: 1 / -1;
+  }
+}
+
+.accountNumber {
+  flex: 0 1 360px;
+  min-width: 220px;
+}
+
 .preview {
   display: flex;
   flex-wrap: wrap;

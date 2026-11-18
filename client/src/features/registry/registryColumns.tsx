@@ -3,6 +3,7 @@ import type { ReactNode } from 'react';
 import { formatCalendarDate } from '@/shared/lib/format';
 import {
   AREA_TYPE_LABELS,
+  GASIFICATION_TYPE_LABELS,
   CONNECTION_TYPE_LABELS,
   formatObjectCategory,
   OBJECT_TYPE_LABELS,
@@ -118,6 +119,18 @@ export const REGISTRY_COLUMNS: RegistryColumn[] = [
     label: 'Інженер',
     cell: (row) => row.engineerName ?? '—',
     visibleByDefault: true,
+  },
+  {
+    id: 'gasificationType',
+    label: 'Вид газифікації',
+    cell: (row) => (row.gasificationType ? GASIFICATION_TYPE_LABELS[row.gasificationType] : '—'),
+    visibleByDefault: false,
+  },
+  {
+    id: 'accountNumber',
+    label: 'Особовий рахунок / № договору',
+    cell: (row) => row.accountNumber ?? '—',
+    visibleByDefault: false,
   },
   {
     id: 'customerRepresentative',

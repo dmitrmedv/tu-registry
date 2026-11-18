@@ -1,13 +1,21 @@
 import {
+  ACCOUNT_NUMBER_MAX,
   AREA_TYPES,
   COMMENT_MAX,
   type CreateApplicationInput,
+  GASIFICATION_TYPES,
   OBJECT_CATEGORIES,
   OBJECT_CATEGORY_OTHER_MAX,
   OBJECT_TYPES,
 } from '@tu-registry/shared';
 import { useFormContext } from 'react-hook-form';
-import { AREA_TYPE_LABELS, OBJECT_CATEGORY_LABELS, OBJECT_TYPE_LABELS } from '@/shared/lib/labels';
+import {
+  accountNumberLabel,
+  AREA_TYPE_LABELS,
+  GASIFICATION_TYPE_LABELS,
+  OBJECT_CATEGORY_LABELS,
+  OBJECT_TYPE_LABELS,
+} from '@/shared/lib/labels';
 import { ChoiceField, TextAreaField, TextField } from '@/shared/ui';
 import styles from './ApplicationForm.module.scss';
 
@@ -18,6 +26,10 @@ const OBJECT_TYPE_OPTIONS = OBJECT_TYPES.map((type) => ({
 const AREA_TYPE_OPTIONS = AREA_TYPES.map((area) => ({
   value: area,
   label: AREA_TYPE_LABELS[area],
+}));
+const GASIFICATION_TYPE_OPTIONS = GASIFICATION_TYPES.map((type) => ({
+  value: type,
+  label: GASIFICATION_TYPE_LABELS[type],
 }));
 const OBJECT_CATEGORY_OPTIONS = OBJECT_CATEGORIES.map((category) => ({
   value: category,
@@ -35,6 +47,9 @@ export function ApplicationContentFields() {
     formState: { errors },
   } = useFormContext<CreateApplicationInput>();
   const category = watch('objectCategory');
+  const objectType = watch('objectType');
+  // The account / contract number belongs to a reconstruction only (agreed 2026-11-18).
+  const reconstruction = watch('gasificationType') === 'RECONSTRUCTION';
 
   return (
     <>
@@ -85,18 +100,37 @@ export function ApplicationContentFields() {
           </div>
           <ChoiceField
             className={styles.wide}
+            legend="Вид газифікації"
+            options={GASIFICATION_TYPE_OPTIONS}
+            error={errors.gasificationType?.message}
+            {...register('gasificationType')}
+          />
+          <ChoiceField
+            className={styles.wide}
             legend="Місцевість"
             options={AREA_TYPE_OPTIONS}
             error={errors.areaType?.message}
             {...register('areaType')}
           />
-          <ChoiceField
-            className={styles.wide}
-            legend="Тип обʼєкта"
-            options={OBJECT_TYPE_OPTIONS}
-            error={errors.objectType?.message}
-            {...register('objectType')}
-          />
+          <div className={styles.typeRow}>
+            <ChoiceField
+              legend="Тип обʼєкта"
+              options={OBJECT_TYPE_OPTIONS}
+              error={errors.objectType?.message}
+              {...register('objectType')}
+            />
+            {reconstruction && (
+              // Optional; its name follows the object type chosen beside it.
+              <TextField
+                className={styles.accountNumber}
+                label={accountNumberLabel(objectType)}
+                autoComplete="off"
+                maxLength={ACCOUNT_NUMBER_MAX}
+                error={errors.accountNumber?.message}
+                {...register('accountNumber')}
+              />
+            )}
+          </div>
           <ChoiceField
             className={styles.wide}
             legend="Категорія обʼєкта"

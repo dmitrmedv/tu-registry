@@ -27,9 +27,11 @@ const CONTENT_FIELDS = [
   'settlement',
   'objectAddress',
   'areaType',
+  'gasificationType',
   'objectType',
   'objectCategory',
   'objectCategoryOther',
+  'accountNumber',
   'comment',
 ] as const;
 
@@ -118,6 +120,16 @@ function withCategoryWording(input: UpdateApplicationData, current: ApplicationD
 }
 
 /**
+ * A personal account / contract number belongs to a reconstruction only (agreed 2026-11-18):
+ * new gasification clears it. Records from before the choice keep theirs until it is made.
+ */
+function withAccountNumber(input: UpdateApplicationData, current: ApplicationDocument) {
+  if (input.gasificationType === undefined && input.accountNumber === undefined) return input;
+  const type = input.gasificationType ?? current.gasificationType;
+  return type === 'NEW' ? { ...input, accountNumber: null } : input;
+}
+
+/**
  * Applies only the fields that actually changed. Content fields: anyone in the application's
  * department, or an admin. Date/number: an admin, or an "authorized" user of the department.
  * Department: admins only; the number then moves to it and must be free there. The number's
@@ -157,7 +169,7 @@ export async function updateApplication(
   }
   if (input.version !== current.version) throw versionConflict();
 
-  const content = withCategoryWording(input, current);
+  const content = withAccountNumber(withCategoryWording(input, current), current);
   const set: Record<string, unknown> = {};
   const unset: Record<string, 1> = {};
   const changes: FieldChange[] = [];

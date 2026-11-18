@@ -9,6 +9,8 @@ import {
   type AuditAction,
   type CalendarDayKind,
   formatPhone,
+  GASIFICATION_TYPE_LABELS,
+  type GasificationType,
   OBJECT_CATEGORY_LABELS,
   OBJECT_TYPE_LABELS,
   PROCESSING_STAGE_LABELS,
@@ -22,6 +24,7 @@ import { formatCalendarDate } from './format';
 // Enum names live in @tu-registry/shared (the server sorts by them); re-exported for the UI.
 export {
   AREA_TYPE_LABELS,
+  GASIFICATION_TYPE_LABELS,
   CONNECTION_POINT_LABELS,
   CONNECTION_TYPE_LABELS,
   GAS_PRESSURE_LABELS,
@@ -35,6 +38,16 @@ export const ROLE_LABELS: Record<Role, string> = {
   USER: 'Користувач',
   ADMIN: 'Адміністратор',
 };
+
+/**
+ * One field, named by the object type (agreed 2026-11-18): a domestic object has a personal
+ * account, a non-domestic one a contract.
+ */
+export function accountNumberLabel(objectType: ObjectType | '' | undefined) {
+  if (objectType === 'DOMESTIC') return 'Особовий рахунок';
+  if (objectType === 'NON_DOMESTIC') return '№ договору';
+  return 'Особовий рахунок / № договору';
+}
 
 /** "Інше: котельня" for OTHER with wording, otherwise the category's name. */
 export function formatObjectCategory(category: ObjectCategory, other: string | null) {
@@ -102,11 +115,13 @@ export const APPLICATION_FIELD_LABELS: Record<string, string> = {
   settlement: 'Населений пункт',
   objectAddress: 'Адреса обʼєкта',
   areaType: 'Місцевість',
+  gasificationType: 'Вид газифікації',
   // The field was removed in stage 12; older history entries still mention it.
   cadastralNumber: 'Кадастровий номер',
   objectType: 'Тип обʼєкта',
   objectCategory: 'Категорія обʼєкта',
   objectCategoryOther: 'Категорія (уточнення)',
+  accountNumber: 'Особовий рахунок / № договору',
   comment: 'Коментар',
   regDate: 'Дата реєстрації',
   regNumber: 'Номер реєстрації',
@@ -137,6 +152,8 @@ export function formatFieldValue(
       return AREA_TYPE_LABELS[text as AreaType] ?? text;
     case 'objectCategory':
       return OBJECT_CATEGORY_LABELS[text as ObjectCategory] ?? text;
+    case 'gasificationType':
+      return GASIFICATION_TYPE_LABELS[text as GasificationType] ?? text;
     case 'status':
       return STATUS_LABELS[text as ApplicationStatus] ?? text;
     default:

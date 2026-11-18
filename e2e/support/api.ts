@@ -48,6 +48,7 @@ export async function createApplication(
       phone: '+380671234567',
       settlement: 'м. Київ',
       areaType: 'URBAN',
+      gasificationType: 'NEW',
       objectAddress: 'вул. Тестова, 1',
       objectType: 'DOMESTIC',
       objectCategory: 'RESIDENTIAL_HOUSE',

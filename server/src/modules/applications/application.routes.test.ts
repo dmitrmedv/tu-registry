@@ -16,6 +16,7 @@ const body = {
   email: 'Office@Example.UA',
   settlement: 'м. Київ',
   areaType: 'URBAN',
+  gasificationType: 'NEW',
   objectAddress: 'вул. Прикладна, 1',
   objectType: 'NON_DOMESTIC',
   objectCategory: 'NON_RESIDENTIAL',
@@ -68,6 +69,28 @@ describe('applications API', () => {
 
     expect(res.status).toBe(201);
     expect(res.body.customerRepresentative).toBeNull();
+  });
+
+  it('needs new gasification or reconstruction; the account goes with a reconstruction only', async () => {
+    const { auth } = await employee();
+    const post = (extra: Record<string, unknown>) =>
+      request(app)
+        .post(APPLICATIONS)
+        .set(auth)
+        .send({ ...body, ...extra });
+
+    const { gasificationType: _omitted, ...withoutType } = body;
+    expect((await request(app).post(APPLICATIONS).set(auth).send(withoutType)).status).toBe(400);
+    const reconstruction = await post({
+      gasificationType: 'RECONSTRUCTION',
+      accountNumber: '0412345678',
+    });
+    expect(reconstruction.body).toMatchObject({
+      gasificationType: 'RECONSTRUCTION',
+      accountNumber: '0412345678',
+    });
+    const fresh = await post({ gasificationType: 'NEW', accountNumber: '0412345678' });
+    expect(fresh.body).toMatchObject({ gasificationType: 'NEW', accountNumber: null });
   });
 
   it('stores a missing email as null', async () => {

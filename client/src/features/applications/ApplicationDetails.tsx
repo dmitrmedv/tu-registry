@@ -1,6 +1,12 @@
 import { type ApplicationDto, formatPhone } from '@tu-registry/shared';
 import { formatCalendarDate, formatDateTime } from '@/shared/lib/format';
-import { AREA_TYPE_LABELS, formatObjectCategory, OBJECT_TYPE_LABELS } from '@/shared/lib/labels';
+import {
+  accountNumberLabel,
+  AREA_TYPE_LABELS,
+  formatObjectCategory,
+  GASIFICATION_TYPE_LABELS,
+  OBJECT_TYPE_LABELS,
+} from '@/shared/lib/labels';
 import { DataList, DataRow } from '@/shared/ui';
 import styles from './ApplicationDetails.module.scss';
 
@@ -31,11 +37,17 @@ export function ApplicationDetails({ app }: { app: ApplicationDto }) {
         <DataList labels="fixed">
           <DataRow label="Населений пункт">{app.settlement}</DataRow>
           <DataRow label="Адреса">{app.objectAddress}</DataRow>
+          <DataRow label="Вид газифікації">
+            {app.gasificationType && GASIFICATION_TYPE_LABELS[app.gasificationType]}
+          </DataRow>
           <DataRow label="Місцевість">{app.areaType && AREA_TYPE_LABELS[app.areaType]}</DataRow>
           <DataRow label="Тип обʼєкта">{OBJECT_TYPE_LABELS[app.objectType]}</DataRow>
           <DataRow label="Категорія">
             {formatObjectCategory(app.objectCategory, app.objectCategoryOther)}
           </DataRow>
+          {(app.gasificationType !== 'NEW' || app.accountNumber) && (
+            <DataRow label={accountNumberLabel(app.objectType)}>{app.accountNumber}</DataRow>
+          )}
         </DataList>
       </div>
       <div className={styles.column}>

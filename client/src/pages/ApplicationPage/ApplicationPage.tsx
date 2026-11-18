@@ -27,7 +27,7 @@ import { ScanButton } from '@/features/documents';
 import { ProcessingSection } from '@/features/processing';
 import { toApiError } from '@/shared/api/apiError';
 import { useHeightVariable } from '@/shared/hooks/useHeightVariable';
-import { formatObjectCategory } from '@/shared/lib/labels';
+import { formatObjectCategory, GASIFICATION_TYPE_LABELS } from '@/shared/lib/labels';
 import {
   Alert,
   Badge,
@@ -155,6 +155,9 @@ export function ApplicationPage() {
         <div className={styles.meta}>
           <p>{nameOf(app.department)} управління</p>
           <p>{lowerFirst(formatObjectCategory(app.objectCategory, app.objectCategoryOther))}</p>
+          {app.gasificationType && (
+            <p className={styles.gasification}>{GASIFICATION_TYPE_LABELS[app.gasificationType]}</p>
+          )}
         </div>
         {canManageDocuments(app, user) && (
           <Button className={styles.addModule} onClick={() => setDialog('module')}>

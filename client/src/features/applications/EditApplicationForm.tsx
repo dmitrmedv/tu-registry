@@ -33,9 +33,12 @@ function formValues(app: ApplicationDto): ManualApplicationInput {
     objectAddress: app.objectAddress,
     // Older records may have no area type yet: the form then asks for it.
     areaType: app.areaType ?? ('' as ManualApplicationInput['areaType']),
+    // Records from before the choice: the form asks for it, like for the area type.
+    gasificationType: app.gasificationType ?? ('' as ManualApplicationInput['gasificationType']),
     objectType: app.objectType,
     objectCategory: app.objectCategory,
     objectCategoryOther: app.objectCategoryOther ?? '',
+    accountNumber: app.accountNumber ?? '',
     comment: app.comment ?? '',
     regDate: app.regDate,
     regSeq: String(app.regSeq),
@@ -58,6 +61,9 @@ function changedFields(
   if (values.settlement !== app.settlement) changes.settlement = values.settlement;
   if (values.objectAddress !== app.objectAddress) changes.objectAddress = values.objectAddress;
   if (values.areaType !== app.areaType) changes.areaType = values.areaType;
+  if (values.gasificationType !== app.gasificationType) {
+    changes.gasificationType = values.gasificationType;
+  }
   if (values.objectType !== app.objectType) changes.objectType = values.objectType;
   if (values.objectCategory !== app.objectCategory) changes.objectCategory = values.objectCategory;
   // The wording matters only for OTHER; for any other category the server clears it.
@@ -66,6 +72,13 @@ function changedFields(
     (values.objectCategoryOther ?? null) !== app.objectCategoryOther
   ) {
     changes.objectCategoryOther = values.objectCategoryOther ?? '';
+  }
+  // Hidden for new gasification: the server clears it then, so only a reconstruction sends it.
+  if (
+    values.gasificationType === 'RECONSTRUCTION' &&
+    (values.accountNumber ?? null) !== app.accountNumber
+  ) {
+    changes.accountNumber = values.accountNumber ?? '';
   }
   if ((values.comment ?? null) !== app.comment) changes.comment = values.comment ?? '';
   if (withRegistration) {

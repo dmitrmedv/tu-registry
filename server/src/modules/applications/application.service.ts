@@ -47,13 +47,15 @@ async function insertRegistration(
   actor: Actor,
   context: RequestContext,
 ) {
-  const { objectCategoryOther, department: _requested, ...rest } = fields;
+  const { objectCategoryOther, accountNumber, department: _requested, ...rest } = fields;
   const [created] = await Application.create(
     [
       {
         ...rest,
         // The wording belongs to OTHER only; a leftover from a switched category is dropped.
         ...(fields.objectCategory === 'OTHER' && { objectCategoryOther }),
+        // Likewise the account / contract number belongs to a reconstruction only.
+        ...(fields.gasificationType === 'RECONSTRUCTION' && { accountNumber }),
         department,
         regYear,
         regSeq,

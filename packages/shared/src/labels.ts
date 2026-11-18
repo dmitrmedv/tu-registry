@@ -2,6 +2,7 @@ import type {
   AreaType,
   ConnectionPoint,
   ConnectionType,
+  GasificationType,
   GasPressure,
   ObjectCategory,
   ObjectType,
@@ -28,6 +29,11 @@ export const OBJECT_CATEGORY_LABELS: Record<ObjectCategory, string> = {
 export const AREA_TYPE_LABELS: Record<AreaType, string> = {
   URBAN: 'Міська',
   RURAL: 'Сільська',
+};
+
+export const GASIFICATION_TYPE_LABELS: Record<GasificationType, string> = {
+  NEW: 'Нова газифікація',
+  RECONSTRUCTION: 'Реконструкція',
 };
 
 export const PROCESSING_STAGE_LABELS: Record<ProcessingStage, string> = {

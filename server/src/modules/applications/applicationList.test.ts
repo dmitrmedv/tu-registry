@@ -17,6 +17,7 @@ type Seed = Partial<{
   regDate: string;
   customer: string;
   customerRepresentative: string;
+  accountNumber: string;
   settlement: string;
   comment: string;
   objectAddress: string;
@@ -41,6 +42,7 @@ async function seed(rows: Seed[]) {
         regDate: new Date(`${regDate}T00:00:00Z`),
         customer: row.customer ?? `Замовник ${i + 1}`,
         customerRepresentative: row.customerRepresentative ?? null,
+        accountNumber: row.accountNumber ?? null,
         settlement: row.settlement ?? 'м. Одеса',
         comment: row.comment ?? null,
         phone: '+380671234567',
@@ -154,6 +156,23 @@ describe('applications registry list', () => {
       expect(numbers(await list({ q: '15т/26' }))).toEqual(['15т/26-8']);
       // A number of a department that does not exist finds nothing.
       expect((await list({ q: '15т/26-99' })).body.meta.total).toBe(0);
+    });
+
+    it('finds a personal account or a contract number, and sorts by it', async () => {
+      await seed([
+        { accountNumber: '0412345678' },
+        { accountNumber: '125/24-Р', objectType: 'NON_DOMESTIC' },
+        {},
+      ]);
+
+      const found = await list({ q: '12345' });
+      expect(numbers(found)).toEqual(['1т/26-8']);
+      expect(found.body.data[0].accountNumber).toBe('0412345678');
+      expect(numbers(await list({ q: '24-р' }))).toEqual(['2т/26-8']);
+      expect(numbers(await list({ sort: '-accountNumber' })).slice(0, 2)).toEqual([
+        '2т/26-8',
+        '1т/26-8',
+      ]);
     });
 
     it('treats regex characters literally', async () => {

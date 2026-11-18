@@ -66,6 +66,7 @@ test('a back-dated application through responses to technical conditions, by the
     phone: '+380671234567',
     settlement: 'м. Київ',
     areaType: 'URBAN',
+    gasificationType: 'NEW',
     objectAddress: 'вул. Календарна, 3',
     objectType: 'DOMESTIC',
     objectCategory: 'APARTMENT',

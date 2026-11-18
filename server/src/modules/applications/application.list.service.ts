@@ -28,9 +28,11 @@ type ListedApplication = {
   department: Department;
   customer: string;
   customerRepresentative?: string;
+  accountNumber?: string;
   settlement?: string;
   objectAddress: string;
   areaType?: ApplicationListItemDto['areaType'];
+  gasificationType?: ApplicationListItemDto['gasificationType'];
   objectType: ApplicationListItemDto['objectType'];
   objectCategory: ApplicationListItemDto['objectCategory'];
   objectCategoryOther?: string;
@@ -56,9 +58,11 @@ const LIST_FIELDS = [
   'department',
   'customer',
   'customerRepresentative',
+  'accountNumber',
   'settlement',
   'objectAddress',
   'areaType',
+  'gasificationType',
   'objectType',
   'objectCategory',
   'objectCategoryOther',
@@ -120,6 +124,7 @@ const ENUM_KEYS = {
   objectType: '$objectType',
   objectCategory: '$objectCategory',
   areaType: '$areaType',
+  gasificationType: '$gasificationType',
   connectionType: '$processing.connectionType',
   // As the registry shows it: annulled, else the stage (none yet: registered).
   stage: {
@@ -201,9 +206,11 @@ export async function listApplications(
       department: row.department,
       customer: row.customer,
       customerRepresentative: row.customerRepresentative ?? null,
+      accountNumber: row.accountNumber ?? null,
       settlement: row.settlement ?? null,
       objectAddress: row.objectAddress,
       areaType: row.areaType ?? null,
+      gasificationType: row.gasificationType ?? null,
       objectType: row.objectType,
       objectCategory: row.objectCategory,
       objectCategoryOther: row.objectCategoryOther ?? null,

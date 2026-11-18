@@ -2,6 +2,8 @@ import {
   AREA_TYPES,
   type AreaType,
   type Department,
+  GASIFICATION_TYPES,
+  type GasificationType,
   OBJECT_CATEGORIES,
   OBJECT_TYPES,
   type ObjectCategory,
@@ -16,6 +18,7 @@ import { useDepartments } from '@/features/departments';
 import { useEngineers } from '@/features/engineers';
 import {
   AREA_TYPE_LABELS,
+  GASIFICATION_TYPE_LABELS,
   OBJECT_CATEGORY_LABELS,
   OBJECT_TYPE_LABELS,
   REGISTRY_STAGE_LABELS,
@@ -52,6 +55,11 @@ const CATEGORY_OPTIONS = [
 const AREA_OPTIONS = [
   { value: '', label: 'Усі' },
   ...AREA_TYPES.map((area) => ({ value: area, label: AREA_TYPE_LABELS[area] })),
+];
+
+const GASIFICATION_OPTIONS = [
+  { value: '', label: 'Усі' },
+  ...GASIFICATION_TYPES.map((type) => ({ value: type, label: GASIFICATION_TYPE_LABELS[type] })),
 ];
 
 const STAGE_OPTIONS = [
@@ -115,6 +123,7 @@ export function RegistryFilters({
       clear: { category: '' },
     },
     params.area && { label: `Місцевість: ${AREA_TYPE_LABELS[params.area]}`, clear: { area: '' } },
+    params.gas && { label: GASIFICATION_TYPE_LABELS[params.gas], clear: { gas: '' } },
     params.stage && {
       label: `Стан: ${REGISTRY_STAGE_LABELS[params.stage]}`,
       clear: { stage: '' },
@@ -180,6 +189,13 @@ export function RegistryFilters({
           options={AREA_OPTIONS}
           value={params.area}
           onChange={(e) => update({ area: e.target.value as AreaType | '' })}
+        />
+        <ChoiceField
+          legend="Вид газифікації"
+          name="registry-gasification"
+          options={GASIFICATION_OPTIONS}
+          value={params.gas}
+          onChange={(e) => update({ gas: e.target.value as GasificationType | '' })}
         />
         <SelectField
           label="Стан"

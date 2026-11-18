@@ -20,6 +20,7 @@ test('every page fits a 375 px phone screen', async ({ page }, testInfo) => {
     settlement: 'с. Велика Димерка Броварського району Київської області',
     objectAddress: 'вул. Центральна, 125',
     areaType: 'RURAL',
+    gasificationType: 'NEW',
     objectCategory: 'OTHER',
     objectCategoryOther: 'Модульна котельня багатоквартирного житлового комплексу',
     comment: 'Довгий коментар без пробілів: ' + 'ДокументиПоданоНеповністю'.repeat(4),

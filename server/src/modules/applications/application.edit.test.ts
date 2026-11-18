@@ -110,6 +110,39 @@ describe('application card, editing, annulment and history', () => {
       expect(await AuditLog.countDocuments({ action: /REG_/ })).toBe(0);
     });
 
+    it('keeps a personal account / contract number for a reconstruction only', async () => {
+      const created = await register(owner);
+
+      // New gasification has no account: one sent with it is dropped.
+      const ignored = await patch(owner, created.id, { accountNumber: '0412345678', version: 1 });
+      expect(ignored.body).toMatchObject({ gasificationType: 'NEW', accountNumber: null });
+      const set = await patch(owner, created.id, {
+        gasificationType: 'RECONSTRUCTION',
+        accountNumber: ' 0412345678 ',
+        version: 1,
+      });
+      expect(set.body).toMatchObject({
+        gasificationType: 'RECONSTRUCTION',
+        accountNumber: '0412345678',
+      });
+      const tooLong = await patch(owner, created.id, { accountNumber: '1'.repeat(51), version: 2 });
+      expect(tooLong.status).toBe(400);
+      // Back to new gasification: the account goes with it.
+      const back = await patch(owner, created.id, { gasificationType: 'NEW', version: 2 });
+      expect(back.body.accountNumber).toBeNull();
+      const changes = await ApplicationChange.find({ action: 'UPDATED' }).sort({ _id: 1 }).lean();
+      expect(changes.map((change) => change.changes)).toEqual([
+        [
+          { field: 'gasificationType', oldValue: 'NEW', newValue: 'RECONSTRUCTION' },
+          { field: 'accountNumber', oldValue: null, newValue: '0412345678' },
+        ],
+        [
+          { field: 'gasificationType', oldValue: 'RECONSTRUCTION', newValue: 'NEW' },
+          { field: 'accountNumber', oldValue: '0412345678', newValue: null },
+        ],
+      ]);
+    });
+
     it('does nothing (no new version, no history) when nothing actually changed', async () => {
       const created = await register(owner);
 

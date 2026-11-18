@@ -1,0 +1,78 @@
+// Widths come from <col>: the content never widens a column.
+.table {
+  table-layout: fixed;
+}
+
+// A narrowed header wraps its title rather than hiding it; a line marks each column's edge.
+// Under .table to outweigh the shared `.table th` (no wrapping).
+.table .th {
+  white-space: normal;
+  // Between words first; a word is split only when it alone is wider than the column.
+  overflow-wrap: break-word;
+  border-right: 1px solid var(--color-border);
+
+  &:last-child {
+    border-right: 0;
+  }
+}
+
+.movable {
+  cursor: grab;
+}
+
+.dragged {
+  opacity: 0.5;
+}
+
+.dropBefore {
+  box-shadow: inset 3px 0 0 var(--color-primary);
+}
+
+.dropAfter {
+  box-shadow: inset -3px 0 0 var(--color-primary);
+}
+
+.nowrap {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.wrap {
+  overflow-wrap: anywhere;
+}
+
+// The header's right edge: wide enough to grab, a thin line on hover, focus or drag.
+.resizer {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 8px;
+  cursor: col-resize;
+  touch-action: none;
+  user-select: none;
+
+  &::after {
+    content: '';
+    position: absolute;
+    top: 20%;
+    bottom: 20%;
+    right: 3px;
+    width: 2px;
+    border-radius: 1px;
+    background: var(--color-border-strong);
+    opacity: 0;
+  }
+
+  &:hover::after,
+  &:focus-visible::after,
+  &.resizing::after {
+    opacity: 1;
+    background: var(--color-primary);
+  }
+
+  &:focus-visible {
+    outline: none;
+  }
+}

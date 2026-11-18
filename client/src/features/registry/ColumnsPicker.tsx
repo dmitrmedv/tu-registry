@@ -1,5 +1,5 @@
 import { useEffect, useId, useRef, useState } from 'react';
-import { Button } from '@/shared/ui';
+import { Button, IconButton } from '@/shared/ui';
 import type { RegistryColumn } from './registryColumns';
 import styles from './registry.module.scss';
 
@@ -7,6 +7,8 @@ type Props = {
   columns: RegistryColumn[];
   isVisible: (column: RegistryColumn) => boolean;
   onChange: (id: RegistryColumn['id'], visible: boolean) => void;
+  /** Puts a column where another one is (the keyboard way to reorder; the table also drags). */
+  onMove: (id: RegistryColumn['id'], targetId: RegistryColumn['id']) => void;
   onReset: () => void;
   isDefault: boolean;
 };
@@ -15,7 +17,7 @@ type Props = {
  * «Колонки»: a disclosure with a checkbox per column (plain checkboxes: a list of independent
  * on/off choices, not a menu). Escape or a click outside closes it.
  */
-export function ColumnsPicker({ columns, isVisible, onChange, onReset, isDefault }: Props) {
+export function ColumnsPicker({ columns, isVisible, onChange, onMove, onReset, isDefault }: Props) {
   const [open, setOpen] = useState(false);
   const panelId = useId();
   const wrapperRef = useRef<HTMLDivElement>(null);
@@ -58,16 +60,34 @@ export function ColumnsPicker({ columns, isVisible, onChange, onReset, isDefault
           </Button>
           <fieldset>
             <legend>Показувати колонки</legend>
-            {columns.map((column) => (
-              <label key={column.id} className={styles.columnOption}>
-                <input
-                  type="checkbox"
-                  checked={isVisible(column)}
-                  onChange={(e) => onChange(column.id, e.target.checked)}
-                />
-                {column.label}
-              </label>
-            ))}
+            {columns.map((column, index) => {
+              const previous = columns[index - 1];
+              const next = columns[index + 1];
+              return (
+                <div key={column.id} className={styles.columnRow}>
+                  <label className={styles.columnOption}>
+                    <input
+                      type="checkbox"
+                      checked={isVisible(column)}
+                      onChange={(e) => onChange(column.id, e.target.checked)}
+                    />
+                    {column.label}
+                  </label>
+                  <IconButton
+                    icon="chevronUp"
+                    label={`Вище: ${column.label}`}
+                    disabled={!previous}
+                    onClick={() => previous && onMove(column.id, previous.id)}
+                  />
+                  <IconButton
+                    icon="chevronDown"
+                    label={`Нижче: ${column.label}`}
+                    disabled={!next}
+                    onClick={() => next && onMove(column.id, next.id)}
+                  />
+                </div>
+              );
+            })}
           </fieldset>
         </div>
       )}

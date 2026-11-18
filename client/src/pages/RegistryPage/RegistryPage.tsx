@@ -66,6 +66,7 @@ export function RegistryPage() {
                 columns={columns.available}
                 isVisible={columns.isVisible}
                 onChange={columns.setVisible}
+                onMove={columns.moveColumn}
                 onReset={columns.resetColumns}
                 isDefault={columns.isDefault}
               />
@@ -134,6 +135,9 @@ export function RegistryPage() {
               rows={list.data.data}
               sort={params.sort}
               onSort={(sort) => update({ sort })}
+              widths={columns.widths}
+              onWidthsChange={columns.setWidths}
+              onColumnMove={columns.moveColumn}
             />
           </div>
         </>

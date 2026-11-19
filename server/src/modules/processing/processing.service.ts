@@ -15,6 +15,8 @@ import { ApplicationResponse } from '../responses/response.model';
 import type { ResponseRecord } from '../responses/response.service';
 import { TechnicalConditions } from '../technicalConditions/technicalConditions.model';
 import type { TechnicalConditionsRecord } from '../technicalConditions/technicalConditions.service';
+import type { TuPaymentRecord } from '../tuPayments/tuPayment.dto';
+import { TuPayment } from '../tuPayments/tuPayment.model';
 import { findUserSummaries } from '../users/user.service';
 import { deadlinesTracked } from './deadlinesTracked';
 import { byResponseOrder, stageOf } from './processing.summary';
@@ -25,6 +27,9 @@ const TYPE_ORDER: Record<TimelineEventType, number> = {
   RESPONSE: 1,
   DOCUMENTS_RECEIVED: 2,
   TECHNICAL_CONDITIONS: 3,
+  TU_INVOICE: 4,
+  TU_PAID: 5,
+  TU_ACT_TRANSFERRED: 6,
 };
 
 /**
@@ -34,9 +39,10 @@ const TYPE_ORDER: Record<TimelineEventType, number> = {
 export async function getProcessing(applicationId: string, actor: Actor): Promise<ProcessingDto> {
   const app = await loadApplication(applicationId, actor);
   const regDate = toIsoDate(app.regDate);
-  const [responses, tus, exceptions, regNumber, names] = await Promise.all([
+  const [responses, tus, payments, exceptions, regNumber, names] = await Promise.all([
     ApplicationResponse.find({ applicationId: app._id }).lean<ResponseRecord[]>(),
     TechnicalConditions.find({ applicationId: app._id }).lean<TechnicalConditionsRecord[]>(),
+    TuPayment.find({ applicationId: app._id }).lean<TuPaymentRecord[]>(),
     loadExceptions(regDate),
     regNumberOf(app),
     findUserSummaries([String(app.createdBy)]),
@@ -122,6 +128,34 @@ export async function getProcessing(applicationId: string, actor: Actor): Promis
           : null,
         ...withNorm(tu.preparedDate, TU_DEADLINE_DAYS),
       });
+    }),
+    // The payment's steps follow its technical conditions, struck through with them.
+    ...payments.flatMap((payment) => {
+      const tu = tus.find((row) => row._id.equals(payment.technicalConditionsId));
+      const common = {
+        documentId: String(payment.technicalConditionsId),
+        cancelled: !!tu?.cancellation,
+        createdAt: payment.createdAt,
+      };
+      return [
+        event('TU_INVOICE', payment.invoiceDate, { ...common, number: payment.invoiceNumber }),
+        ...(payment.paidDate
+          ? [
+              event('TU_PAID', payment.paidDate, {
+                ...common,
+                scanName: payment.receiptScan?.name ?? null,
+              }),
+            ]
+          : []),
+        ...(payment.actTransferredDate
+          ? [
+              event('TU_ACT_TRANSFERRED', payment.actTransferredDate, {
+                ...common,
+                scanName: payment.actScan?.name ?? null,
+              }),
+            ]
+          : []),
+      ];
     }),
   ]
     .sort(

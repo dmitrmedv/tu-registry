@@ -69,7 +69,7 @@ test('technical conditions after a response: one valid set, replaced only after 
   // The card's title shows no stage (the registry does).
   await expect(title).not.toContainText('ТУ підготовлені');
   await expect.poll(stage).toBe('TU_PREPARED');
-  const first = section.getByRole('article', { name: /^Технічні умови № 0032\/ТУ/ });
+  const first = section.getByRole('region', { name: /^Технічні умови № 0032\/ТУ/ });
   await expect(first).toContainText('Нестандартне (збільшення потужності)');
   await expect(first).toContainText('Витрати газу12,5 м³/год');
   // The customer and address of the conditions: from the application unless changed.
@@ -98,7 +98,7 @@ test('technical conditions after a response: one valid set, replaced only after 
   await expect.poll(stage).toBe('IN_PROGRESS');
 
   await addTu('0033/ТУ', '13', () => section.getByRole('button', { name: 'Додати ТУ' }).click());
-  await expect(section.getByRole('article', { name: /^Технічні умови № 0033\/ТУ/ })).toBeVisible();
+  await expect(section.getByRole('region', { name: /^Технічні умови № 0033\/ТУ/ })).toBeVisible();
   await section.getByText('Скасовані технічні умови (1)').click();
   await expect(section.getByRole('listitem', { name: /0032\/ТУ/ })).toContainText('Скасовано');
 
@@ -114,7 +114,7 @@ test('technical conditions after a response: one valid set, replaced only after 
   await expect(page.getByText('Файл буде додано після збереження.')).toBeVisible();
   await page.getByRole('button', { name: 'Зберегти' }).click();
   await expect(page.getByText('Технічні умови № 0033/ТУ збережено')).toBeVisible();
-  const valid = section.getByRole('article', { name: /^Технічні умови № 0033\/ТУ/ });
+  const valid = section.getByRole('region', { name: /^Технічні умови № 0033\/ТУ/ });
   await expect(valid).toContainText('Витрати газу14,5 м³/год');
   await expect(section.getByRole('button', { name: 'Відкрити скан' })).toBeVisible();
 

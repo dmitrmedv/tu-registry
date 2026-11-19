@@ -19,7 +19,8 @@ type AuditEntry = {
     | 'Engineer'
     | 'CalendarDay'
     | 'ApplicationResponse'
-    | 'TechnicalConditions';
+    | 'TechnicalConditions'
+    | 'TuPayment';
   entityId?: Types.ObjectId | string;
   /** Never put passwords, tokens or personal data of customers here. */
   details?: Record<string, unknown>;

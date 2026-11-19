@@ -157,7 +157,7 @@ describe('ApplicationPage', () => {
       'Відповідь',
       'ТУ',
     ]);
-    expect(await screen.findByRole('article', { name: /^Технічні умови № 0032/ })).toBeVisible();
+    expect(await screen.findByRole('region', { name: /^Технічні умови № 0032/ })).toBeVisible();
 
     await user.click(tu);
     await user.keyboard('{ArrowLeft}');

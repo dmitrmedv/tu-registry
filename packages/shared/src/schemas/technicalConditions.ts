@@ -10,6 +10,7 @@ import {
 import type { ScanDto } from '../scan';
 import { SETTLEMENT_MAX } from './application';
 import type { PreviousScanDto } from './response';
+import type { TuPaymentDto } from './tuPayment';
 
 /**
  * Technical conditions prepared for an application (stage 17.4). One valid set per
@@ -118,6 +119,8 @@ export type TechnicalConditionsDto = {
   scan: ScanDto | null;
   previousScans: PreviousScanDto[];
   cancellation: { reason: string; at: string; by: Person } | null;
+  /** «Оплата за технічні умови», once the invoice is entered. */
+  payment: TuPaymentDto | null;
   createdBy: Person;
   createdAt: string;
   version: number;

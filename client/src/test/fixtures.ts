@@ -98,6 +98,7 @@ export function makeTechnicalConditions(
     workingDays: 6,
     scan: null,
     previousScans: [],
+    payment: null,
     cancellation: null,
     createdBy: { id: 'owner000000000000000001', fullName: 'Олена Коваль' },
     createdAt: '2026-03-20T09:00:00.000Z',

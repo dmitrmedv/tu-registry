@@ -21,6 +21,16 @@ const USER_FIELD_LABELS: Record<string, string> = {
   isActive: 'активний',
 };
 
+const PAYMENT_FIELD_LABELS: Record<string, string> = {
+  invoiceNumber: '№ рахунку',
+  invoiceDate: 'дата рахунку',
+  amount: 'сума',
+  paidDate: 'дата оплати',
+  actTransferredDate: 'передано в бухгалтерію',
+  receiptScan: 'скан квитанції',
+  actScan: 'скан акта',
+};
+
 const DOCUMENT_FIELD_LABELS: Record<string, string> = {
   outgoingNumber: 'номер',
   responseDate: 'дата',
@@ -133,6 +143,33 @@ export function describeDetails(entry: AuditLogDto): string {
               ? `${DOCUMENT_FIELD_LABELS[c.field]}: змінено`
               : `${DOCUMENT_FIELD_LABELS[c.field] ?? c.field}: ${show(c.field, c.from)} → ${show(c.field, c.to)}`,
         )
+        .join(', ');
+    }
+    case 'TU_PAYMENT_CREATED':
+      return [
+        d.invoiceDate ? `від ${formatCalendarDate(text(d.invoiceDate))}` : '',
+        d.amount ? text(d.amount) : '',
+      ]
+        .filter(Boolean)
+        .join(', ');
+    case 'TU_PAYMENT_UPDATED': {
+      const changes = Array.isArray(d.changes)
+        ? (d.changes as { field: string; from: unknown; to: unknown }[])
+        : [];
+      const show = (value: unknown) =>
+        value === null || value === undefined
+          ? '—'
+          : /^\d{4}-\d{2}-\d{2}$/.test(text(value))
+            ? formatCalendarDate(text(value))
+            : text(value);
+      return changes
+        .map((c) => {
+          const label = PAYMENT_FIELD_LABELS[c.field] ?? c.field;
+          if (c.field === 'receiptScan' || c.field === 'actScan') {
+            return `${label}: ${!c.from ? 'додано' : c.to ? 'замінено' : 'видалено'}`;
+          }
+          return `${label}: ${show(c.from)} → ${show(c.to)}`;
+        })
         .join(', ');
     }
     case 'APPLICATION_DELETED':

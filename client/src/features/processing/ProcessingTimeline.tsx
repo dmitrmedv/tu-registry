@@ -9,6 +9,9 @@ const TITLES: Record<TimelineEventDto['type'], string> = {
   RESPONSE: 'Відповідь',
   DOCUMENTS_RECEIVED: 'Документи надійшли',
   TECHNICAL_CONDITIONS: 'Технічні умови',
+  TU_INVOICE: 'Рахунок за ТУ',
+  TU_PAID: 'Оплата за ТУ',
+  TU_ACT_TRANSFERRED: 'Акт передано в бухгалтерію',
 };
 
 type Props = {

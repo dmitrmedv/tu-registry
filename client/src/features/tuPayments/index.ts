@@ -1,0 +1,1 @@
+export { TuPaymentFrame } from './TuPaymentFrame';

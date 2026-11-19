@@ -4,6 +4,8 @@ import { toIsoDate } from '../../utils/kyivDate';
 import { type RequestContext, recordAudit } from '../audit/audit.service';
 import { departmentCode } from '../departments/department.service';
 import { documentFileIds } from '../documents/document.dto';
+import { paymentFileIds } from '../tuPayments/tuPayment.dto';
+import { TuPayment } from '../tuPayments/tuPayment.model';
 import { ApplicationResponse } from '../responses/response.model';
 import { TechnicalConditions } from '../technicalConditions/technicalConditions.model';
 import { deleteScanFile } from '../scans/scan.storage';
@@ -33,7 +35,12 @@ export async function deleteApplication(
     ...(await ApplicationResponse.find(byApplication).select('scan previousScans').lean()),
     ...(await TechnicalConditions.find(byApplication).select('scan previousScans').lean()),
   ];
-  const files = [...(current.scan ? [current.scan.fileId] : []), ...documentFileIds(documents)];
+  const payments = await TuPayment.find(byApplication).select('receiptScan actScan').lean();
+  const files = [
+    ...(current.scan ? [current.scan.fileId] : []),
+    ...documentFileIds(documents),
+    ...paymentFileIds(payments),
+  ];
 
   await inTransaction(async (session) => {
     const { deletedCount } = await Application.deleteOne(
@@ -44,6 +51,7 @@ export async function deleteApplication(
     await ApplicationChange.deleteMany({ applicationId: current._id }, { session });
     await ApplicationResponse.deleteMany({ applicationId: current._id }, { session });
     await TechnicalConditions.deleteMany({ applicationId: current._id }, { session });
+    await TuPayment.deleteMany({ applicationId: current._id }, { session });
     await recordAudit(
       {
         action: 'APPLICATION_DELETED',

@@ -39,7 +39,7 @@ export const CARD_MODULES = [
     id: 'tu',
     tabLabel: 'ТУ',
     menuLabel: 'Технічні умови',
-    eventTypes: ['TECHNICAL_CONDITIONS'],
+    eventTypes: ['TECHNICAL_CONDITIONS', 'TU_INVOICE', 'TU_PAID', 'TU_ACT_TRANSFERRED'],
     Tab: TechnicalConditionsTab,
     AddDialog: AddTechnicalConditionsDialog,
   },

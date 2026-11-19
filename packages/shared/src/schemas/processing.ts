@@ -7,6 +7,10 @@ export const TIMELINE_EVENT_TYPES = [
   'RESPONSE',
   'DOCUMENTS_RECEIVED',
   'TECHNICAL_CONDITIONS',
+  // The payment for the valid or cancelled TU (agreed 2026-11-19).
+  'TU_INVOICE',
+  'TU_PAID',
+  'TU_ACT_TRANSFERRED',
 ] as const;
 export type TimelineEventType = (typeof TIMELINE_EVENT_TYPES)[number];
 

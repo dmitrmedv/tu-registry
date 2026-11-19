@@ -98,6 +98,9 @@ export const AUDIT_ACTIONS = [
   'TU_UPDATED',
   'TU_CANCELLED',
   'TU_RESTORED',
+  'TU_PAYMENT_CREATED',
+  'TU_PAYMENT_UPDATED',
+  'TU_PAYMENT_DELETED',
   'ACCESS_DENIED',
 ] as const;
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];

@@ -55,7 +55,7 @@ function openCard(
 }
 
 const section = () => screen.findByRole('tabpanel', { name: 'ТУ' });
-const validSet = () => screen.findByRole('article', { name: /^Технічні умови/ });
+const validSet = () => screen.findByRole('region', { name: /^Технічні умови №/ });
 
 describe('technical conditions in the application card', () => {
   it('shows the valid set in full, cancelled ones folded below; no second «Додати»', async () => {

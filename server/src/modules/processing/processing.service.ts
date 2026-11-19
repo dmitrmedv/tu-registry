@@ -5,7 +5,7 @@ import {
   type TimelineEventType,
   TU_DEADLINE_DAYS,
 } from '@tu-registry/shared';
-import { kyivToday, toIsoDate } from '../../utils/kyivDate';
+import { fromIsoDate, kyivToday, toIsoDate } from '../../utils/kyivDate';
 import type { Actor } from '../applications/application.access';
 import { loadApplication } from '../applications/application.edit.service';
 import { loadExceptions } from '../calendar/calendar.service';
@@ -15,9 +15,16 @@ import { ApplicationResponse } from '../responses/response.model';
 import type { ResponseRecord } from '../responses/response.service';
 import { TechnicalConditions } from '../technicalConditions/technicalConditions.model';
 import type { TechnicalConditionsRecord } from '../technicalConditions/technicalConditions.service';
+import type { TuPaymentRecord } from '../tuPayments/tuPayment.dto';
+import { TuPayment } from '../tuPayments/tuPayment.model';
 import { findUserSummaries } from '../users/user.service';
 import { deadlinesTracked } from './deadlinesTracked';
 import { byResponseOrder, stageOf } from './processing.summary';
+
+function actTransferPlace(payment: TuPaymentRecord) {
+  const monthStart = fromIsoDate(`${payment.actTransferMonth}-01`);
+  return payment.paidDate && payment.paidDate > monthStart ? payment.paidDate : monthStart;
+}
 
 /** Events of one day: registration, then responses, the documents they asked for, then TU. */
 const TYPE_ORDER: Record<TimelineEventType, number> = {
@@ -25,6 +32,9 @@ const TYPE_ORDER: Record<TimelineEventType, number> = {
   RESPONSE: 1,
   DOCUMENTS_RECEIVED: 2,
   TECHNICAL_CONDITIONS: 3,
+  TU_INVOICE: 4,
+  TU_PAID: 5,
+  TU_ACT_TRANSFERRED: 6,
 };
 
 /**
@@ -34,9 +44,10 @@ const TYPE_ORDER: Record<TimelineEventType, number> = {
 export async function getProcessing(applicationId: string, actor: Actor): Promise<ProcessingDto> {
   const app = await loadApplication(applicationId, actor);
   const regDate = toIsoDate(app.regDate);
-  const [responses, tus, exceptions, regNumber, names] = await Promise.all([
+  const [responses, tus, payments, exceptions, regNumber, names] = await Promise.all([
     ApplicationResponse.find({ applicationId: app._id }).lean<ResponseRecord[]>(),
     TechnicalConditions.find({ applicationId: app._id }).lean<TechnicalConditionsRecord[]>(),
+    TuPayment.find({ applicationId: app._id }).lean<TuPaymentRecord[]>(),
     loadExceptions(regDate),
     regNumberOf(app),
     findUserSummaries([String(app.createdBy)]),
@@ -66,6 +77,7 @@ export async function getProcessing(applicationId: string, actor: Actor): Promis
         overdueBy: 0,
         sinceDocumentsReceived: null,
         cancelled: false,
+        month: null,
         ...rest,
       } satisfies TimelineEventDto,
     };
@@ -122,6 +134,36 @@ export async function getProcessing(applicationId: string, actor: Actor): Promis
           : null,
         ...withNorm(tu.preparedDate, TU_DEADLINE_DAYS),
       });
+    }),
+    // The payment's steps follow its technical conditions, struck through with them.
+    ...payments.flatMap((payment) => {
+      const tu = tus.find((row) => row._id.equals(payment.technicalConditionsId));
+      const common = {
+        documentId: String(payment.technicalConditionsId),
+        cancelled: !!tu?.cancellation,
+        createdAt: payment.createdAt,
+      };
+      return [
+        event('TU_INVOICE', payment.invoiceDate, { ...common, number: payment.invoiceNumber }),
+        ...(payment.paidDate
+          ? [
+              event('TU_PAID', payment.paidDate, {
+                ...common,
+                scanName: payment.receiptScan?.name ?? null,
+              }),
+            ]
+          : []),
+        ...(payment.actTransferMonth
+          ? [
+              // A month, shown as such; placed at its start, or after the payment that month.
+              event('TU_ACT_TRANSFERRED', actTransferPlace(payment), {
+                month: payment.actTransferMonth,
+                ...common,
+                scanName: payment.actScan?.name ?? null,
+              }),
+            ]
+          : []),
+      ];
     }),
   ]
     .sort(

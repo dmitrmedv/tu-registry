@@ -1,0 +1,49 @@
+@use '@/styles/mixins' as *;
+
+// The mock-up of 2026-11-19: the invoice and payment fields in two columns on the left, the
+// receipt beside them; the month of the act under them, its scan beside it. One column on
+// phones, in the order things happen.
+.layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-areas: 'number' 'date' 'amount' 'paid' 'receipt' 'month' 'act';
+  gap: var(--space-4);
+
+  @include up(md) {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1.15fr);
+    grid-template-areas:
+      'number date receipt'
+      'amount paid receipt'
+      'month month act';
+    align-items: start;
+    gap: var(--space-4) var(--space-6);
+  }
+}
+
+.number {
+  grid-area: number;
+}
+
+.date {
+  grid-area: date;
+}
+
+.amount {
+  grid-area: amount;
+}
+
+.paid {
+  grid-area: paid;
+}
+
+.receipt {
+  grid-area: receipt;
+}
+
+.month {
+  grid-area: month;
+}
+
+.act {
+  grid-area: act;
+}

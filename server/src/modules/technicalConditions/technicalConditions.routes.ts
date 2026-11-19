@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { requireRole } from '../../middlewares/authenticate';
 import { uploadScan } from '../../middlewares/upload';
+import { tuPaymentRouter } from '../tuPayments/tuPayment.routes';
 import * as controller from './technicalConditions.controller';
 
 /**
@@ -23,3 +24,4 @@ technicalConditionsRouter.put(
 );
 technicalConditionsRouter.get('/:tid/scan', controller.downloadScan);
 technicalConditionsRouter.delete('/:tid/scan', controller.removeScan);
+technicalConditionsRouter.use('/:tid/payment', tuPaymentRouter);

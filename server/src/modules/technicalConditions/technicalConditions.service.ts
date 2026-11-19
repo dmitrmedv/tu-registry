@@ -29,6 +29,7 @@ import {
   restoreDocument,
   updateSeen,
 } from '../documents/document.service';
+import { paymentDtos } from '../tuPayments/tuPayment.dto';
 import { TechnicalConditions } from './technicalConditions.model';
 
 export type TechnicalConditionsRecord = DocumentRecord & {
@@ -70,7 +71,11 @@ async function toDtos(
   rows: TechnicalConditionsRecord[],
 ): Promise<TechnicalConditionsDto[]> {
   const regDate = toIsoDate(app.regDate);
-  const [exceptions, common] = await Promise.all([loadExceptions(regDate), documentDtoParts(rows)]);
+  const [exceptions, common, payments] = await Promise.all([
+    loadExceptions(regDate),
+    documentDtoParts(rows),
+    paymentDtos(rows.map((row) => row._id)),
+  ]);
   return rows.map((row) => ({
     ...common(row),
     tuNumber: row.tuNumber,
@@ -82,6 +87,7 @@ async function toDtos(
     customer: row.customer,
     address: row.address,
     workingDays: countWorkingDays(regDate, toIsoDate(row.preparedDate), exceptions),
+    payment: payments.get(String(row._id)) ?? null,
   }));
 }
 

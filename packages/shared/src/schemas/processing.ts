@@ -7,6 +7,10 @@ export const TIMELINE_EVENT_TYPES = [
   'RESPONSE',
   'DOCUMENTS_RECEIVED',
   'TECHNICAL_CONDITIONS',
+  // The payment for the valid or cancelled TU (agreed 2026-11-19).
+  'TU_INVOICE',
+  'TU_PAID',
+  'TU_ACT_TRANSFERRED',
 ] as const;
 export type TimelineEventType = (typeof TIMELINE_EVENT_TYPES)[number];
 
@@ -30,6 +34,8 @@ export type TimelineEventDto = {
   sinceDocumentsReceived: number | null;
   /** A cancelled document stays where it was, struck through. */
   cancelled: boolean;
+  /** An event known by its month only ("YYYY-MM"): the act handed to accounting. */
+  month: string | null;
 };
 
 export type ProcessingDto = {

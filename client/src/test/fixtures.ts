@@ -98,6 +98,7 @@ export function makeTechnicalConditions(
     workingDays: 6,
     scan: null,
     previousScans: [],
+    payment: null,
     cancellation: null,
     createdBy: { id: 'owner000000000000000001', fullName: 'Олена Коваль' },
     createdAt: '2026-03-20T09:00:00.000Z',
@@ -126,6 +127,7 @@ export function makeProcessing(overrides: Partial<ProcessingDto> = {}): Processi
       {
         type: 'REGISTERED',
         date: '2026-03-12',
+        month: null,
         number: '14т/26-8',
         person: 'Олена Коваль',
         documentId: null,

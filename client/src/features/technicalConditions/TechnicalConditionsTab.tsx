@@ -1,15 +1,21 @@
-import type { ApplicationDto, TechnicalConditionsDto } from '@tu-registry/shared';
+import {
+  type ApplicationDto,
+  formatHryvnias,
+  type TechnicalConditionsDto,
+} from '@tu-registry/shared';
 import clsx from 'clsx';
 import { useState } from 'react';
 import { canManageDocuments, canRestoreDocument } from '@/features/applications';
 import { useCurrentUser } from '@/features/auth';
 import {
   CancelDocumentDialog,
+  DocumentFrame,
   DocumentNotes,
   documentStyles as styles,
   OtherDocuments,
   ScanButton,
 } from '@/features/documents';
+import { TuPaymentFrame } from '@/features/tuPayments';
 import { toApiError } from '@/shared/api/apiError';
 import { formatCalendarDate, formatDateTime, shortName } from '@/shared/lib/format';
 import {
@@ -111,14 +117,43 @@ export function TechnicalConditionsTab({ app }: { app: ApplicationDto }) {
       {error && <Alert variant="error">{error}</Alert>}
 
       {valid ? (
-        <article aria-label={`Технічні умови ${titleOf(valid)}`} className={styles.current}>
-          <TechnicalConditionsView tu={valid} />
-          <DocumentNotes
-            cancellation={null}
-            previousScans={valid.previousScans}
-            onOpenScan={(scan) => openScanOf(valid, scan.id, scan.name)}
-          />
-        </article>
+        // The conditions and their payment side by side, each in a titled frame (2026-11-19).
+        <div className={styles.split}>
+          <DocumentFrame
+            title="Технічні умови"
+            label={`Технічні умови ${titleOf(valid)}`}
+            footer={
+              <>
+                {valid.scan && (
+                  <ScanButton title={valid.scan.name} onClick={() => openScanOf(valid)} />
+                )}
+                {manage && (
+                  <div className={styles.frameActions}>
+                    <IconLink
+                      icon="pencil"
+                      label="Редагувати"
+                      to={`/applications/${app.id}/technical-conditions/${valid.id}/edit`}
+                    />
+                    <IconButton
+                      icon="ban"
+                      label="Скасувати"
+                      tone="danger"
+                      onClick={() => setDialog({ kind: 'cancel', tu: valid })}
+                    />
+                  </div>
+                )}
+              </>
+            }
+          >
+            <TechnicalConditionsView tu={valid} />
+            <DocumentNotes
+              cancellation={null}
+              previousScans={valid.previousScans}
+              onOpenScan={(scan) => openScanOf(valid, scan.id, scan.name)}
+            />
+          </DocumentFrame>
+          <TuPaymentFrame app={app} tu={valid} onError={setError} />
+        </div>
       ) : (
         <p className={styles.muted}>
           {list.data.length === 0
@@ -164,6 +199,13 @@ export function TechnicalConditionsTab({ app }: { app: ApplicationDto }) {
               <Badge tone="danger">Скасовано</Badge>
             </p>
             <TechnicalConditionsView tu={tu} />
+            {tu.payment && (
+              <p className={styles.muted}>
+                Оплата: рахунок № {tu.payment.invoiceNumber} від{' '}
+                {formatCalendarDate(tu.payment.invoiceDate)}, {formatHryvnias(tu.payment.amount)}
+                {tu.payment.paidDate && `, сплачено ${formatCalendarDate(tu.payment.paidDate)}`}
+              </p>
+            )}
             <DocumentNotes
               cancellation={tu.cancellation}
               previousScans={tu.previousScans}
@@ -173,35 +215,19 @@ export function TechnicalConditionsTab({ app }: { app: ApplicationDto }) {
         ))}
       </OtherDocuments>
 
-      <CardFooter
-        start={
-          valid?.scan && <ScanButton title={valid.scan.name} onClick={() => openScanOf(valid)} />
-        }
-        actions={
-          manage &&
-          (valid ? (
-            <>
-              <IconLink
-                icon="pencil"
-                label="Редагувати"
-                to={`/applications/${app.id}/technical-conditions/${valid.id}/edit`}
-              />
+      {!valid && (
+        <CardFooter
+          actions={
+            manage && (
               <IconButton
-                icon="ban"
-                label="Скасувати"
-                tone="danger"
-                onClick={() => setDialog({ kind: 'cancel', tu: valid })}
+                icon="plus"
+                label="Додати ТУ"
+                onClick={() => setDialog({ kind: 'create' })}
               />
-            </>
-          ) : (
-            <IconButton
-              icon="plus"
-              label="Додати ТУ"
-              onClick={() => setDialog({ kind: 'create' })}
-            />
-          ))
-        }
-      />
+            )
+          }
+        />
+      )}
 
       {dialog.kind === 'create' && (
         <TechnicalConditionsDialog

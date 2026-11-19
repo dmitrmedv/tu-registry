@@ -51,6 +51,7 @@ export const TECHNICAL_CONDITIONS: DocumentKind<TechnicalConditionsRecord> = {
   entityType: 'TechnicalConditions',
   actions: { updated: 'TU_UPDATED', cancelled: 'TU_CANCELLED', restored: 'TU_RESTORED' },
   auditDetails: (tu) => ({ tuNumber: tu.tuNumber }),
+  history: { kind: 'TECHNICAL_CONDITIONS', number: (tu) => tu.tuNumber },
   messages: {
     notFound: 'Технічні умови не знайдено',
     conflict:
@@ -167,15 +168,8 @@ export async function updateTechnicalConditions(
   const changes: { field: string; from?: unknown; to?: unknown }[] = [];
   const $set: Record<string, unknown> = { updatedBy: actor.id };
 
-  // Customer data stays out of the journal: only which of them changed.
-  for (const field of ['customer', 'address'] as const) {
-    const value = input[field];
-    if (value !== undefined && value !== current[field]) {
-      changes.push({ field });
-      $set[field] = value;
-    }
-  }
-  for (const field of PLAIN_FIELDS) {
+  // Customer data: `auditDocument` keeps its values for the history, out of the audit.
+  for (const field of ['customer', 'address', ...PLAIN_FIELDS] as const) {
     const value = input[field];
     if (value !== undefined && value !== current[field]) {
       changes.push({ field, from: current[field], to: value });

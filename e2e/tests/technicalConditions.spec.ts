@@ -111,7 +111,7 @@ test('technical conditions after a response: one valid set, replaced only after 
     mimeType: 'application/pdf',
     buffer: Buffer.from('%PDF-1.4\n% ТУ\n%%EOF\n'),
   });
-  await expect(page.getByText('Файл буде додано після збереження.')).toBeVisible();
+  await expect(page.getByText('Скан додано')).toBeVisible();
   await page.getByRole('button', { name: 'Зберегти' }).click();
   await expect(page.getByText('Технічні умови № 0033/ТУ збережено')).toBeVisible();
   const valid = section.getByRole('region', { name: /^Технічні умови № 0033\/ТУ/ });

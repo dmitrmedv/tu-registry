@@ -135,7 +135,6 @@ export function TuPaymentDialog({ applicationId, tu, onClose, onSaved }: Props) 
             {...register('paidDate')}
           />
           <ScanPanel
-            compact
             className={styles.receipt}
             title="Скан квитанції"
             scan={payment?.receiptScan ?? null}
@@ -151,7 +150,6 @@ export function TuPaymentDialog({ applicationId, tu, onClose, onSaved }: Props) 
             {...register('actTransferMonth')}
           />
           <ScanPanel
-            compact
             className={styles.act}
             title="Скан акта виконаних робіт"
             scan={payment?.actScan ?? null}

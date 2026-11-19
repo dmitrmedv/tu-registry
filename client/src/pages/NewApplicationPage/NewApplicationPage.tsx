@@ -85,18 +85,20 @@ export function NewApplicationPage() {
         </div>
       ) : (
         <div className={pageStyles.withSide}>
-          <aside className={pageStyles.side} aria-labelledby="new-scan-title">
-            <h2 id="new-scan-title" className={styles.sideTitle}>
-              Скан пакета документів
-            </h2>
-            <p className={pageStyles.muted}>Необовʼязково. Завантажиться разом із заявою.</p>
-            <ScanDropzone file={scan} onChange={setScan} disabled={progress !== null} />
-            {progress !== null && (
-              <p role="status" className={pageStyles.muted}>
-                Завантаження скану… {progress}%
-              </p>
-            )}
-          </aside>
+          <div className={pageStyles.side}>
+            <ScanDropzone
+              title="Скан пакета документів"
+              file={scan}
+              onChange={setScan}
+              disabled={progress !== null}
+            >
+              {progress !== null && (
+                <p role="status" className={pageStyles.muted}>
+                  Завантаження скану… {progress}%
+                </p>
+              )}
+            </ScanDropzone>
+          </div>
           <ApplicationForm onCreated={handleCreated} />
         </div>
       )}

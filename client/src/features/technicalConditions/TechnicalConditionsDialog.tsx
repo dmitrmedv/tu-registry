@@ -96,10 +96,12 @@ export function TechnicalConditionsDialog({ app, onClose, onSaved }: Props) {
           <DocumentFields department={app.department} />
           <CustomerFields />
           <ConnectionFields />
-          <div>
-            <p className={styles.muted}>Скан технічних умов (PDF, необовʼязково)</p>
-            <ScanDropzone file={file} onChange={setFile} disabled={isSubmitting} />
-          </div>
+          <ScanDropzone
+            title="Скан технічних умов"
+            file={file}
+            onChange={setFile}
+            disabled={isSubmitting}
+          />
         </form>
       </FormProvider>
     </Dialog>

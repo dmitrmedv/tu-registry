@@ -394,6 +394,9 @@ export async function getApplicationHistory(
   return rows.map((row) => ({
     id: String(row._id),
     action: row.action,
+    document: row.document
+      ? { kind: row.document.kind, id: String(row.document.id), number: row.document.number }
+      : null,
     changedAt: row.changedAt.toISOString(),
     changedBy: {
       id: String(row.changedBy),

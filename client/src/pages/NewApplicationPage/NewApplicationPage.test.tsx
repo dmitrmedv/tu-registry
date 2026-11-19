@@ -561,15 +561,17 @@ describe('NewApplicationPage — scan of the documents', () => {
     const { user } = openPage();
     await screen.findByText('15т/26-8');
 
+    const zone = screen.getByRole('region', { name: 'Скан пакета документів' });
     await user.upload(screen.getByLabelText('PDF-файл скану'), makePdf('перший.pdf'));
-    expect(screen.getByText('перший.pdf')).toBeInTheDocument();
+    expect(within(zone).getByText('Скан додано')).toBeVisible();
+    expect(within(zone).queryByText('перший.pdf')).toBeNull();
+    await user.click(within(zone).getByRole('button', { name: 'Прибрати файл' }));
+    expect(within(zone).getByText('Скан не додано.')).toBeVisible();
 
     drop(makePdf('другий.pdf'));
-    expect(screen.getByText('другий.pdf')).toBeInTheDocument();
-    expect(screen.queryByText('перший.pdf')).not.toBeInTheDocument();
-
-    await user.click(screen.getByRole('button', { name: 'Прибрати файл другий.pdf' }));
-    expect(screen.queryByText('другий.pdf')).not.toBeInTheDocument();
+    expect(within(zone).getByText('Скан додано')).toBeVisible();
+    await user.click(within(zone).getByRole('button', { name: 'Прибрати файл' }));
+    expect(within(zone).getByRole('button', { name: 'Обрати файл' })).toBeVisible();
   });
 
   it('refuses other files and files over 50 MB, saying why', async () => {

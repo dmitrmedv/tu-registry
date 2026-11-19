@@ -13,6 +13,7 @@ import { fromIsoDate, toIsoDate } from '../../utils/kyivDate';
 import type { Actor } from '../applications/application.access';
 import type { ApplicationDocument } from '../applications/application.dto';
 import { loadEditableApplication } from '../applications/application.edit.service';
+import { type FieldChange, recordDocumentChange } from '../applications/applicationChange.service';
 import { type RequestContext, recordAudit } from '../audit/audit.service';
 import { assertDocumentDate, fieldError, regNumberOf } from '../documents/document.rules';
 import { loadChangeable, loadDocument } from '../documents/document.service';
@@ -44,7 +45,10 @@ export function findPayment(tu: TechnicalConditionsRecord) {
   return TuPayment.findOne({ technicalConditionsId: tu._id }).lean<TuPaymentRecord>();
 }
 
-/** Our own numbers only: the invoice belongs to the TU, not to the customer's data. */
+/**
+ * Journals a change of the payment in the application's «Історія змін» and in the audit (our
+ * own numbers only: the invoice belongs to the TU, not to the customer's data).
+ */
 export async function auditPayment(
   action: AuditAction,
   actor: Actor,
@@ -52,9 +56,19 @@ export async function auditPayment(
   tu: TechnicalConditionsRecord,
   payment: Pick<TuPaymentRecord, '_id' | 'invoiceNumber'>,
   context: RequestContext,
-  extra: Record<string, unknown> = {},
+  extra: { changes?: FieldChange[] } & Record<string, unknown> = {},
   session?: ClientSession,
 ) {
+  await recordDocumentChange(
+    {
+      applicationId: app._id,
+      actorId: actor.id,
+      action,
+      document: { kind: 'TU_PAYMENT', id: payment._id, number: payment.invoiceNumber },
+      changes: extra.changes,
+    },
+    session,
+  );
   await recordAudit(
     {
       action,

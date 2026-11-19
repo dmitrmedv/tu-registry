@@ -1,15 +1,19 @@
 import type { ScanDto } from '@tu-registry/shared';
 import { useState } from 'react';
+import { ScanDropzone } from '@/features/applications';
 import { toApiError } from '@/shared/api/apiError';
 import { openPdf } from '@/shared/lib/pdf';
-import { Alert, ConfirmDialog, IconButton } from '@/shared/ui';
-import styles from './documents.module.scss';
+import { Alert, ConfirmDialog } from '@/shared/ui';
 
 type Props = {
-  /** None: nothing to show, or «Скан видалено» right after removing it. */
+  title: string;
+  /** The stored scan, if any. */
   scan: ScanDto | null;
   /** Whose scan it is, for the confirmation: «відповіді № 125». */
   owner: string;
+  /** A new file, sent on «Зберегти»; it replaces the stored one, which stays in the history. */
+  file: File | null;
+  onChange: (file: File | null) => void;
   load: () => Promise<Blob>;
   /** Removes the file for good (agreed 2026-11-17); the scans it replaced stay. */
   onRemove: () => Promise<unknown>;
@@ -17,10 +21,20 @@ type Props = {
 };
 
 /**
- * The current scan in a document's edit dialog: open it, or remove a wrong file. The dialog
- * stays open, so the outcome is an `Alert` in it: its backdrop would cover a notification.
+ * A document's scan in its dialog, in the common zone (`ScanDropzone`). Removing the stored
+ * scan is immediate, after confirming; the dialog stays open, so the outcome is an `Alert` in
+ * it: its backdrop would cover a notification.
  */
-export function CurrentScan({ scan, owner, load, onRemove, disabled = false }: Props) {
+export function DocumentScanField({
+  title,
+  scan,
+  owner,
+  file,
+  onChange,
+  load,
+  onRemove,
+  disabled = false,
+}: Props) {
   const [confirming, setConfirming] = useState(false);
   const [removing, setRemoving] = useState(false);
   const [error, setError] = useState<string>();
@@ -50,29 +64,29 @@ export function CurrentScan({ scan, owner, load, onRemove, disabled = false }: P
     }
   };
 
-  if (!scan) return removed ? <Alert variant="success">Скан видалено</Alert> : null;
-
   return (
     <>
-      <div className={styles.currentScan}>
-        <p className={styles.currentScanName}>
-          <span className="visually-hidden">Поточний скан: </span>
-          {scan.name}
-        </p>
-        <IconButton icon="eye" label="Переглянути скан" disabled={disabled} onClick={view} />
-        <IconButton
-          icon="trash"
-          label="Видалити скан"
-          tone="danger"
-          disabled={disabled}
-          onClick={() => {
-            setError(undefined);
-            setConfirming(true);
-          }}
-        />
-      </div>
-      {error && !confirming && <Alert variant="error">{error}</Alert>}
-      {confirming && (
+      <ScanDropzone
+        title={title}
+        file={file}
+        onChange={onChange}
+        current={
+          scan
+            ? {
+                onView: view,
+                onRemove: () => {
+                  setError(undefined);
+                  setConfirming(true);
+                },
+              }
+            : undefined
+        }
+        disabled={disabled}
+      >
+        {removed && !scan && <Alert variant="success">Скан видалено</Alert>}
+        {error && !confirming && <Alert variant="error">{error}</Alert>}
+      </ScanDropzone>
+      {confirming && scan && (
         <ConfirmDialog
           open
           danger

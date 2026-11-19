@@ -8,8 +8,7 @@ import {
 import { useState } from 'react';
 import { type FieldPath, useForm } from 'react-hook-form';
 import type { z } from 'zod';
-import { ScanDropzone } from '@/features/applications';
-import { CurrentScan, documentStyles as styles } from '@/features/documents';
+import { DocumentScanField, documentStyles as styles } from '@/features/documents';
 import { useEngineerOptions } from '@/features/engineers';
 import { toApiError } from '@/shared/api/apiError';
 import { Alert, Button, Dialog, SelectField, Spinner, TextField } from '@/shared/ui';
@@ -158,28 +157,16 @@ export function ResponseDialog({ app, response: initial, onClose, onSaved }: Pro
             {...register('engineer')}
           />
         )}
-        <div>
-          {response && (
-            <CurrentScan
-              scan={response.scan}
-              owner={`відповіді № ${response.outgoingNumber}`}
-              load={() => responsesApi.scanFile(app.id, response.id)}
-              onRemove={async () => setResponse(await removeScan.mutateAsync(response.id))}
-              disabled={isSubmitting}
-            />
-          )}
-          <p className={styles.muted}>
-            {response?.scan
-              ? 'Новий файл замінить скан; попередній лишиться в історії відповіді.'
-              : 'Скан відповіді (PDF, необовʼязково)'}
-          </p>
-          <ScanDropzone
-            file={file}
-            onChange={setFile}
-            chooseLabel={response?.scan ? 'Замінити скан' : 'Обрати файл'}
-            disabled={isSubmitting}
-          />
-        </div>
+        <DocumentScanField
+          title="Скан відповіді"
+          scan={response?.scan ?? null}
+          owner={response ? `відповіді № ${response.outgoingNumber}` : ''}
+          file={file}
+          onChange={setFile}
+          load={() => responsesApi.scanFile(app.id, response!.id)}
+          onRemove={async () => setResponse(await removeScan.mutateAsync(response!.id))}
+          disabled={isSubmitting}
+        />
       </form>
     </Dialog>
   );

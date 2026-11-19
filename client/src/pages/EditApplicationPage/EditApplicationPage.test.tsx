@@ -242,7 +242,10 @@ describe('EditApplicationPage — scan', () => {
     await user.clear(customer);
     await user.type(customer, 'ТОВ «Нова назва»');
     await user.upload(screen.getByLabelText('PDF-файл скану'), makePdf('новий.pdf'));
-    expect(screen.getByText('Новий файл замінить скан після збереження.')).toBeVisible();
+    // The zone says only that a file is there; it can be taken back until «Зберегти».
+    expect(screen.getByText('Скан додано')).toBeVisible();
+    expect(screen.getByRole('button', { name: 'Прибрати файл' })).toBeVisible();
+    expect(screen.queryByText('новий.pdf')).toBeNull();
     expect(calls).toEqual([]);
     await user.click(screen.getByRole('button', { name: 'Зберегти' }));
 
@@ -288,7 +291,7 @@ describe('EditApplicationPage — scan', () => {
     await user.click(screen.getByRole('button', { name: 'Зберегти' }));
 
     expect(await screen.findByText('Скан не завантажено: Це не PDF')).toBeVisible();
-    expect(screen.getByText('новий.pdf')).toBeVisible();
+    expect(screen.getByRole('button', { name: 'Прибрати файл' })).toBeVisible();
     expect(router.state.location.pathname).toBe('/applications/app00000000000000000001/edit');
   });
 });

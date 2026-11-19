@@ -104,6 +104,82 @@ describe('ApplicationPage', () => {
     expect(screen.queryByRole('dialog')).toBeNull();
   });
 
+  it('shows the changes of the documents in the history too, without file names', async () => {
+    const { user } = openCard();
+    const doc = (kind: 'RESPONSE' | 'TECHNICAL_CONDITIONS' | 'TU_PAYMENT', number: string) => ({
+      kind,
+      id: 'doc000000000000000000001',
+      number,
+    });
+    server.use(
+      mock.get('*/api/v1/applications/:id/history', () =>
+        HttpResponse.json([
+          makeChange({
+            id: 'c5',
+            action: 'UPDATED',
+            document: doc('TU_PAYMENT', '126/Б'),
+            changes: [
+              { field: 'amount', oldValue: '2 750,00', newValue: '3 000,00' },
+              { field: 'actTransferMonth', oldValue: null, newValue: '2026-11' },
+              { field: 'receiptScan', oldValue: null, newValue: 'новий файл' },
+            ],
+          }),
+          makeChange({
+            id: 'c4',
+            action: 'CANCELLED',
+            document: doc('TECHNICAL_CONDITIONS', '0033/ТУ'),
+          }),
+          makeChange({
+            id: 'c3',
+            action: 'UPDATED',
+            document: doc('TECHNICAL_CONDITIONS', '0033/ТУ'),
+            changes: [
+              { field: 'tuNumber', oldValue: '0032/ТУ', newValue: '0033/ТУ' },
+              { field: 'gasPressure', oldValue: 'LOW', newValue: 'MEDIUM' },
+            ],
+          }),
+          makeChange({
+            id: 'c2',
+            action: 'UPDATED',
+            document: doc('RESPONSE', '126/01'),
+            changes: [
+              { field: 'outgoingNumber', oldValue: '125/01', newValue: '126/01' },
+              { field: 'responseDate', oldValue: '2026-03-12', newValue: '2026-03-13' },
+              { field: 'scan', oldValue: 'файл', newValue: null },
+            ],
+          }),
+          makeChange({ id: 'c1', action: 'CREATED', document: doc('RESPONSE', '125/01') }),
+          makeChange(),
+        ]),
+      ),
+    );
+
+    await user.click(await screen.findByRole('button', { name: 'Історія змін' }));
+    const history = await within(screen.getByRole('dialog', { name: 'Історія змін' })).findByRole(
+      'list',
+      { name: 'Історія змін' },
+    );
+    const entries = within(history)
+      .getAllByRole('listitem')
+      .filter((li) => li.parentElement === history);
+    expect(entries.map((entry) => entry.querySelector('strong')!.textContent)).toEqual([
+      'Рахунок за ТУ № 126/Б — змінено',
+      'Технічні умови № 0033/ТУ — скасовано',
+      'Технічні умови № 0033/ТУ — змінено',
+      'Відповідь № 126/01 — змінено',
+      'Відповідь № 125/01 — додано',
+      'Зареєстровано',
+    ]);
+    expect(entries[0]).toHaveTextContent(/Сума: 2\s750,00 → 3\s000,00/);
+    expect(entries[0]).toHaveTextContent('Місяць передачі акта: листопад 2026');
+    expect(entries[0]).toHaveTextContent('Скан квитанції: додано');
+    expect(entries[2]).toHaveTextContent('Номер: 0032/ТУ → 0033/ТУ');
+    expect(entries[2]).toHaveTextContent('Тиск: Низький → Середній');
+    expect(entries[3]).toHaveTextContent('Номер: 125/01 → 126/01');
+    expect(entries[3]).toHaveTextContent('Дата: 12.03.2026 → 13.03.2026');
+    expect(entries[3]).toHaveTextContent('Скан: видалено');
+  });
+
   it('puts the application in the title, and its actions in the «Заява» tab', async () => {
     openCard(
       owner,

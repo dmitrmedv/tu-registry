@@ -45,6 +45,11 @@ export const useRestoreTechnicalConditions = (applicationId: string) =>
     api.restore(applicationId, id, version),
   );
 
+export const useDeleteTechnicalConditions = (applicationId: string) =>
+  useTuMutation(({ id, version }: { id: string; version: number }) =>
+    api.remove(applicationId, id, version),
+  );
+
 export const useRemoveTechnicalConditionsScan = (applicationId: string) =>
   useTuMutation((id: string) => api.removeScan(applicationId, id));
 

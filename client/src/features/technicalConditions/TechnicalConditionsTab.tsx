@@ -5,7 +5,7 @@ import {
 } from '@tu-registry/shared';
 import clsx from 'clsx';
 import { useState } from 'react';
-import { canManageDocuments, canRestoreDocument } from '@/features/applications';
+import { canDeleteDocument, canManageDocuments, canRestoreDocument } from '@/features/applications';
 import { useCurrentUser } from '@/features/auth';
 import {
   CancelDocumentDialog,
@@ -31,6 +31,7 @@ import {
   CardItem,
   DataList,
   DataRow,
+  ConfirmDialog,
   IconButton,
   IconLink,
   LoadFailed,
@@ -39,13 +40,17 @@ import {
 import { technicalConditionsApi } from './api';
 import {
   useCancelTechnicalConditions,
+  useDeleteTechnicalConditions,
   useRestoreTechnicalConditions,
   useTechnicalConditions,
 } from './queries';
 import { TechnicalConditionsDialog } from './TechnicalConditionsDialog';
 
 type DialogState =
-  { kind: 'none' } | { kind: 'create' } | { kind: 'cancel'; tu: TechnicalConditionsDto };
+  | { kind: 'none' }
+  | { kind: 'create' }
+  | { kind: 'cancel'; tu: TechnicalConditionsDto }
+  | { kind: 'delete'; tu: TechnicalConditionsDto };
 
 const gasFlowText = (value: number) => `${String(value).replace('.', ',')} м³/год`;
 const titleOf = (tu: TechnicalConditionsDto) =>
@@ -79,9 +84,20 @@ export function TechnicalConditionsTab({ app }: { app: ApplicationDto }) {
   const list = useTechnicalConditions(app.id);
   const cancel = useCancelTechnicalConditions(app.id);
   const restore = useRestoreTechnicalConditions(app.id);
+  const remove = useDeleteTechnicalConditions(app.id);
   const [dialog, setDialog] = useState<DialogState>({ kind: 'none' });
   const close = () => setDialog({ kind: 'none' });
   const manage = canManageDocuments(app, user);
+  // For good, with the payment (agreed 2026-11-19): an admin only, valid or cancelled alike.
+  const canDelete = canDeleteDocument(app, user);
+  const deleteButton = (tu: TechnicalConditionsDto) => (
+    <IconButton
+      icon="trash"
+      label="Видалити"
+      tone="danger"
+      onClick={() => setDialog({ kind: 'delete', tu })}
+    />
+  );
 
   const run = async (action: () => Promise<unknown>, done?: string) => {
     try {
@@ -115,19 +131,24 @@ export function TechnicalConditionsTab({ app }: { app: ApplicationDto }) {
                 {valid.scan && (
                   <ScanButton title={valid.scan.name} onClick={() => openScanOf(valid)} />
                 )}
-                {manage && (
+                {(manage || canDelete) && (
                   <div className={styles.frameActions}>
-                    <IconLink
-                      icon="pencil"
-                      label="Редагувати"
-                      to={`/applications/${app.id}/technical-conditions/${valid.id}/edit`}
-                    />
-                    <IconButton
-                      icon="ban"
-                      label="Скасувати"
-                      tone="danger"
-                      onClick={() => setDialog({ kind: 'cancel', tu: valid })}
-                    />
+                    {manage && (
+                      <>
+                        <IconLink
+                          icon="pencil"
+                          label="Редагувати"
+                          to={`/applications/${app.id}/technical-conditions/${valid.id}/edit`}
+                        />
+                        <IconButton
+                          icon="ban"
+                          label="Скасувати"
+                          tone="danger"
+                          onClick={() => setDialog({ kind: 'cancel', tu: valid })}
+                        />
+                      </>
+                    )}
+                    {canDelete && deleteButton(valid)}
                   </div>
                 )}
               </>
@@ -179,6 +200,7 @@ export function TechnicalConditionsTab({ app }: { app: ApplicationDto }) {
                     }
                   />
                 )}
+                {canDelete && deleteButton(tu)}
               </>
             }
           >
@@ -226,6 +248,32 @@ export function TechnicalConditionsTab({ app }: { app: ApplicationDto }) {
             close();
           }}
         />
+      )}
+      {dialog.kind === 'delete' && (
+        <ConfirmDialog
+          open
+          danger
+          title={`Видалити технічні умови № ${dialog.tu.tuNumber}?`}
+          confirmLabel="Видалити"
+          loading={remove.isPending}
+          onCancel={close}
+          onConfirm={async () => {
+            const { tu } = dialog;
+            try {
+              await remove.mutateAsync({ id: tu.id, version: tu.version });
+              close();
+              notifySuccess(`Технічні умови № ${tu.tuNumber} видалено`);
+            } catch (e) {
+              notifyError(toApiError(e).message);
+            }
+          }}
+        >
+          <p>
+            Технічні умови
+            {dialog.tu.payment && `, оплату за рахунком № ${dialog.tu.payment.invoiceNumber}`} і всі
+            їхні скани буде видалено назавжди. Цю дію не можна скасувати.
+          </p>
+        </ConfirmDialog>
       )}
       {dialog.kind === 'cancel' && (
         <CancelDocumentDialog

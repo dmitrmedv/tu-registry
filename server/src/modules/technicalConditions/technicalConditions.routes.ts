@@ -13,6 +13,7 @@ export const technicalConditionsRouter = Router({ mergeParams: true });
 technicalConditionsRouter.get('/', controller.list);
 technicalConditionsRouter.post('/', controller.create);
 technicalConditionsRouter.patch('/:tid', controller.update);
+technicalConditionsRouter.delete('/:tid', requireRole('ADMIN'), controller.remove);
 technicalConditionsRouter.post('/:tid/cancel', controller.cancel);
 technicalConditionsRouter.post('/:tid/restore', requireRole('ADMIN'), controller.restore);
 // Access is checked before the file is read, so a refusal costs no upload.

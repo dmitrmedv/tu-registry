@@ -15,6 +15,7 @@ import { backfillTechnicalConditionsCustomer } from '../applications/application
 import { AuditLog } from '../audit/auditLog.model';
 import { Engineer } from '../engineers/engineer.model';
 import { scanPath } from '../scans/scan.storage';
+import { TuPayment } from '../tuPayments/tuPayment.model';
 import { TechnicalConditions } from './technicalConditions.model';
 
 const app = createApp();
@@ -332,6 +333,50 @@ describe('technical conditions of an application', () => {
       .set(admin.auth);
     expect(await TechnicalConditions.countDocuments()).toBe(0);
     expect(files.map((file) => existsSync(scanPath(file)))).toEqual([false, false]);
+  });
+
+  it('is deleted for good by an admin only, with its payment and every scan', async () => {
+    const { body: tu } = await add();
+    const attach = (path: string) =>
+      request(app)
+        .put(url(`/${tu.id}${path}`))
+        .set(owner.auth)
+        .attach('scan', pdf(path), { filename: 'скан.pdf', contentType: 'application/pdf' });
+    await attach('/scan');
+    await request(app)
+      .put(url(`/${tu.id}/payment`))
+      .set(owner.auth)
+      .send({ invoiceNumber: '125/Б', invoiceDate: '2026-11-17', amount: '2750' });
+    await attach('/payment/scans/receipt');
+    const files = [
+      (await TechnicalConditions.findById(tu.id).lean())!.scan!.fileId,
+      (await TuPayment.findOne().lean())!.receiptScan!.fileId,
+    ];
+    const version = (await TechnicalConditions.findById(tu.id).lean())!.version;
+    const remove = (who: ApiSession, query: Record<string, unknown>) =>
+      request(app)
+        .delete(url(`/${tu.id}`))
+        .query(query)
+        .set(who.auth);
+
+    expect((await remove(owner, { version })).status).toBe(403);
+    expect((await remove(admin, {})).status).toBe(400);
+    expect((await remove(admin, { version: version + 1 })).body.error.code).toBe(
+      'VERSION_CONFLICT',
+    );
+    expect((await remove(admin, { version })).status).toBe(204);
+
+    expect(await TechnicalConditions.countDocuments()).toBe(0);
+    expect(await TuPayment.countDocuments()).toBe(0);
+    expect(files.map((file) => existsSync(scanPath(file)))).toEqual([false, false]);
+    expect((await remove(admin, { version })).status).toBe(404);
+    expect(await AuditLog.findOne({ action: 'TU_DELETED' }).lean()).toMatchObject({
+      actor: admin.user._id,
+      entityType: 'TechnicalConditions',
+      details: { applicationId, tuNumber: '0032/ТУ', paymentInvoiceNumber: '125/Б' },
+    });
+    // The application may get its technical conditions again.
+    expect((await add()).status).toBe(201);
   });
 
   it('removes the current scan for the department of the application only', async () => {

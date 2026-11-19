@@ -107,6 +107,7 @@ export const AUDIT_ACTION_LABELS: Record<AuditAction, string> = {
   TU_UPDATED: 'Змінено технічні умови',
   TU_CANCELLED: 'Скасовано технічні умови',
   TU_RESTORED: 'Відновлено технічні умови',
+  TU_DELETED: 'Видалено технічні умови',
   TU_PAYMENT_CREATED: 'Внесено рахунок за технічні умови',
   TU_PAYMENT_UPDATED: 'Змінено оплату за технічні умови',
   TU_PAYMENT_DELETED: 'Видалено оплату за технічні умови',

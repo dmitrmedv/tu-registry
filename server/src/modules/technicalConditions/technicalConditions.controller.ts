@@ -1,6 +1,7 @@
 import {
   cancelDocumentSchema,
   createTechnicalConditionsSchema,
+  deleteDocumentQuerySchema,
   documentScanQuerySchema,
   restoreDocumentSchema,
   updateTechnicalConditionsSchema,
@@ -48,6 +49,21 @@ export const update: RequestHandler = async (req, res) => {
       requestContext(req),
     ),
   );
+};
+
+export const remove: RequestHandler = async (req, res) => {
+  const { params, query } = parseRequest(req, {
+    params: paramsSchema,
+    query: deleteDocumentQuerySchema,
+  });
+  await service.deleteTechnicalConditions(
+    params.id,
+    params.tid,
+    query.version,
+    req.user!,
+    requestContext(req),
+  );
+  res.status(204).end();
 };
 
 export const cancel: RequestHandler = async (req, res) => {

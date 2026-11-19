@@ -4,7 +4,7 @@ import type {
   TechnicalConditionsDto,
   UserDto,
 } from '@tu-registry/shared';
-import { screen, within } from '@testing-library/react';
+import { screen, waitFor, within } from '@testing-library/react';
 import { http as mock, HttpResponse } from 'msw';
 import { describe, expect, it } from 'vitest';
 import { makeApplication, makePdf, makeProcessing, makeTechnicalConditions } from '@/test/fixtures';
@@ -259,6 +259,51 @@ describe('technical conditions in the application card', () => {
     expect(
       await screen.findByText('У заяви вже є інші чинні технічні умови: спершу скасуйте їх.'),
     ).toBeVisible();
+  });
+
+  it('lets an admin delete a set for good, with its payment; a user may not', async () => {
+    const valid = makeTechnicalConditions({
+      payment: {
+        id: 'pay00000000000000000001',
+        invoiceNumber: '125/Б',
+        invoiceDate: '2026-03-23',
+        amount: 2750,
+        paidDate: null,
+        actTransferMonth: null,
+        invoiceScan: null,
+        receiptScan: null,
+        actScan: null,
+        createdBy: { id: owner.id, fullName: 'Олена Коваль' },
+        createdAt: '2026-03-23T09:00:00.000Z',
+        version: 1,
+      },
+    });
+    const sent: string[] = [];
+    const { user, current } = openCard([valid], admin);
+    server.use(
+      mock.delete(`${TU}/${TU_ID}`, ({ request }) => {
+        sent.push(new URL(request.url).searchParams.get('version') ?? '');
+        current.rows = [];
+        return new HttpResponse(null, { status: 204 });
+      }),
+    );
+
+    await user.click(within(await validSet()).getByRole('button', { name: 'Видалити' }));
+    const dialog = screen.getByRole('dialog', { name: 'Видалити технічні умови № 0032/ТУ?' });
+    expect(dialog).toHaveTextContent('оплату за рахунком № 125/Б');
+    await user.click(within(dialog).getByRole('button', { name: 'Видалити' }));
+
+    expect(await screen.findByText('Технічні умови № 0032/ТУ видалено')).toBeVisible();
+    // Nothing of the module is left, so its tab goes too.
+    await waitFor(() => expect(screen.queryByRole('tab', { name: 'ТУ' })).toBeNull());
+    expect(sent).toEqual(['1']);
+  });
+
+  it('gives a user no way to delete technical conditions', async () => {
+    openCard([cancelled(), makeTechnicalConditions()]);
+    await validSet();
+    await screen.findByText('Скасовані технічні умови (1)');
+    expect(within(await section()).queryByRole('button', { name: 'Видалити' })).toBeNull();
   });
 
   it('offers nothing to change on an annulled application', async () => {

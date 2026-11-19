@@ -1,12 +1,7 @@
-import {
-  formatFileSize,
-  SCAN_MAX_BYTES,
-  SCAN_MAX_LABEL,
-  SCAN_MIME_TYPE,
-} from '@tu-registry/shared';
+import { SCAN_MAX_BYTES, SCAN_MAX_LABEL, SCAN_MIME_TYPE } from '@tu-registry/shared';
 import clsx from 'clsx';
 import { type DragEvent, type ReactNode, useId, useRef, useState } from 'react';
-import { Button } from '@/shared/ui';
+import { Button, Icon, IconButton } from '@/shared/ui';
 import styles from './ScanDropzone.module.scss';
 
 /** Checks what the browser can tell; the server checks the content again. */
@@ -19,38 +14,43 @@ function scanProblem(file: File) {
 }
 
 type Props = {
-  /** The chosen file, shown with its size and a way to take it back. */
+  /** Centred over the zone; names the block for screen readers. */
+  title: string;
+  /** The chosen file, not saved yet. */
   file: File | null;
   onChange: (file: File | null) => void;
-  /** Label of the choose button: "Обрати файл", "Замінити". */
-  chooseLabel?: string;
-  /** A line on top, inside the zone (e.g. «Скан не додано.»). */
-  note?: string;
-  /**
-   * What is already there, shown in the zone instead of the choose button (the TU payment
-   * dialog, 2026-11-19): nothing more can be dropped until it is taken away.
-   */
-  added?: ReactNode;
+  /** The stored scan: opening it and removing it. */
+  current?: { onView: () => void; onRemove: () => void };
+  /** The stored scan goes on «Зберегти»; this takes it back. */
+  removal?: { onUndo: () => void };
   disabled?: boolean;
+  /** Under the zone: the upload progress, errors. */
+  children?: ReactNode;
 };
 
 /**
- * Choosing one PDF: drag it onto the area or press the button (keyboard and screen readers
- * use the button). Files that are not PDFs or are too large are refused with a reason.
+ * The one way a scan is added, shown and removed (agreed 2026-11-19): a title over a dashed
+ * zone. In the zone either «Скан не додано.» with the choose button (drag and drop works too),
+ * or «Скан додано» with icons only — open, replace, remove the stored scan, or take back a
+ * chosen file. No file name, author or time: the card shows the scan, the zone only that it is
+ * there. A pending removal waits in the zone too, so the layout keeps its shape.
  */
 export function ScanDropzone({
+  title,
   file,
   onChange,
-  chooseLabel = 'Обрати файл',
-  note,
-  added,
-  disabled,
+  current,
+  removal,
+  disabled = false,
+  children,
 }: Props) {
-  const accepts = !disabled && !added;
   const inputRef = useRef<HTMLInputElement>(null);
   const [dragging, setDragging] = useState(false);
   const [problem, setProblem] = useState<string | null>(null);
+  const titleId = useId();
   const problemId = useId();
+  const added = file !== null || current !== undefined;
+  const accepts = !disabled && !added;
 
   const take = (candidate: File | undefined) => {
     if (!candidate) return;
@@ -58,6 +58,7 @@ export function ScanDropzone({
     setProblem(reason);
     if (!reason) onChange(candidate);
   };
+  const pick = () => inputRef.current?.click();
 
   const onDrop = (event: DragEvent<HTMLDivElement>) => {
     event.preventDefault();
@@ -65,8 +66,72 @@ export function ScanDropzone({
     if (accepts) take(event.dataTransfer.files[0]);
   };
 
+  let contents: ReactNode;
+  if (added) {
+    contents = (
+      <>
+        <p className={styles.added}>
+          <Icon name="check" />
+          Скан додано
+        </p>
+        <div className={styles.actions}>
+          {file ? (
+            <IconButton
+              icon="close"
+              label="Прибрати файл"
+              disabled={disabled}
+              onClick={() => onChange(null)}
+            />
+          ) : (
+            current && (
+              <>
+                <IconButton icon="eye" label="Переглянути скан" onClick={current.onView} />
+                <IconButton
+                  icon="upload"
+                  label="Замінити скан"
+                  disabled={disabled}
+                  onClick={pick}
+                />
+                <IconButton
+                  icon="trash"
+                  label="Видалити скан"
+                  tone="danger"
+                  disabled={disabled}
+                  onClick={current.onRemove}
+                />
+              </>
+            )
+          )}
+        </div>
+      </>
+    );
+  } else {
+    contents = (
+      <>
+        {removal ? (
+          <p className={styles.removal}>Скан буде видалено після збереження.</p>
+        ) : (
+          <p className={styles.limits}>Скан не додано.</p>
+        )}
+        <p className={styles.prompt}>Перетягніть PDF сюди або</p>
+        <Button size="sm" disabled={disabled} onClick={pick}>
+          Обрати файл
+        </Button>
+        <p className={styles.limits}>Лише PDF, до {SCAN_MAX_LABEL}</p>
+        {removal && (
+          <Button size="sm" variant="ghost" disabled={disabled} onClick={removal.onUndo}>
+            Не видаляти
+          </Button>
+        )}
+      </>
+    );
+  }
+
   return (
-    <div className={styles.wrapper}>
+    <section className={styles.block} aria-labelledby={titleId}>
+      <h2 id={titleId} className={styles.title}>
+        {title}
+      </h2>
       <div
         className={clsx(styles.zone, dragging && styles.dragging, disabled && styles.disabled)}
         onDragEnter={(event) => {
@@ -80,16 +145,7 @@ export function ScanDropzone({
         }}
         onDrop={onDrop}
       >
-        {added ?? (
-          <>
-            {note && <p className={styles.limits}>{note}</p>}
-            <p className={styles.prompt}>Перетягніть PDF сюди або</p>
-            <Button size="sm" disabled={disabled} onClick={() => inputRef.current?.click()}>
-              {chooseLabel}
-            </Button>
-            <p className={styles.limits}>Лише PDF, до {SCAN_MAX_LABEL}</p>
-          </>
-        )}
+        {contents}
         <input
           ref={inputRef}
           type="file"
@@ -98,7 +154,8 @@ export function ScanDropzone({
           tabIndex={-1}
           aria-label="PDF-файл скану"
           aria-describedby={problem ? problemId : undefined}
-          disabled={!accepts}
+          // «Замінити скан» opens it while the stored scan is shown.
+          disabled={disabled || file !== null}
           onChange={(event) => {
             take(event.target.files?.[0]);
             // The same file can be chosen again after being removed.
@@ -111,21 +168,7 @@ export function ScanDropzone({
           {problem}
         </p>
       )}
-      {file && !added && (
-        <div className={styles.file}>
-          <span className={styles.fileName}>{file.name}</span>
-          <span className={styles.fileSize}>{formatFileSize(file.size)}</span>
-          <Button
-            size="sm"
-            variant="ghost"
-            disabled={disabled}
-            aria-label={`Прибрати файл ${file.name}`}
-            onClick={() => onChange(null)}
-          >
-            Прибрати
-          </Button>
-        </div>
-      )}
-    </div>
+      {children}
+    </section>
   );
 }

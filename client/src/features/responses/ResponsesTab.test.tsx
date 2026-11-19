@@ -286,8 +286,10 @@ describe('responses in the application card', () => {
 
     await user.click(await within(await section()).findByRole('button', { name: 'Редагувати' }));
     const dialog = screen.getByRole('dialog', { name: 'Відповідь № 125/01-15' });
-    expect(within(dialog).getByText('помилковий.pdf')).toBeVisible();
-    expect(within(dialog).getByRole('button', { name: 'Переглянути скан' })).toBeEnabled();
+    const zone = within(dialog).getByRole('region', { name: 'Скан відповіді' });
+    expect(within(zone).getByText('Скан додано')).toBeVisible();
+    expect(within(zone).getByRole('button', { name: 'Переглянути скан' })).toBeEnabled();
+    expect(within(zone).getByRole('button', { name: 'Замінити скан' })).toBeEnabled();
     await user.click(within(dialog).getByRole('button', { name: 'Видалити скан' }));
     const confirm = screen.getByRole('dialog', { name: 'Видалити скан?' });
     expect(confirm).toHaveTextContent('відповіді № 125/01-15 назавжди');
@@ -296,8 +298,8 @@ describe('responses in the application card', () => {
     expect(await within(dialog).findByText('Скан видалено')).toBeVisible();
     expect(removed).toBe(1);
     expect(screen.queryByRole('dialog', { name: 'Видалити скан?' })).toBeNull();
-    expect(within(dialog).queryByText('помилковий.pdf')).toBeNull();
-    expect(within(dialog).getByText('Скан відповіді (PDF, необовʼязково)')).toBeVisible();
+    expect(within(zone).getByText('Скан не додано.')).toBeVisible();
+    expect(within(zone).getByRole('button', { name: 'Обрати файл' })).toBeVisible();
   });
 
   it('cancels with a reason', async () => {

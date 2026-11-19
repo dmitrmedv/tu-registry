@@ -36,21 +36,6 @@
 }
 
 // The current scan in an edit dialog: its name, then «Переглянути» and «Видалити».
-.currentScan {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  margin-bottom: var(--space-2);
-}
-
-.currentScanName {
-  flex: 1;
-  min-width: 0;
-  margin: 0;
-  font-weight: 600;
-  overflow-wrap: anywhere;
-}
-
 // Earlier and cancelled documents of a tab, folded under the current one.
 .others {
   summary {
@@ -157,10 +142,12 @@
 // Parts of a tab side by side in titled frames (the «ТУ» tab: the conditions and their
 // payment, agreed 2026-11-19); one under the other on narrower screens.
 .split {
+  // outline: 1px solid red;
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   gap: var(--space-6) var(--space-4);
-  padding: var(--space-6) var(--space-4) var(--space-4);
+
+  padding: var(--space-2) var(--space-2);
 
   @include up(lg) {
     grid-template-columns: repeat(2, minmax(0, 1fr));

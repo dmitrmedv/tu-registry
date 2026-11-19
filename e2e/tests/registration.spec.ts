@@ -79,7 +79,7 @@ test('registers an application with a scan of the documents and opens it from th
     mimeType: 'application/pdf',
     buffer: Buffer.from('%PDF-1.4\n1 0 obj << /Type /Catalog >> endobj\ntrailer << >>\n%%EOF\n'),
   });
-  await expect(page.getByText('Пакет документів.pdf')).toBeVisible();
+  await expect(page.getByText('Скан додано')).toBeVisible();
   await page.getByLabel('Замовник', { exact: true }).fill(customer);
   await page.getByLabel('Телефон').fill('067 123 45 67');
   await page.getByLabel('Населений пункт').fill('м. Київ');

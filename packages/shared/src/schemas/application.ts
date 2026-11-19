@@ -6,6 +6,7 @@ import {
   type GasificationType,
   type ApplicationChangeAction,
   type ApplicationStatus,
+  type HistoryDocumentKind,
   OBJECT_CATEGORIES,
   OBJECT_TYPES,
   type ObjectCategory,
@@ -314,10 +315,15 @@ export const OBJECT_CATEGORY_OTHER_REQUIRED = otherRequired;
 
 export type AnnulApplicationInput = z.infer<typeof annulApplicationSchema>;
 
-/** One saved change of an application: who, when, and each field's old → new value. */
+/**
+ * One saved change of an application or of one of its documents (`document`): who, when, and
+ * each field's old → new value.
+ */
 export type ApplicationChangeDto = {
   id: string;
   action: ApplicationChangeAction;
+  /** The document changed, with its number as it was then; null — the application itself. */
+  document: { kind: HistoryDocumentKind; id: string; number: string } | null;
   changedAt: string;
   changedBy: { id: string; fullName: string };
   changes: { field: string; oldValue: unknown; newValue: unknown }[];

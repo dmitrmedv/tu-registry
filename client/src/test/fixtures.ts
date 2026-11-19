@@ -54,6 +54,7 @@ export function makeChange(overrides: Partial<ApplicationChangeDto> = {}): Appli
   return {
     id: 'chg1',
     action: 'CREATED',
+    document: null,
     changedAt: '2026-03-12T09:00:00.000Z',
     changedBy: { id: 'owner000000000000000001', fullName: 'Олена Коваль' },
     changes: [],

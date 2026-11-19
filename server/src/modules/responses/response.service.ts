@@ -42,6 +42,7 @@ export const RESPONSE: DocumentKind<ResponseRecord> = {
     restored: 'RESPONSE_RESTORED',
   },
   auditDetails: (response) => ({ outgoingNumber: response.outgoingNumber }),
+  history: { kind: 'RESPONSE', number: (response) => response.outgoingNumber },
   messages: {
     notFound: 'Відповідь не знайдено',
     conflict:

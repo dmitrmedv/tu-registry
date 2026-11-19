@@ -8,8 +8,10 @@ import {
   GAS_PRESSURE_LABELS,
   type AuditAction,
   type CalendarDayKind,
+  formatMonth,
   formatPhone,
   GASIFICATION_TYPE_LABELS,
+  type HistoryDocumentKind,
   type GasificationType,
   OBJECT_CATEGORY_LABELS,
   OBJECT_TYPE_LABELS,
@@ -64,6 +66,8 @@ export const CHANGE_ACTION_LABELS: Record<ApplicationChangeAction, string> = {
   UPDATED: 'Змінено',
   ANNULLED: 'Анульовано',
   RESTORED: 'Відновлено',
+  CANCELLED: 'Скасовано',
+  DELETED: 'Видалено',
 };
 
 export const AUDIT_ACTION_LABELS: Record<AuditAction, string> = {
@@ -132,6 +136,86 @@ export const APPLICATION_FIELD_LABELS: Record<string, string> = {
   status: 'Статус',
   annulmentReason: 'Причина анулювання',
 };
+
+/** Fields of the TU payment, in the journal and the history. */
+export const PAYMENT_FIELD_LABELS: Record<string, string> = {
+  invoiceNumber: '№ рахунку',
+  invoiceDate: 'дата рахунку',
+  amount: 'сума',
+  paidDate: 'дата оплати',
+  actTransferMonth: 'місяць передачі акта',
+  receiptScan: 'скан квитанції',
+  actScan: 'скан акта',
+};
+
+/** Fields of responses and technical conditions, in the journal and the history. */
+export const DOCUMENT_FIELD_LABELS: Record<string, string> = {
+  outgoingNumber: 'номер',
+  responseDate: 'дата',
+  engineer: 'інженер',
+  documentsReceivedAt: 'документи надійшли',
+  tuNumber: 'номер',
+  preparedDate: 'дата',
+  gasFlow: 'витрати газу',
+  connectionType: 'тип приєднання',
+  gasPressure: 'тиск',
+  connectionPoint: 'точка приєднання',
+  customer: 'замовник за ТУ',
+  address: 'адреса за ТУ',
+  scan: 'скан',
+};
+
+/** Values of the technical conditions' enum fields. */
+export const TU_VALUE_LABELS: Record<string, Record<string, string>> = {
+  connectionType: CONNECTION_TYPE_LABELS,
+  gasPressure: GAS_PRESSURE_LABELS,
+  connectionPoint: CONNECTION_POINT_LABELS,
+};
+
+/** The documents in «Історія змін» (with their number after «№»). */
+export const HISTORY_DOCUMENT_LABELS: Record<HistoryDocumentKind, string> = {
+  RESPONSE: 'Відповідь',
+  TECHNICAL_CONDITIONS: 'Технічні умови',
+  TU_PAYMENT: 'Рахунок за ТУ',
+};
+
+/** What was done to a document: added rather than registered. */
+export const DOCUMENT_CHANGE_ACTION_LABELS: Record<ApplicationChangeAction, string> = {
+  CREATED: 'додано',
+  UPDATED: 'змінено',
+  ANNULLED: 'анульовано',
+  RESTORED: 'відновлено',
+  CANCELLED: 'скасовано',
+  DELETED: 'видалено',
+};
+
+const DOCUMENT_SCAN_FIELDS = new Set(['scan', 'receiptScan', 'actScan']);
+
+/** A changed field of a document in the history: «Номер: 125/01 → 126/01», «Скан: додано». */
+export function describeDocumentChange(
+  kind: HistoryDocumentKind,
+  { field, oldValue, newValue }: { field: string; oldValue: unknown; newValue: unknown },
+) {
+  const labels = kind === 'TU_PAYMENT' ? PAYMENT_FIELD_LABELS : DOCUMENT_FIELD_LABELS;
+  const name = labels[field] ?? field;
+  const label = name.charAt(0).toUpperCase() + name.slice(1);
+  if (DOCUMENT_SCAN_FIELDS.has(field)) {
+    // Never a file name: only what happened to the scan.
+    return {
+      label,
+      oldValue: null,
+      newValue: !oldValue ? 'додано' : newValue ? 'замінено' : 'видалено',
+    };
+  }
+  const show = (value: unknown) => {
+    if (value === null || value === undefined || value === '') return '—';
+    const text = String(value);
+    if (/^\d{4}-\d{2}-\d{2}$/.test(text)) return formatCalendarDate(text);
+    if (/^\d{4}-\d{2}$/.test(text)) return formatMonth(text);
+    return TU_VALUE_LABELS[field]?.[text] ?? text;
+  };
+  return { label, oldValue: oldValue === null ? null : show(oldValue), newValue: show(newValue) };
+}
 
 /** A stored history value, shown the way people read it ("—" for empty). */
 /** `departmentName`: departments live in the database, so their names come from the caller. */

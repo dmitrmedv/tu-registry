@@ -2,9 +2,9 @@ import { type AuditLogDto, type CalendarDayKind, formatMonth } from '@tu-registr
 import { formatCalendarDate } from '@/shared/lib/format';
 import {
   CALENDAR_DAY_KIND_LABELS,
-  CONNECTION_POINT_LABELS,
-  CONNECTION_TYPE_LABELS,
-  GAS_PRESSURE_LABELS,
+  DOCUMENT_FIELD_LABELS,
+  PAYMENT_FIELD_LABELS,
+  TU_VALUE_LABELS,
 } from '@/shared/lib/labels';
 
 const LOGIN_FAILURE_REASONS: Record<string, string> = {
@@ -19,37 +19,6 @@ const USER_FIELD_LABELS: Record<string, string> = {
   role: 'роль',
   canManageRegistration: 'уповноважений',
   isActive: 'активний',
-};
-
-const PAYMENT_FIELD_LABELS: Record<string, string> = {
-  invoiceNumber: '№ рахунку',
-  invoiceDate: 'дата рахунку',
-  amount: 'сума',
-  paidDate: 'дата оплати',
-  actTransferMonth: 'місяць передачі акта',
-  receiptScan: 'скан квитанції',
-  actScan: 'скан акта',
-};
-
-const DOCUMENT_FIELD_LABELS: Record<string, string> = {
-  outgoingNumber: 'номер',
-  responseDate: 'дата',
-  engineer: 'інженер',
-  documentsReceivedAt: 'документи надійшли',
-  tuNumber: 'номер',
-  preparedDate: 'дата',
-  gasFlow: 'витрати газу',
-  connectionType: 'тип приєднання',
-  gasPressure: 'тиск',
-  connectionPoint: 'точка приєднання',
-  customer: 'замовник за ТУ',
-  address: 'адреса за ТУ',
-};
-
-const TU_VALUE_LABELS: Record<string, Record<string, string>> = {
-  connectionType: CONNECTION_TYPE_LABELS,
-  gasPressure: GAS_PRESSURE_LABELS,
-  connectionPoint: CONNECTION_POINT_LABELS,
 };
 
 const ENGINEER_FIELD_LABELS: Record<string, string> = { fullName: 'ПІБ' };

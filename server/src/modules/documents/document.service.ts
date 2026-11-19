@@ -1,10 +1,11 @@
-import type { AuditAction, CancelDocumentInput } from '@tu-registry/shared';
+import type { AuditAction, CancelDocumentInput, HistoryDocumentKind } from '@tu-registry/shared';
 import mongoose, { type ClientSession, type Model } from 'mongoose';
 import { ApiError } from '../../utils/ApiError';
 import { clock } from '../../utils/clock';
 import { inTransaction, isDuplicateKey } from '../../utils/db';
 import type { Actor } from '../applications/application.access';
 import type { ApplicationDocument } from '../applications/application.dto';
+import { type FieldChange, recordDocumentChange } from '../applications/applicationChange.service';
 import { type RequestContext, recordAudit } from '../audit/audit.service';
 import {
   deleteScanFile,
@@ -33,6 +34,8 @@ export type DocumentKind<R extends DocumentRecord> = {
   actions: { updated: AuditAction; cancelled: AuditAction; restored: AuditAction };
   /** Our own numbers and dates for the audit entry; customer data never goes there. */
   auditDetails: (record: R) => Record<string, unknown>;
+  /** The document in the application's «Історія змін». */
+  history: { kind: HistoryDocumentKind; number: (record: R) => string };
   messages: {
     notFound: string;
     conflict: string;
@@ -49,6 +52,13 @@ export type DocumentKind<R extends DocumentRecord> = {
 export const versionConflict = (kind: { messages: { conflict: string } }) =>
   new ApiError(409, 'VERSION_CONFLICT', kind.messages.conflict);
 
+/** Customer data: its values go to the application's history, never to the audit. */
+const CUSTOMER_FIELDS = new Set(['customer', 'address']);
+
+/**
+ * Journals a change of a document twice: in the application's «Історія змін» (with the values)
+ * and in the audit (our own numbers only). Every change of a document goes through here.
+ */
 export async function auditDocument<R extends DocumentRecord>(
   kind: DocumentKind<R>,
   action: AuditAction,
@@ -56,9 +66,19 @@ export async function auditDocument<R extends DocumentRecord>(
   app: ApplicationDocument,
   record: R,
   context: RequestContext,
-  extra: Record<string, unknown> = {},
+  { changes, ...extra }: { changes?: FieldChange[] } & Record<string, unknown> = {},
   session?: ClientSession,
 ) {
+  await recordDocumentChange(
+    {
+      applicationId: app._id,
+      actorId: actor.id,
+      action,
+      document: { kind: kind.history.kind, id: record._id, number: kind.history.number(record) },
+      changes,
+    },
+    session,
+  );
   await recordAudit(
     {
       action,
@@ -70,6 +90,11 @@ export async function auditDocument<R extends DocumentRecord>(
         regNumber: await regNumberOf(app),
         ...kind.auditDetails(record),
         ...extra,
+        ...(changes && {
+          changes: changes.map((change) =>
+            CUSTOMER_FIELDS.has(change.field) ? { field: change.field } : change,
+          ),
+        }),
       },
     },
     context,

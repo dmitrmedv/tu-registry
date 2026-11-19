@@ -32,8 +32,23 @@ export type RegistrationMode = (typeof REGISTRATION_MODES)[number];
 export const APPLICATION_STATUSES = ['ACTIVE', 'ANNULLED'] as const;
 export type ApplicationStatus = (typeof APPLICATION_STATUSES)[number];
 
-export const APPLICATION_CHANGE_ACTIONS = ['CREATED', 'UPDATED', 'ANNULLED', 'RESTORED'] as const;
+/** CANCELLED and DELETED: of the application's documents (an application is annulled). */
+export const APPLICATION_CHANGE_ACTIONS = [
+  'CREATED',
+  'UPDATED',
+  'ANNULLED',
+  'RESTORED',
+  'CANCELLED',
+  'DELETED',
+] as const;
 export type ApplicationChangeAction = (typeof APPLICATION_CHANGE_ACTIONS)[number];
+
+/**
+ * The documents whose changes the application's «Історія змін» shows besides its own fields
+ * (agreed 2026-11-19). A new module of the card adds its kind here.
+ */
+export const HISTORY_DOCUMENT_KINDS = ['RESPONSE', 'TECHNICAL_CONDITIONS', 'TU_PAYMENT'] as const;
+export type HistoryDocumentKind = (typeof HISTORY_DOCUMENT_KINDS)[number];
 
 /**
  * Where the processing of an application stands (stage 17.5), derived from its documents.

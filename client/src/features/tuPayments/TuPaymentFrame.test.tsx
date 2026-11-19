@@ -20,6 +20,7 @@ const makePayment = (overrides: Partial<TuPaymentDto> = {}): TuPaymentDto => ({
   amount: 1234.5,
   paidDate: null,
   actTransferMonth: null,
+  invoiceScan: null,
   receiptScan: null,
   actScan: null,
   createdBy: { id: owner.id, fullName: 'Олена Коваль' },
@@ -50,7 +51,7 @@ function openCard(payment: TuPaymentDto | null, user: UserDto = owner) {
 }
 
 const frame = () => screen.findByRole('region', { name: 'Оплата за технічні умови' });
-const MONTH = 'Місяць передачі акта виконаних робіт';
+const MONTH = 'Місяць здачі акта';
 // user-event types into date fields only; a month field takes its value whole.
 const setMonth = (dialog: HTMLElement, value: string) =>
   fireEvent.change(within(dialog).getByLabelText(MONTH), { target: { value } });
@@ -64,7 +65,12 @@ describe('payment for technical conditions', () => {
     const { user, current } = openCard(null);
     const saved: unknown[] = [];
     let receipt: File | null = null;
+    let invoiceScan: File | null = null;
     server.use(
+      mock.put(`${PAYMENT}/scans/invoice`, async ({ request }) => {
+        invoiceScan = (await request.formData()).get('scan') as File;
+        return withPayment(current, makePayment({ invoiceScan: scan('рахунок.pdf') }));
+      }),
       mock.put(PAYMENT, async ({ request }) => {
         saved.push(await request.json());
         return withPayment(current, makePayment());
@@ -76,12 +82,18 @@ describe('payment for technical conditions', () => {
     );
 
     await user.click(within(await frame()).getByRole('button', { name: 'Додати рахунок' }));
-    const dialog = screen.getByRole('dialog', { name: 'Новий рахунок' });
+    const dialog = screen.getByRole('dialog', { name: 'Інформація про рахунок' });
     await user.type(within(dialog).getByLabelText('№ рахунку'), '125/Б');
     await user.clear(within(dialog).getByLabelText('Дата рахунку'));
     await user.type(within(dialog).getByLabelText('Дата рахунку'), '2026-03-23');
     await user.type(within(dialog).getByLabelText('Сума, грн'), '1 234,5');
     await user.type(within(dialog).getByLabelText('Дата оплати'), '2026-03-24');
+    await user.upload(
+      within(within(dialog).getByRole('region', { name: 'Скан рахунку' })).getByLabelText(
+        'PDF-файл скану',
+      ),
+      makePdf('рахунок.pdf'),
+    );
     const receiptPanel = within(dialog).getByRole('region', { name: 'Скан квитанції' });
     await user.upload(
       within(receiptPanel).getByLabelText('PDF-файл скану'),
@@ -100,6 +112,7 @@ describe('payment for technical conditions', () => {
       },
     ]);
     expect(receipt!.name).toBe('квитанція.pdf');
+    expect(invoiceScan!.name).toBe('рахунок.pdf');
     const shown = await frame();
     expect(await within(shown).findByText('№ 125/Б від 23.03.2026')).toBeVisible();
     expect(within(shown).getByText(/^1\s234,50 грн$/)).toBeVisible();
@@ -141,7 +154,7 @@ describe('payment for technical conditions', () => {
       ),
     );
     await user.click(within(await frame()).getByRole('button', { name: 'Додати рахунок' }));
-    const dialog = screen.getByRole('dialog', { name: 'Новий рахунок' });
+    const dialog = screen.getByRole('dialog', { name: 'Інформація про рахунок' });
     await user.type(within(dialog).getByLabelText('Сума, грн'), '10,555');
     setMonth(dialog, '2026-03');
     await user.click(within(dialog).getByRole('button', { name: 'Зберегти' }));
@@ -199,7 +212,7 @@ describe('payment for technical conditions', () => {
     await user.click(within(receiptPanel).getByRole('button', { name: 'Не видаляти' }));
     expect(within(receiptPanel).getByRole('button', { name: 'Переглянути скан' })).toBeVisible();
     setMonth(dialog, '2026-03');
-    const actPanel = within(dialog).getByRole('region', { name: 'Скан акта виконаних робіт' });
+    const actPanel = within(dialog).getByRole('region', { name: 'Скан акта' });
     await user.upload(within(actPanel).getByLabelText('PDF-файл скану'), makePdf('акт.pdf'));
     expect(within(actPanel).getByText('Скан додано')).toBeVisible();
     expect(within(dialog).queryByText('акт.pdf')).toBeNull();

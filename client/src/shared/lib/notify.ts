@@ -18,14 +18,28 @@ Notify.init({
 });
 
 /**
- * A short success notification («Зміни збережено», «Відповідь № 125 додано») in the corner of
- * the screen, gone after NOTIFY_TIMEOUT_MS. It outlives the component that raised it, so it can
- * be shown right before a navigation. Results people must read (a new number) stay in a plain
- * Alert on the page. Not for messages inside an open modal dialog: the dialog's backdrop
- * covers anything outside it.
+ * An open modal <dialog> sits in the browser's top layer, above any z-index, so Notiflix's
+ * container would hide under its backdrop. Shown as a manual popover it joins the top layer
+ * too, and showing it again puts it on top of a dialog opened since. Its popover look is reset
+ * in `global.scss` (`#NotiflixNotifyWrap`).
+ */
+function raiseAboveDialogs() {
+  const wrap = document.getElementById('NotiflixNotifyWrap');
+  if (!wrap || typeof wrap.showPopover !== 'function') return;
+  if (!wrap.hasAttribute('popover')) wrap.setAttribute('popover', 'manual');
+  if (wrap.matches(':popover-open')) wrap.hidePopover();
+  wrap.showPopover();
+}
+
+/**
+ * Every success message — added, saved, changed, cancelled, deleted, copied (2026-11-19) — is
+ * this notification in the corner of the screen, gone after NOTIFY_TIMEOUT_MS, also over an
+ * open dialog. It outlives the component that raised it, so it can be shown right before a
+ * navigation. Errors stay in an `Alert` next to what failed.
  */
 export function notifySuccess(message: string) {
   Notify.success(message);
+  raiseAboveDialogs();
   // Notiflix sets no ARIA: an inserted alert is what screen readers announce reliably.
   for (const toast of document.querySelectorAll('.notiflix-notify:not([role])')) {
     toast.setAttribute('role', 'alert');

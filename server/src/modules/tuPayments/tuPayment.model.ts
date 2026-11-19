@@ -26,6 +26,7 @@ const tuPaymentSchema = new Schema(
       validate: { validator: Number.isInteger, message: 'Сума в копійках має бути цілою' },
     },
     paidDate: { type: Date, default: null },
+    invoiceScan: { type: scanRecordSchema, default: undefined },
     receiptScan: { type: scanRecordSchema, default: undefined },
     actScan: { type: scanRecordSchema, default: undefined },
     // The month the act went to accounting, "YYYY-MM" (agreed 2026-11-19: a month, not a day).

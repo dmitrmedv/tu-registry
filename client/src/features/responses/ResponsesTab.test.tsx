@@ -233,10 +233,10 @@ describe('responses in the application card', () => {
     await user.upload(within(dialog).getByLabelText('PDF-файл скану'), makePdf());
     await user.click(within(dialog).getByRole('button', { name: 'Додати' }));
 
+    // The response stands — a notification; the scan's failure stays in the dialog.
+    expect(await screen.findByText('Відповідь № 125/01-15 збережено')).toBeVisible();
     expect(
-      await within(dialog).findByText(
-        'Відповідь збережено, але скан не завантажено: Файл не є PDF-документом',
-      ),
+      await within(dialog).findByText('Скан не завантажено: Файл не є PDF-документом'),
     ).toBeVisible();
     await user.click(within(dialog).getByRole('button', { name: 'Зберегти' }));
     expect(await screen.findByText('Відповідь № 125/01-15 додано')).toBeVisible();
@@ -295,7 +295,8 @@ describe('responses in the application card', () => {
     expect(confirm).toHaveTextContent('відповіді № 125/01-15 назавжди');
     await user.click(within(confirm).getByRole('button', { name: 'Видалити' }));
 
-    expect(await within(dialog).findByText('Скан видалено')).toBeVisible();
+    // A notification, shown over the dialog.
+    expect(await screen.findByText('Скан видалено')).toBeVisible();
     expect(removed).toBe(1);
     expect(screen.queryByRole('dialog', { name: 'Видалити скан?' })).toBeNull();
     expect(within(zone).getByText('Скан не додано.')).toBeVisible();

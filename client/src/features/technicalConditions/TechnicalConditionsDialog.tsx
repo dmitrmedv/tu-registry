@@ -5,6 +5,7 @@ import { FormProvider, useForm } from 'react-hook-form';
 import { ScanDropzone } from '@/features/applications';
 import { documentStyles as styles } from '@/features/documents';
 import { toApiError } from '@/shared/api/apiError';
+import { notifySuccess } from '@/shared/lib/notify';
 import { Alert, Button, Dialog } from '@/shared/ui';
 import {
   useCreateTechnicalConditions,
@@ -69,8 +70,10 @@ export function TechnicalConditionsDialog({ app, onClose, onSaved }: Props) {
       try {
         result = await uploadScan.mutateAsync({ id: result.id, file });
       } catch (error) {
+        // The conditions stand: that is a notification; the scan's failure stays here.
+        notifySuccess(`Технічні умови № ${result.tuNumber} збережено`);
         setSaved(result);
-        setScanError(`ТУ збережено, але скан не завантажено: ${toApiError(error).message}`);
+        setScanError(`Скан не завантажено: ${toApiError(error).message}`);
         return;
       }
     }

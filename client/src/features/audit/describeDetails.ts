@@ -134,7 +134,7 @@ export function describeDetails(entry: AuditLogDto): string {
       return changes
         .map((c) => {
           const label = PAYMENT_FIELD_LABELS[c.field] ?? c.field;
-          if (c.field === 'receiptScan' || c.field === 'actScan') {
+          if (c.field === 'invoiceScan' || c.field === 'receiptScan' || c.field === 'actScan') {
             return `${label}: ${!c.from ? 'додано' : c.to ? 'замінено' : 'видалено'}`;
           }
           return `${label}: ${show(c.from)} → ${show(c.to)}`;

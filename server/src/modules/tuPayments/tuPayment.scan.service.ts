@@ -29,7 +29,7 @@ import { TuPayment } from './tuPayment.model';
 
 type UploadedFile = { path: string; originalname: string; size: number };
 
-const FIELD = { receipt: 'receiptScan', act: 'actScan' } as const;
+const FIELD = { invoice: 'invoiceScan', receipt: 'receiptScan', act: 'actScan' } as const;
 
 /** A payment open to changes: of valid technical conditions of an editable application. */
 async function loadScanEditable(applicationId: string, tuId: string, actor: Actor) {
@@ -46,7 +46,7 @@ export async function assertScanEditable(applicationId: string, tuId: string, ac
 }
 
 /**
- * Adds or replaces the receipt or the act. A replaced file is deleted: the payment keeps one
+ * Adds or replaces the invoice, the receipt or the act. A replaced file is deleted: the payment keeps one
  * of each, and the audit records the change. Scans do not bump the version, like documents'.
  */
 export async function attachPaymentScan(
@@ -120,7 +120,7 @@ export async function removePaymentScan(
   return technicalConditionsDto(app, tuId);
 }
 
-/** The receipt or the act of a visible application's payment, cancelled TU included. */
+/** The invoice, the receipt or the act of a visible application's payment, cancelled TU included. */
 export async function paymentScanFile(
   applicationId: string,
   tuId: string,

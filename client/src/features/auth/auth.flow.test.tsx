@@ -153,10 +153,11 @@ describe('authentication flow', () => {
       ),
     );
     await rendered.router.navigate('/audit');
+    // Said by a notification; the sign-in form follows.
     expect(await screen.findByText('Сесія завершилась. Увійдіть знову.')).toBeInTheDocument();
     // Signing in again works; the journal answers now.
     server.use(mock.get('*/api/v1/audit', () => HttpResponse.json(emptyPage)));
-    await rendered.user.type(screen.getByLabelText('Логін'), nextUser.login);
+    await rendered.user.type(await screen.findByLabelText('Логін'), nextUser.login);
     await rendered.user.type(screen.getByLabelText('Пароль'), 'correct-password');
     await rendered.user.click(screen.getByRole('button', { name: 'Увійти' }));
     return rendered;

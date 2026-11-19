@@ -1,7 +1,6 @@
 import type { ScanDto } from '@tu-registry/shared';
-import { useState } from 'react';
 import { toApiError } from '@/shared/api/apiError';
-import { Alert } from '@/shared/ui';
+import { notifyError } from '@/shared/lib/notify';
 import { ScanDropzone } from './ScanDropzone';
 import styles from './ScanDropzone.module.scss';
 import type { ScanChangeState } from './useScanChange';
@@ -22,16 +21,14 @@ type Props = {
  * or removing it is only chosen here; nothing changes until «Зберегти» (agreed 2026-11-17).
  */
 export function ScanPanel({ title, scan, scanChange, onView, disabled = false, className }: Props) {
-  const [viewError, setViewError] = useState<string>();
-  const { change, choose, keep, progress, error } = scanChange;
+  const { change, choose, keep, progress } = scanChange;
   const busy = disabled || progress !== null;
 
   const view = async () => {
-    setViewError(undefined);
     try {
       await onView();
     } catch (failure) {
-      setViewError(toApiError(failure).message);
+      notifyError(toApiError(failure).message);
     }
   };
 
@@ -54,7 +51,6 @@ export function ScanPanel({ title, scan, scanChange, onView, disabled = false, c
             Завантаження скану… {progress}%
           </p>
         )}
-        {(error ?? viewError) && <Alert variant="error">{error ?? viewError}</Alert>}
       </ScanDropzone>
     </div>
   );

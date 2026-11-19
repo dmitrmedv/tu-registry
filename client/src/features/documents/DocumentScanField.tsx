@@ -2,9 +2,9 @@ import type { ScanDto } from '@tu-registry/shared';
 import { useState } from 'react';
 import { ScanDropzone } from '@/features/applications';
 import { toApiError } from '@/shared/api/apiError';
-import { notifySuccess } from '@/shared/lib/notify';
+import { notifyError, notifySuccess } from '@/shared/lib/notify';
 import { openPdf } from '@/shared/lib/pdf';
-import { Alert, ConfirmDialog } from '@/shared/ui';
+import { ConfirmDialog } from '@/shared/ui';
 
 type Props = {
   title: string;
@@ -37,27 +37,24 @@ export function DocumentScanField({
 }: Props) {
   const [confirming, setConfirming] = useState(false);
   const [removing, setRemoving] = useState(false);
-  const [error, setError] = useState<string>();
 
   const view = async () => {
     if (!scan) return;
-    setError(undefined);
     try {
       await openPdf(load, scan.name);
     } catch (failure) {
-      setError(toApiError(failure).message);
+      notifyError(toApiError(failure).message);
     }
   };
 
   const remove = async () => {
-    setError(undefined);
     setRemoving(true);
     try {
       await onRemove();
       setConfirming(false);
       notifySuccess('Скан видалено');
     } catch (failure) {
-      setError(toApiError(failure).message);
+      notifyError(toApiError(failure).message);
     } finally {
       setRemoving(false);
     }
@@ -73,17 +70,12 @@ export function DocumentScanField({
           scan
             ? {
                 onView: view,
-                onRemove: () => {
-                  setError(undefined);
-                  setConfirming(true);
-                },
+                onRemove: () => setConfirming(true),
               }
             : undefined
         }
         disabled={disabled}
-      >
-        {error && !confirming && <Alert variant="error">{error}</Alert>}
-      </ScanDropzone>
+      />
       {confirming && scan && (
         <ConfirmDialog
           open
@@ -91,7 +83,6 @@ export function DocumentScanField({
           title="Видалити скан?"
           confirmLabel="Видалити"
           loading={removing}
-          error={error}
           onCancel={() => setConfirming(false)}
           onConfirm={remove}
         >

@@ -13,8 +13,7 @@ import {
   useUserOptions,
 } from '@/features/registry';
 import styles from '@/features/registry/registry.module.scss';
-import { toApiError } from '@/shared/api/apiError';
-import { Alert, Button, LinkButton, Pagination, SelectField, Spinner } from '@/shared/ui';
+import { Button, LinkButton, LoadFailed, Pagination, SelectField, Spinner } from '@/shared/ui';
 import pageStyles from '../page.module.scss';
 
 const PAGE_SIZE_OPTIONS = PAGE_SIZES.map((size) => ({ value: String(size), label: `по ${size}` }));
@@ -42,7 +41,7 @@ export function RegistryPage() {
   return (
     <section className={pageStyles.wide}>
       <div className={pageStyles.header}>
-        {/* <h1>Реєстр заяв</h1> */}
+        <h1 className="visually-hidden">Реєстр заяв</h1>
         <LinkButton to="/applications/new" variant="primary">
           Нова заява
         </LinkButton>
@@ -92,12 +91,7 @@ export function RegistryPage() {
       {list.isPending ? (
         <Spinner label="Завантаження заяв…" />
       ) : list.isError ? (
-        <Alert variant="error">
-          {toApiError(list.error).message}{' '}
-          <Button size="sm" onClick={() => list.refetch()}>
-            Повторити
-          </Button>
-        </Alert>
+        <LoadFailed error={list.error} onRetry={() => list.refetch()} />
       ) : meta!.total === 0 ? (
         <div className={styles.empty}>
           {params.user === 'mine' && activeFilterCount === 1 ? (

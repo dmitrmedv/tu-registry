@@ -11,7 +11,7 @@ import { useCurrentUser } from '@/features/auth';
 import { DocumentFrame, documentStyles as styles } from '@/features/documents';
 import { toApiError } from '@/shared/api/apiError';
 import { formatCalendarDate } from '@/shared/lib/format';
-import { notifySuccess } from '@/shared/lib/notify';
+import { notifyError, notifySuccess } from '@/shared/lib/notify';
 import { openPdf } from '@/shared/lib/pdf';
 import { Button, ConfirmDialog, DataList, DataRow, Icon, IconButton } from '@/shared/ui';
 import { tuPaymentApi } from './api';
@@ -23,19 +23,16 @@ const date = (value: string | null) => (value ? formatCalendarDate(value) : null
 type Props = {
   app: ApplicationDto;
   tu: TechnicalConditionsDto;
-  /** Problems opening a scan: shown by the tab, above its frames. */
-  onError: (message: string) => void;
 };
 
 /**
  * «Оплата за технічні умови» next to the valid conditions (agreed 2026-11-19): the invoice,
  * the payment and the act. Entered and changed in one dialog; deleted by an admin only.
  */
-export function TuPaymentFrame({ app, tu, onError }: Props) {
+export function TuPaymentFrame({ app, tu }: Props) {
   const user = useCurrentUser();
   const remove = useDeleteTuPayment(app.id, tu.id);
   const [dialog, setDialog] = useState<'none' | 'edit' | 'delete'>('none');
-  const [deleteError, setDeleteError] = useState<string>();
   const close = () => setDialog('none');
   const payment = tu.payment;
   const manage = canManageDocuments(app, user) && !tu.cancellation;
@@ -44,18 +41,17 @@ export function TuPaymentFrame({ app, tu, onError }: Props) {
     try {
       await openPdf(() => tuPaymentApi.scanFile(app.id, tu.id, kind), name);
     } catch (error) {
-      onError(toApiError(error).message);
+      notifyError(toApiError(error).message);
     }
   };
   const confirmDelete = async () => {
     if (!payment) return;
-    setDeleteError(undefined);
     try {
       await remove.mutateAsync(payment.version);
       close();
       notifySuccess(`Оплату за рахунком № ${payment.invoiceNumber} видалено`);
     } catch (error) {
-      setDeleteError(toApiError(error).message);
+      notifyError(toApiError(error).message);
     }
   };
 
@@ -97,7 +93,6 @@ export function TuPaymentFrame({ app, tu, onError }: Props) {
             label="Видалити оплату"
             tone="danger"
             onClick={() => {
-              setDeleteError(undefined);
               setDialog('delete');
             }}
           />
@@ -147,7 +142,6 @@ export function TuPaymentFrame({ app, tu, onError }: Props) {
           title="Видалити оплату?"
           confirmLabel="Видалити"
           loading={remove.isPending}
-          error={deleteError}
           onCancel={close}
           onConfirm={confirmDelete}
         >

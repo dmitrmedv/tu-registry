@@ -153,8 +153,8 @@ describe('DepartmentsPage', () => {
       within(screen.getByRole('dialog')).getByRole('button', { name: 'Архівувати' }),
     );
 
-    expect(
-      await within(screen.getByRole('dialog')).findByText('Внутрішня помилка сервера'),
-    ).toBeInTheDocument();
+    // A notification; the dialog stays open for another try.
+    expect(await screen.findByText('Внутрішня помилка сервера')).toBeInTheDocument();
+    expect(screen.getByRole('dialog')).toBeInTheDocument();
   });
 });

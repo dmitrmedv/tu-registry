@@ -16,16 +16,17 @@ import {
   useUsers,
 } from '@/features/users';
 import { toApiError } from '@/shared/api/apiError';
-import { Alert, Button, CheckboxField, ConfirmDialog, Spinner, TextField } from '@/shared/ui';
+import { Button, CheckboxField, ConfirmDialog, LoadFailed, Spinner, TextField } from '@/shared/ui';
 import pageStyles from '../page.module.scss';
 import styles from './UsersPage.module.scss';
+import { notifyError } from '@/shared/lib/notify';
 
 type DialogState =
   | { kind: 'none' }
   | { kind: 'create' }
-  | { kind: 'edit'; user: UserDto; error?: string }
-  | { kind: 'confirm-deactivate'; user: UserDto; changes: UpdateUserInput; error?: string }
-  | { kind: 'confirm-reset'; user: UserDto; error?: string }
+  | { kind: 'edit'; user: UserDto }
+  | { kind: 'confirm-deactivate'; user: UserDto; changes: UpdateUserInput }
+  | { kind: 'confirm-reset'; user: UserDto }
   | { kind: 'temp-password'; result: UserWithTemporaryPassword; reason: 'created' | 'reset' };
 
 export function UsersPage() {
@@ -65,7 +66,7 @@ export function UsersPage() {
     try {
       await saveChanges(user, changes);
     } catch (e) {
-      setDialog({ kind: 'edit', user, error: toApiError(e).message });
+      notifyError(toApiError(e).message);
     }
   };
 
@@ -73,7 +74,7 @@ export function UsersPage() {
     try {
       await saveChanges(user, changes);
     } catch (e) {
-      setDialog({ kind: 'confirm-deactivate', user, changes, error: toApiError(e).message });
+      notifyError(toApiError(e).message);
     }
   };
 
@@ -82,7 +83,7 @@ export function UsersPage() {
       const result = await resetPassword.mutateAsync(user.id);
       setDialog({ kind: 'temp-password', result, reason: 'reset' });
     } catch (e) {
-      setDialog({ kind: 'confirm-reset', user, error: toApiError(e).message });
+      notifyError(toApiError(e).message);
     }
   };
 
@@ -114,12 +115,7 @@ export function UsersPage() {
       {isPending ? (
         <Spinner label="Завантаження користувачів…" />
       ) : isError ? (
-        <Alert variant="error">
-          {toApiError(error).message}{' '}
-          <Button size="sm" onClick={() => refetch()}>
-            Повторити
-          </Button>
-        </Alert>
+        <LoadFailed error={error} onRetry={() => refetch()} />
       ) : visibleUsers.length === 0 ? (
         <p className={pageStyles.muted}>Користувачів не знайдено.</p>
       ) : (
@@ -146,7 +142,6 @@ export function UsersPage() {
         <EditUserDialog
           user={dialog.user}
           isSelf={dialog.user.id === currentUser.id}
-          error={dialog.error}
           onClose={close}
           onSubmit={(changes) => handleEditSubmit(dialog.user, changes)}
         />
@@ -159,7 +154,6 @@ export function UsersPage() {
           title="Деактивувати користувача?"
           confirmLabel="Деактивувати"
           loading={updateUser.isPending}
-          error={dialog.error}
           onCancel={close}
           onConfirm={() => confirmDeactivate(dialog.user, dialog.changes)}
         >
@@ -176,7 +170,6 @@ export function UsersPage() {
           title="Скинути пароль?"
           confirmLabel="Скинути пароль"
           loading={resetPassword.isPending}
-          error={dialog.error}
           onCancel={close}
           onConfirm={() => confirmReset(dialog.user)}
         >

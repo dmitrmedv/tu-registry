@@ -24,17 +24,16 @@ import {
   GAS_PRESSURE_LABELS,
 } from '@/shared/lib/labels';
 import { openPdf } from '@/shared/lib/pdf';
-import { notifySuccess } from '@/shared/lib/notify';
+import { notifyError, notifySuccess } from '@/shared/lib/notify';
 import {
-  Alert,
   Badge,
-  Button,
   CardFooter,
   CardItem,
   DataList,
   DataRow,
   IconButton,
   IconLink,
+  LoadFailed,
   Spinner,
 } from '@/shared/ui';
 import { technicalConditionsApi } from './api';
@@ -81,17 +80,15 @@ export function TechnicalConditionsTab({ app }: { app: ApplicationDto }) {
   const cancel = useCancelTechnicalConditions(app.id);
   const restore = useRestoreTechnicalConditions(app.id);
   const [dialog, setDialog] = useState<DialogState>({ kind: 'none' });
-  const [error, setError] = useState<string>();
   const close = () => setDialog({ kind: 'none' });
   const manage = canManageDocuments(app, user);
 
   const run = async (action: () => Promise<unknown>, done?: string) => {
-    setError(undefined);
     try {
       await action();
       if (done) notifySuccess(done);
     } catch (e) {
-      setError(toApiError(e).message);
+      notifyError(toApiError(e).message);
     }
   };
   const openScanOf = (tu: TechnicalConditionsDto, fileId?: string, name = tu.scan?.name ?? '') =>
@@ -99,14 +96,7 @@ export function TechnicalConditionsTab({ app }: { app: ApplicationDto }) {
 
   if (list.isPending) return <Spinner label="Завантаження технічних умов…" />;
   if (list.isError) {
-    return (
-      <Alert variant="error">
-        {toApiError(list.error).message}{' '}
-        <Button size="sm" onClick={() => list.refetch()}>
-          Повторити
-        </Button>
-      </Alert>
-    );
+    return <LoadFailed error={list.error} onRetry={() => list.refetch()} />;
   }
 
   const valid = list.data.find((tu) => !tu.cancellation);
@@ -114,8 +104,6 @@ export function TechnicalConditionsTab({ app }: { app: ApplicationDto }) {
 
   return (
     <>
-      {error && <Alert variant="error">{error}</Alert>}
-
       {valid ? (
         // The conditions and their payment side by side, each in a titled frame (2026-11-19).
         <div className={styles.split}>
@@ -152,7 +140,7 @@ export function TechnicalConditionsTab({ app }: { app: ApplicationDto }) {
               onOpenScan={(scan) => openScanOf(valid, scan.id, scan.name)}
             />
           </DocumentFrame>
-          <TuPaymentFrame app={app} tu={valid} onError={setError} />
+          <TuPaymentFrame app={app} tu={valid} />
         </div>
       ) : (
         <p className={styles.muted}>
@@ -234,7 +222,6 @@ export function TechnicalConditionsTab({ app }: { app: ApplicationDto }) {
           app={app}
           onClose={close}
           onSaved={(saved) => {
-            setError(undefined);
             notifySuccess(`Технічні умови № ${saved.tuNumber} додано`);
             close();
           }}

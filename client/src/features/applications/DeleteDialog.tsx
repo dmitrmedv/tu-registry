@@ -1,8 +1,9 @@
 import type { ApplicationDto } from '@tu-registry/shared';
 import { useState } from 'react';
 import { toApiError } from '@/shared/api/apiError';
-import { Alert, Button, Dialog, TextField } from '@/shared/ui';
+import { Button, Dialog, TextField } from '@/shared/ui';
 import { useDeleteApplication } from './queries';
+import { notifyError } from '@/shared/lib/notify';
 
 type Props = { app: ApplicationDto; onClose: () => void; onDeleted: () => void };
 
@@ -10,7 +11,6 @@ type Props = { app: ApplicationDto; onClose: () => void; onDeleted: () => void }
 export function DeleteDialog({ app, onClose, onDeleted }: Props) {
   const remove = useDeleteApplication(app.id);
   const [typed, setTyped] = useState('');
-  const [error, setError] = useState<string>();
   const confirmed = typed.trim() === app.regNumber;
 
   const submit = async () => {
@@ -19,7 +19,7 @@ export function DeleteDialog({ app, onClose, onDeleted }: Props) {
       await remove.mutateAsync(app.version);
       onDeleted();
     } catch (e) {
-      setError(toApiError(e).message);
+      notifyError(toApiError(e).message);
     }
   };
 
@@ -46,7 +46,6 @@ export function DeleteDialog({ app, onClose, onDeleted }: Props) {
         autoComplete="off"
         autoFocus
       />
-      {error && <Alert variant="error">{error}</Alert>}
     </Dialog>
   );
 }

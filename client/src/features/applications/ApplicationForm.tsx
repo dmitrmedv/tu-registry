@@ -35,6 +35,7 @@ import { ApplicationContentFields } from './ApplicationContentFields';
 import styles from './ApplicationForm.module.scss';
 import { ManualNumberStatus } from './ManualNumberStatus';
 import { useCreateApplication, useCreateManualApplication, useNextNumber } from './queries';
+import { notifyError } from '@/shared/lib/notify';
 
 type FormValues = CreateApplicationInput & { manual: boolean; regDate: string; regSeq: string };
 type Submitted =
@@ -180,7 +181,7 @@ export function ApplicationForm({ onCreated }: Props) {
       for (const [field, messages] of Object.entries(fieldErrors)) {
         if (messages?.[0]) setError(field as FieldPath<FormValues>, { message: messages[0] });
       }
-      setError('root', { message: apiError.message });
+      notifyError(apiError.message);
     }
   });
 
@@ -197,7 +198,6 @@ export function ApplicationForm({ onCreated }: Props) {
             </div>
           </Alert>
         )}
-        {errors.root?.message && <Alert variant="error">{errors.root.message}</Alert>}
 
         <ApplicationContentFields />
 

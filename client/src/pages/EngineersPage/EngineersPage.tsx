@@ -10,15 +10,15 @@ import {
   useUpdateEngineer,
 } from '@/features/engineers';
 import { toApiError } from '@/shared/api/apiError';
-import { notifySuccess } from '@/shared/lib/notify';
-import { Alert, Button, ConfirmDialog, SelectField, Spinner } from '@/shared/ui';
+import { notifyError, notifySuccess } from '@/shared/lib/notify';
+import { Button, ConfirmDialog, LoadFailed, SelectField, Spinner } from '@/shared/ui';
 import pageStyles from '../page.module.scss';
 
 type DialogState =
   | { kind: 'none' }
   | { kind: 'create' }
   | { kind: 'edit'; engineer: EngineerDto }
-  | { kind: 'deactivate'; engineer: EngineerDto; error?: string };
+  | { kind: 'deactivate'; engineer: EngineerDto };
 
 export function EngineersPage() {
   const me = useCurrentUser();
@@ -29,7 +29,6 @@ export function EngineersPage() {
   const list = useEngineers({ department: department || undefined });
   const update = useUpdateEngineer();
   const [dialog, setDialog] = useState<DialogState>({ kind: 'none' });
-  const [error, setError] = useState<string>();
   const close = () => setDialog({ kind: 'none' });
 
   const filtered = departments.list.find((d) => d.id === department);
@@ -37,7 +36,6 @@ export function EngineersPage() {
   const newEngineerDepartment = filtered && !filtered.archived ? filtered.id : me.department;
 
   const setActive = async (engineer: EngineerDto, isActive: boolean) => {
-    setError(undefined);
     try {
       await update.mutateAsync({ id: engineer.id, input: { isActive } });
       notifySuccess(
@@ -47,9 +45,7 @@ export function EngineersPage() {
       );
       close();
     } catch (e) {
-      const message = toApiError(e).message;
-      if (isActive) setError(message);
-      else setDialog({ kind: 'deactivate', engineer, error: message });
+      notifyError(toApiError(e).message);
     }
   };
 
@@ -75,17 +71,11 @@ export function EngineersPage() {
           setSearch(e.target.value ? { department: e.target.value } : {}, { replace: true })
         }
       />
-      {error && <Alert variant="error">{error}</Alert>}
 
       {list.isPending ? (
         <Spinner label="Завантаження інженерів…" />
       ) : list.isError ? (
-        <Alert variant="error">
-          {toApiError(list.error).message}{' '}
-          <Button size="sm" onClick={() => list.refetch()}>
-            Повторити
-          </Button>
-        </Alert>
+        <LoadFailed error={list.error} onRetry={() => list.refetch()} />
       ) : list.data.length === 0 ? (
         <p className={pageStyles.muted}>Інженерів ще не додано.</p>
       ) : (
@@ -119,7 +109,6 @@ export function EngineersPage() {
           title={`Деактивувати інженера «${dialog.engineer.fullName}»?`}
           confirmLabel="Деактивувати"
           loading={update.isPending}
-          error={dialog.error}
           onCancel={close}
           onConfirm={() => setActive(dialog.engineer, false)}
         >

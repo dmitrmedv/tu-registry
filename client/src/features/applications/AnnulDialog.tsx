@@ -1,8 +1,9 @@
 import { annulApplicationSchema, type ApplicationDto } from '@tu-registry/shared';
 import { useState } from 'react';
 import { toApiError } from '@/shared/api/apiError';
-import { Alert, Button, Dialog, TextAreaField } from '@/shared/ui';
+import { Button, Dialog, TextAreaField } from '@/shared/ui';
 import { useAnnulApplication } from './queries';
+import { notifyError } from '@/shared/lib/notify';
 
 type Props = { app: ApplicationDto; onClose: () => void };
 
@@ -10,7 +11,6 @@ export function AnnulDialog({ app, onClose }: Props) {
   const annul = useAnnulApplication(app.id);
   const [reason, setReason] = useState('');
   const [fieldError, setFieldError] = useState<string>();
-  const [error, setError] = useState<string>();
 
   const submit = async () => {
     const parsed = annulApplicationSchema.shape.reason.safeParse(reason);
@@ -23,7 +23,7 @@ export function AnnulDialog({ app, onClose }: Props) {
       await annul.mutateAsync({ reason: parsed.data, version: app.version });
       onClose();
     } catch (e) {
-      setError(toApiError(e).message);
+      notifyError(toApiError(e).message);
     }
   };
 
@@ -50,7 +50,6 @@ export function AnnulDialog({ app, onClose }: Props) {
         error={fieldError}
         autoFocus
       />
-      {error && <Alert variant="error">{error}</Alert>}
     </Dialog>
   );
 }

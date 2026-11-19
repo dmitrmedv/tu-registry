@@ -145,7 +145,9 @@ describe('EngineersPage', () => {
     await user.click(await screen.findByRole('button', { name: 'Деактивувати: Бойко Андрій' }));
     const dialog = screen.getByRole('dialog', { name: 'Деактивувати інженера «Бойко Андрій»?' });
     await user.click(within(dialog).getByRole('button', { name: 'Деактивувати' }));
-    expect(await within(dialog).findByText('Сервер недоступний')).toBeVisible();
+    // A notification; the dialog stays open for another try.
+    expect(await screen.findByText('Сервер недоступний')).toBeVisible();
+    expect(dialog).toBeVisible();
     await user.click(within(dialog).getByRole('button', { name: 'Деактивувати' }));
 
     expect(await screen.findByText('Інженера «Бойко Андрій» деактивовано')).toBeVisible();

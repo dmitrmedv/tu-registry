@@ -11,10 +11,9 @@ import {
   writeAuditParams,
 } from '@/features/audit';
 import { useUserOptions } from '@/features/registry';
-import { toApiError } from '@/shared/api/apiError';
 import { useListParams } from '@/shared/hooks/useListParams';
 import { AUDIT_ACTION_LABELS } from '@/shared/lib/labels';
-import { Alert, Button, Pagination, SelectField, Spinner, TextField } from '@/shared/ui';
+import { Button, LoadFailed, Pagination, SelectField, Spinner, TextField } from '@/shared/ui';
 import pageStyles from '../page.module.scss';
 import styles from './AuditPage.module.scss';
 
@@ -88,12 +87,7 @@ export function AuditPage() {
       {journal.isPending ? (
         <Spinner label="Завантаження журналу…" />
       ) : journal.isError ? (
-        <Alert variant="error">
-          {toApiError(journal.error).message}{' '}
-          <Button size="sm" onClick={() => journal.refetch()}>
-            Повторити
-          </Button>
-        </Alert>
+        <LoadFailed error={journal.error} onRetry={() => journal.refetch()} />
       ) : meta!.total === 0 ? (
         <p className={pageStyles.muted}>Записів не знайдено.</p>
       ) : (

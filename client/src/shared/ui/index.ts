@@ -13,3 +13,4 @@ export * from './CardBlock';
 export * from './Tabs';
 export * from './DataList';
 export * from './DataTable';
+export * from './LoadFailed';

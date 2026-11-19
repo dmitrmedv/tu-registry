@@ -8,6 +8,7 @@ import { useCreateUser } from './queries';
 import { useDepartments } from '@/features/departments';
 import { DEPARTMENT_HINT, MANAGE_REGISTRATION_HINT, ROLE_OPTIONS } from './roleOptions';
 import styles from './users.module.scss';
+import { notifyError } from '@/shared/lib/notify';
 
 type FormInput = z.input<typeof createUserSchema>;
 type FormOutput = z.output<typeof createUserSchema>;
@@ -52,7 +53,8 @@ export function CreateUserDialog({ open, onClose, onCreated }: Props) {
       onCreated(result);
     } catch (error) {
       const apiError = toApiError(error);
-      setError(apiError.status === 409 ? 'login' : 'root', { message: apiError.message });
+      if (apiError.status === 409) setError('login', { message: apiError.message });
+      else notifyError(apiError.message);
     }
   });
 
@@ -69,7 +71,6 @@ export function CreateUserDialog({ open, onClose, onCreated }: Props) {
       }
     >
       <form id={FORM_ID} onSubmit={onSubmit} noValidate className={styles.formContents}>
-        {errors.root?.message && <Alert variant="error">{errors.root.message}</Alert>}
         <TextField
           label="Логін"
           autoCapitalize="none"

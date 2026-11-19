@@ -1,4 +1,8 @@
-import type { ApplicationListItemDto } from '@tu-registry/shared';
+import type {
+  ApplicationListItemDto,
+  TablePreferences,
+  TablePreferencesDto,
+} from '@tu-registry/shared';
 import { screen, waitFor, within } from '@testing-library/react';
 import { http as mock, HttpResponse } from 'msw';
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -39,11 +43,27 @@ const row = (overrides: Partial<ApplicationListItemDto> = {}): ApplicationListIt
   ...overrides,
 });
 
-/** Captures every list request; answers with the given rows and page count. */
-function serveRegistry(rows: ApplicationListItemDto[] = [row()], totalPages = 1) {
+const NO_PREFERENCES: TablePreferencesDto = { visible: {}, widths: {}, order: [], updatedAt: null };
+
+/**
+ * Captures every list request; answers with the given rows and page count. The column layout
+ * saved on the server is `preferences`; what the page saves goes to `saved`.
+ */
+function serveRegistry(
+  rows: ApplicationListItemDto[] = [row()],
+  totalPages = 1,
+  preferences: TablePreferencesDto = NO_PREFERENCES,
+) {
   const requests: URLSearchParams[] = [];
+  const saved: TablePreferences[] = [];
   server.use(
     signedInAs(me),
+    mock.get('*/api/v1/me/preferences/registry', () => HttpResponse.json(preferences)),
+    mock.put('*/api/v1/me/preferences/registry', async ({ request }) => {
+      const body = (await request.json()) as TablePreferences;
+      saved.push(body);
+      return HttpResponse.json({ ...body, updatedAt: '2026-11-19T09:00:00.000Z' });
+    }),
     mock.get('*/api/v1/applications', ({ request }) => {
       const params = new URL(request.url).searchParams;
       requests.push(params);
@@ -62,7 +82,7 @@ function serveRegistry(rows: ApplicationListItemDto[] = [row()], totalPages = 1)
     ),
   );
   const last = () => requests.at(-1)!;
-  return { requests, last };
+  return { requests, last, saved };
 }
 
 const openMoreFilters = async (user: { click: (element: Element) => Promise<void> }) =>
@@ -119,8 +139,8 @@ describe('RegistryPage', () => {
     ]);
     // Area, category, representative and author are hidden until chosen in «Колонки».
     expect(within(rows[1]!).queryByText('Міська')).not.toBeInTheDocument();
-    // One way back to the registry (the header title) and one "Нова заява" (on the page).
-    expect(screen.getAllByRole('link', { name: /^Реєстр/ })).toHaveLength(1);
+    // One way back to the registry («Головна» in the header) and one "Нова заява" (on the page).
+    expect(screen.getAllByRole('link', { name: 'Головна' })).toHaveLength(1);
     expect(screen.getAllByRole('link', { name: 'Нова заява' })).toHaveLength(1);
   });
 
@@ -547,8 +567,8 @@ describe('RegistryPage — card links and status', () => {
     expect(annulled).toHaveTextContent('Анульована');
   });
 
-  it('lets each user choose the columns, remembered in this browser', async () => {
-    serveRegistry([row({ gasFlow: 2.5, tuNumber: '0032/ТУ' })]);
+  it('lets each user choose the columns, saved for them on the server', async () => {
+    const { saved } = serveRegistry([row({ gasFlow: 2.5, tuNumber: '0032/ТУ' })]);
     const first = renderApp('/');
     const table = await screen.findByRole('table', { name: 'Реєстр заяв' });
     const picker = screen.getByRole('button', { name: /^Колонки/ });
@@ -568,11 +588,66 @@ describe('RegistryPage — card links and status', () => {
     expect(
       JSON.parse(window.localStorage.getItem(`tu-registry:registry-columns:${me.id}`) ?? '{}'),
     ).toEqual({ gasFlow: true, tuNumber: false });
+    // Both clicks go up together, once the changes settle.
+    await waitFor(() =>
+      expect(saved).toEqual([
+        { visible: { gasFlow: true, tuNumber: false }, widths: {}, order: [] },
+      ]),
+    );
 
     await first.user.click(picker);
     await first.user.click(screen.getByRole('button', { name: 'Як за замовчуванням' }));
     expect(within(table).queryByRole('columnheader', { name: /^Витрати газу/ })).toBeNull();
     expect(window.localStorage.getItem(`tu-registry:registry-columns:${me.id}`)).toBe('{}');
+    await waitFor(() => expect(saved.at(-1)).toEqual({ visible: {}, widths: {}, order: [] }));
+  });
+
+  it('shows the layout saved on the server, from another computer, over this browser’s copy', async () => {
+    window.localStorage.setItem(
+      `tu-registry:registry-widths:${me.id}`,
+      JSON.stringify({ customer: 300 }),
+    );
+    const { saved } = serveRegistry([row({ gasFlow: 2.5 })], 1, {
+      visible: { gasFlow: true },
+      widths: { objectAddress: 420, removedLongAgo: 50 },
+      order: ['customer', 'removedLongAgo'],
+      updatedAt: '2026-11-18T09:00:00.000Z',
+    });
+    renderApp('/');
+    const table = await screen.findByRole('table', { name: 'Реєстр заяв' });
+
+    expect(
+      await within(table).findByRole('columnheader', { name: /^Витрати газу/ }),
+    ).toBeInTheDocument();
+    const titles = within(table)
+      .getAllByRole('columnheader')
+      .map((th) => th.querySelector('button')?.firstChild?.textContent);
+    expect(titles.slice(0, 2)).toEqual(['№', 'Замовник']);
+    expect(
+      within(table).getByRole('separator', { name: 'Ширина колонки «Адреса»' }),
+    ).toHaveAttribute('aria-valuenow', '420');
+    expect(
+      within(table).getByRole('separator', { name: 'Ширина колонки «Замовник»' }),
+    ).not.toHaveAttribute('aria-valuenow', '300');
+    // This browser now keeps the server's layout; nothing goes back up.
+    expect(
+      JSON.parse(window.localStorage.getItem(`tu-registry:registry-widths:${me.id}`) ?? '{}'),
+    ).toEqual({ objectAddress: 420 });
+    expect(saved).toEqual([]);
+  });
+
+  it('sends the layout kept only in this browser to the server once', async () => {
+    window.localStorage.setItem(
+      `tu-registry:registry-columns:${me.id}`,
+      JSON.stringify({ gasFlow: true }),
+    );
+    const { saved } = serveRegistry();
+    renderApp('/');
+    await screen.findByRole('table', { name: 'Реєстр заяв' });
+
+    await waitFor(() =>
+      expect(saved).toEqual([{ visible: { gasFlow: true }, widths: {}, order: [] }]),
+    );
   });
 
   it('lets each user change column widths with the keyboard, remembered with the columns', async () => {

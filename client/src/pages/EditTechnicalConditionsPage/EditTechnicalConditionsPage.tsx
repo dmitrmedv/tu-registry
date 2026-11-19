@@ -12,9 +12,8 @@ import {
   useTechnicalConditions,
   useTechnicalConditionsScanChange,
 } from '@/features/technicalConditions';
-import { toApiError } from '@/shared/api/apiError';
 import { notifySuccess } from '@/shared/lib/notify';
-import { Alert, LinkButton, Spinner } from '@/shared/ui';
+import { LinkButton, LoadFailed, Spinner } from '@/shared/ui';
 import pageStyles from '../page.module.scss';
 
 /** Editing saved technical conditions: a page like the application's (agreed 2026-11-17). */
@@ -29,7 +28,17 @@ export function EditTechnicalConditionsPage() {
 
   if (application.isPending || list.isPending) return <Spinner label="Завантаження ТУ…" />;
   const failure = application.error ?? list.error;
-  if (failure) return <Alert variant="error">{toApiError(failure).message}</Alert>;
+  if (failure) {
+    return (
+      <LoadFailed
+        error={failure}
+        onRetry={() => {
+          if (application.isError) void application.refetch();
+          if (list.isError) void list.refetch();
+        }}
+      />
+    );
+  }
 
   const app = application.data!;
   const tu = list.data!.find((item) => item.id === tid);

@@ -27,7 +27,7 @@ test('registers an application under the next number and finds it in the registr
   const regNumber = /: (\S+) від/.exec((await result.textContent()) ?? '')?.[1] ?? '';
   expect(regNumber).toMatch(/^\d+т\/\d{2}-8$/); // the admin is in Одеське (code 8)
 
-  await page.getByRole('link', { name: 'Реєстр заяв на ТУ' }).click();
+  await page.getByRole('link', { name: 'Головна' }).click();
   await page.getByRole('searchbox', { name: 'Пошук' }).fill(customer);
 
   const table = page.getByRole('table', { name: 'Реєстр заяв' });

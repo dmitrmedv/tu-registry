@@ -59,7 +59,7 @@ export function NewApplicationPage() {
   };
 
   return (
-    <section className={pageStyles.wide}>
+    <section className={pageStyles.centered}>
       <h1>Нова заява</h1>
       {created ? (
         <div className={styles.result}>

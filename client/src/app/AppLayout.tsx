@@ -54,7 +54,7 @@ export function AppLayout() {
           {!restricted && (
             <nav aria-label="Основна навігація" className={styles.navRow}>
               <NavLink to="/" end className={navClass}>
-                Реєстр заяв на ТУ
+                Головна
               </NavLink>
             </nav>
           )}

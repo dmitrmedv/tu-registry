@@ -43,10 +43,7 @@ describe('header', () => {
     expect(banner).toHaveTextContent('Інженеров Інженер Інженерович — Користувач');
     // The department's name comes from the departments list, loaded separately.
     expect(await within(banner).findByText('Роздільнянське управління')).toBeInTheDocument();
-    expect(within(banner).getByRole('link', { name: 'Реєстр заяв на ТУ' })).toHaveAttribute(
-      'href',
-      '/',
-    );
+    expect(within(banner).getByRole('link', { name: 'Головна' })).toHaveAttribute('href', '/');
   });
 
   it('offers a user the password change and sign-out only', async () => {

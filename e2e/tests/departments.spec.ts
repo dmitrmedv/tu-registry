@@ -44,7 +44,7 @@ test('a user sees and numbers only their department; the admin sees all', async 
   await expect(reniPage.getByText('Заяву зареєстровано:')).toContainText(/\d+т\/\d{2}-11 /);
 
   // The user's registry: their department only, no department filter.
-  await reniPage.getByRole('link', { name: 'Реєстр заяв на ТУ' }).click();
+  await reniPage.getByRole('link', { name: 'Головна' }).click();
   const reniTable = reniPage.getByRole('table', { name: 'Реєстр заяв' });
   await expect(reniTable.getByRole('cell', { name: reniCustomer })).toBeVisible();
   await expect(reniTable.getByRole('cell', { name: odesaCustomer })).toHaveCount(0);

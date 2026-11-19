@@ -5,13 +5,13 @@ import { authEvents } from '@/shared/api/authEvents';
 import { refreshSession } from '@/shared/api/http';
 import { tokenStore } from '@/shared/api/tokenStore';
 import { clearAllDrafts } from '@/shared/lib/draftStorage';
+import { notifyInfo } from '@/shared/lib/notify';
 import { authApi } from './api';
 import { AuthContext, type AuthContextValue, type AuthStatus } from './authContext';
 
 type State = {
   status: AuthStatus;
   user: UserDto | null;
-  sessionEnded: boolean;
   previousUserId: string | null;
   signedOut: boolean;
 };
@@ -23,14 +23,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<State>({
     status: 'loading',
     user: null,
-    sessionEnded: false,
     previousUserId: null,
     signedOut: false,
   });
   const signedIn = (user: UserDto): State => ({
     status: 'authenticated',
     user,
-    sessionEnded: false,
     previousUserId: null,
     signedOut: false,
   });
@@ -40,7 +38,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     let active = true;
     refreshSession()
       .then(({ user }) => active && setState(signedIn(user)))
-      .catch(() => active && setState({ ...ANONYMOUS, sessionEnded: false, signedOut: false }));
+      .catch(() => active && setState({ ...ANONYMOUS, signedOut: false }));
     return () => {
       active = false;
     };
@@ -51,9 +49,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       authEvents.subscribe((event) => {
         if (event === 'session-ended') {
           queryClient.clear();
+          notifyInfo('Сесія завершилась. Увійдіть знову.');
           setState((s) => ({
             ...ANONYMOUS,
-            sessionEnded: true,
             // Only they may come back to the page they were on.
             previousUserId: s.user?.id ?? null,
             signedOut: false,
@@ -80,7 +78,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // Nothing from the previous user may remain: cached data and unsaved form drafts.
       queryClient.clear();
       clearAllDrafts();
-      setState({ ...ANONYMOUS, sessionEnded: false, signedOut: true });
+      setState({ ...ANONYMOUS, signedOut: true });
     }
   }, [queryClient]);
 

@@ -11,6 +11,7 @@ import { calendarRouter } from './modules/calendar/calendar.routes';
 import { departmentRouter } from './modules/departments/department.routes';
 import { engineerRouter } from './modules/engineers/engineer.routes';
 import { createAuthRouter } from './modules/auth/auth.routes';
+import { preferenceRouter } from './modules/preferences/userPreference.routes';
 import { userRouter } from './modules/users/user.routes';
 
 /**
@@ -41,6 +42,7 @@ export function createApp() {
   app.use('/api/v1/departments', departmentRouter);
   app.use('/api/v1/engineers', engineerRouter);
   app.use('/api/v1/calendar', calendarRouter);
+  app.use('/api/v1/me/preferences', preferenceRouter);
 
   app.use(notFound);
   app.use(errorHandler);

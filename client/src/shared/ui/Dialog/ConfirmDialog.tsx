@@ -1,5 +1,4 @@
 import type { ReactNode } from 'react';
-import { Alert } from '../Alert';
 import { Button } from '../Button';
 import { Dialog } from './Dialog';
 
@@ -12,10 +11,9 @@ type Props = {
   onCancel: () => void;
   danger?: boolean;
   loading?: boolean;
-  error?: string;
 };
 
-/** Confirmation for important or irreversible actions. */
+/** Confirmation for important or irreversible actions; a failure is said by a notification. */
 export function ConfirmDialog({
   open,
   title,
@@ -25,7 +23,6 @@ export function ConfirmDialog({
   onCancel,
   danger = false,
   loading = false,
-  error,
 }: Props) {
   return (
     <Dialog
@@ -40,7 +37,6 @@ export function ConfirmDialog({
       }
     >
       {children}
-      {error && <Alert variant="error">{error}</Alert>}
     </Dialog>
   );
 }

@@ -1,6 +1,5 @@
 import type { UserWithTemporaryPassword } from '@tu-registry/shared';
-import { useState } from 'react';
-import { notifySuccess } from '@/shared/lib/notify';
+import { notifySuccess, notifyWarning } from '@/shared/lib/notify';
 import { Alert, Button, Dialog } from '@/shared/ui';
 import styles from './users.module.scss';
 
@@ -11,15 +10,12 @@ type Props = {
 };
 
 export function TemporaryPasswordDialog({ result, reason, onClose }: Props) {
-  const [copyFailed, setCopyFailed] = useState(false);
-
   const copyPassword = async () => {
     try {
       await navigator.clipboard.writeText(result.temporaryPassword);
-      setCopyFailed(false);
       notifySuccess('Пароль скопійовано');
     } catch {
-      setCopyFailed(true);
+      notifyWarning('Не вдалося скопіювати автоматично — виділіть пароль вручну.');
     }
   };
 
@@ -46,9 +42,6 @@ export function TemporaryPasswordDialog({ result, reason, onClose }: Props) {
           Копіювати
         </Button>
       </div>
-      {copyFailed && (
-        <Alert variant="warning">Не вдалося скопіювати автоматично — виділіть пароль вручну.</Alert>
-      )}
       <Alert variant="warning">
         Пароль показується лише один раз. Передайте його користувачу — при першому вході система
         попросить задати власний.

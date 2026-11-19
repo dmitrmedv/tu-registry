@@ -10,7 +10,7 @@ import { useForm } from 'react-hook-form';
 import { ScanPanel, useScanChange } from '@/features/applications';
 import { documentStyles } from '@/features/documents';
 import { openPdf } from '@/shared/lib/pdf';
-import { Alert, Button, Dialog, TextField } from '@/shared/ui';
+import { Button, Dialog, TextField } from '@/shared/ui';
 import { tuPaymentApi } from './api';
 import { useRemoveTuPaymentScan, useSaveTuPayment, useUploadTuPaymentScan } from './queries';
 import {
@@ -99,7 +99,6 @@ export function TuPaymentDialog({ applicationId, tu, onClose, onSaved }: Props) 
       }
     >
       <form id={FORM_ID} onSubmit={onSubmit} noValidate className={documentStyles.formContents}>
-        {errors.root?.message && <Alert variant="error">{errors.root.message}</Alert>}
         {/* The mock-up of 2026-11-19: each step's fields on the left, its scan beside them. */}
         <div className={styles.layout}>
           <div className={styles.fields}>

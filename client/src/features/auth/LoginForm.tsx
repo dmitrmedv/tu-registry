@@ -3,9 +3,10 @@ import { loginSchema } from '@tu-registry/shared';
 import { useForm } from 'react-hook-form';
 import type { z } from 'zod';
 import { toApiError } from '@/shared/api/apiError';
-import { Alert, Button, PasswordField, TextField } from '@/shared/ui';
+import { Button, PasswordField, TextField } from '@/shared/ui';
 import { useAuth } from './authContext';
 import styles from './AuthForm.module.scss';
+import { notifyError } from '@/shared/lib/notify';
 
 type FormInput = z.input<typeof loginSchema>;
 type FormOutput = z.output<typeof loginSchema>;
@@ -16,7 +17,6 @@ export function LoginForm() {
   const {
     register,
     handleSubmit,
-    setError,
     formState: { errors, isSubmitting },
   } = useForm<FormInput, unknown, FormOutput>({ resolver: zodResolver(loginSchema) });
 
@@ -24,13 +24,12 @@ export function LoginForm() {
     try {
       await login(values);
     } catch (error) {
-      setError('root', { message: toApiError(error).message });
+      notifyError(toApiError(error).message);
     }
   });
 
   return (
     <form className={styles.form} onSubmit={onSubmit} noValidate>
-      {errors.root?.message && <Alert variant="error">{errors.root.message}</Alert>}
       <TextField
         label="Логін"
         autoComplete="username"

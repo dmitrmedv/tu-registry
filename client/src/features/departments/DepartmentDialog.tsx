@@ -6,6 +6,7 @@ import { toApiError } from '@/shared/api/apiError';
 import { Alert, Button, Dialog, TextField } from '@/shared/ui';
 import { useCreateDepartment, useUpdateDepartment } from './queries';
 import styles from './departments.module.scss';
+import { notifyError } from '@/shared/lib/notify';
 
 type FormInput = z.input<typeof createDepartmentSchema>;
 type FormOutput = z.output<typeof createDepartmentSchema>;
@@ -53,7 +54,7 @@ export function DepartmentDialog({ department, suggestedCode, onClose, onSaved }
       for (const [field, messages] of fields) {
         if (messages?.[0]) setError(field as FieldPath<FormInput>, { message: messages[0] });
       }
-      if (fields.length === 0) setError('root', { message: apiError.message });
+      if (fields.length === 0) notifyError(apiError.message);
     }
   });
 
@@ -70,7 +71,6 @@ export function DepartmentDialog({ department, suggestedCode, onClose, onSaved }
       }
     >
       <form id={FORM_ID} onSubmit={onSubmit} noValidate className={styles.formContents}>
-        {errors.root?.message && <Alert variant="error">{errors.root.message}</Alert>}
         <TextField
           label="Назва"
           hint="Без слова «управління»: «Одеське», «Одеське міжрайонне»"

@@ -11,8 +11,8 @@ import type { z } from 'zod';
 import { DocumentScanField, documentStyles as styles } from '@/features/documents';
 import { useEngineerOptions } from '@/features/engineers';
 import { toApiError } from '@/shared/api/apiError';
-import { notifySuccess } from '@/shared/lib/notify';
-import { Alert, Button, Dialog, SelectField, Spinner, TextField } from '@/shared/ui';
+import { notifyError, notifySuccess } from '@/shared/lib/notify';
+import { Button, Dialog, LoadFailed, SelectField, Spinner, TextField } from '@/shared/ui';
 import { responsesApi } from './api';
 import {
   useCreateResponse,
@@ -42,7 +42,6 @@ type Props = {
 export function ResponseDialog({ app, response: initial, onClose, onSaved }: Props) {
   const [response, setResponse] = useState(initial);
   const [file, setFile] = useState<File | null>(null);
-  const [scanError, setScanError] = useState<string>();
   const { query: engineers, options: engineerOptions } = useEngineerOptions(
     app.department,
     initial?.engineer.id,
@@ -86,7 +85,6 @@ export function ResponseDialog({ app, response: initial, onClose, onSaved }: Pro
   };
 
   const onSubmit = handleSubmit(async (values) => {
-    setScanError(undefined);
     let saved: ResponseDto;
     try {
       saved = await save(values);
@@ -97,17 +95,17 @@ export function ResponseDialog({ app, response: initial, onClose, onSaved }: Pro
       for (const [field, messages] of fields) {
         if (messages?.[0]) setError(field as FieldPath<FormInput>, { message: messages[0] });
       }
-      if (fields.length === 0) setError('root', { message: apiError.message });
+      if (fields.length === 0) notifyError(apiError.message);
       return;
     }
     if (file) {
       try {
         saved = await uploadScan.mutateAsync({ id: saved.id, file });
       } catch (error) {
-        // The response stands: that is a notification; the scan's failure stays here.
+        // The response stands, the scan does not: two notifications.
         notifySuccess(`Відповідь № ${saved.outgoingNumber} збережено`);
         setResponse(saved);
-        setScanError(`Скан не завантажено: ${toApiError(error).message}`);
+        notifyError(`Скан не завантажено: ${toApiError(error).message}`);
         return;
       }
     }
@@ -127,8 +125,6 @@ export function ResponseDialog({ app, response: initial, onClose, onSaved }: Pro
       }
     >
       <form id={FORM_ID} onSubmit={onSubmit} noValidate className={styles.formContents}>
-        {errors.root?.message && <Alert variant="error">{errors.root.message}</Alert>}
-        {scanError && <Alert variant="error">{scanError}</Alert>}
         <TextField
           label="Номер вихідного"
           autoComplete="off"
@@ -146,7 +142,7 @@ export function ResponseDialog({ app, response: initial, onClose, onSaved }: Pro
           // An uncontrolled select would otherwise settle on whichever option comes first.
           <Spinner label="Завантаження інженерів…" />
         ) : engineers.isError ? (
-          <Alert variant="error">{toApiError(engineers.error).message}</Alert>
+          <LoadFailed error={engineers.error} onRetry={() => engineers.refetch()} />
         ) : (
           <SelectField
             label="Інженер"

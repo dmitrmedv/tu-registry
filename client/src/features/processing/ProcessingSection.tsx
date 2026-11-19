@@ -1,7 +1,6 @@
 import type { ApplicationDto, TimelineEventDto } from '@tu-registry/shared';
 import { type ReactNode, useId } from 'react';
-import { toApiError } from '@/shared/api/apiError';
-import { Alert, Button, Spinner } from '@/shared/ui';
+import { LoadFailed, Spinner } from '@/shared/ui';
 import styles from './processing.module.scss';
 import { ProcessingTimeline } from './ProcessingTimeline';
 import { useProcessing } from './queries';
@@ -28,12 +27,7 @@ export function ProcessingSection({ app, onSelectEvent, toolbar }: Props) {
       {processing.isPending ? (
         <Spinner label="Завантаження історії опрацювання…" />
       ) : processing.isError ? (
-        <Alert variant="error">
-          {toApiError(processing.error).message}{' '}
-          <Button size="sm" onClick={() => processing.refetch()}>
-            Повторити
-          </Button>
-        </Alert>
+        <LoadFailed error={processing.error} onRetry={() => processing.refetch()} />
       ) : (
         <ProcessingTimeline events={processing.data.events} onSelect={onSelectEvent} />
       )}

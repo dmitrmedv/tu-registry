@@ -6,8 +6,8 @@ import {
 } from '@tu-registry/shared';
 import { useForm } from 'react-hook-form';
 import { toApiError } from '@/shared/api/apiError';
-import { notifySuccess } from '@/shared/lib/notify';
-import { Alert, Button, PasswordField } from '@/shared/ui';
+import { notifyError, notifySuccess } from '@/shared/lib/notify';
+import { Button, PasswordField } from '@/shared/ui';
 import { authApi } from './api';
 import { useAuth } from './authContext';
 import styles from './AuthForm.module.scss';
@@ -38,13 +38,13 @@ export function ChangePasswordForm({ onChanged }: { onChanged: () => void }) {
     } catch (error) {
       const apiError = toApiError(error);
       const field = SERVER_FIELD_ERRORS[apiError.code];
-      setError(field ?? 'root', { message: apiError.message });
+      if (field) setError(field, { message: apiError.message });
+      else notifyError(apiError.message);
     }
   });
 
   return (
     <form className={styles.form} onSubmit={onSubmit} noValidate>
-      {errors.root?.message && <Alert variant="error">{errors.root.message}</Alert>}
       <PasswordField
         label="Поточний пароль"
         autoComplete="current-password"

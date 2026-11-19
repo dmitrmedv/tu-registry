@@ -4,9 +4,10 @@ import { type FieldPath, useForm } from 'react-hook-form';
 import type { z } from 'zod';
 import { useDepartments } from '@/features/departments';
 import { toApiError } from '@/shared/api/apiError';
-import { Alert, Button, Dialog, SelectField, Spinner, TextField } from '@/shared/ui';
+import { Button, Dialog, SelectField, Spinner, TextField } from '@/shared/ui';
 import styles from './engineers.module.scss';
 import { useCreateEngineer, useUpdateEngineer } from './queries';
+import { notifyError } from '@/shared/lib/notify';
 
 type FormInput = z.input<typeof createEngineerSchema>;
 type FormOutput = z.output<typeof createEngineerSchema>;
@@ -53,7 +54,7 @@ export function EngineerDialog({ engineer, department, onClose, onSaved }: Props
       for (const [field, messages] of fields) {
         if (messages?.[0]) setError(field as FieldPath<FormInput>, { message: messages[0] });
       }
-      if (fields.length === 0) setError('root', { message: apiError.message });
+      if (fields.length === 0) notifyError(apiError.message);
     }
   });
 
@@ -70,7 +71,6 @@ export function EngineerDialog({ engineer, department, onClose, onSaved }: Props
       }
     >
       <form id={FORM_ID} onSubmit={onSubmit} noValidate className={styles.formContents}>
-        {errors.root?.message && <Alert variant="error">{errors.root.message}</Alert>}
         <TextField label="ПІБ" error={errors.fullName?.message} {...register('fullName')} />
         {engineer ? (
           // Each department has its own engineers: the department is never changed.

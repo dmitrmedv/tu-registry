@@ -1,9 +1,8 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import type { ApplicationDto, TechnicalConditionsDto } from '@tu-registry/shared';
-import { useState } from 'react';
 import { FormProvider, useForm } from 'react-hook-form';
 import { applicationFormStyles as styles } from '@/features/applications';
-import { Alert, Button, LinkButton } from '@/shared/ui';
+import { Button, LinkButton } from '@/shared/ui';
 import layout from './EditTechnicalConditionsForm.module.scss';
 import { useUpdateTechnicalConditions } from './queries';
 import {
@@ -15,6 +14,7 @@ import {
   showServerError,
 } from './technicalConditionsForm';
 import { ConnectionFields, CustomerFields, DocumentFields } from './TechnicalConditionsFields';
+import { notifyInfo } from '@/shared/lib/notify';
 
 type Props = {
   app: ApplicationDto;
@@ -37,7 +37,6 @@ export function EditTechnicalConditionsForm({
   cancelTo,
 }: Props) {
   const update = useUpdateTechnicalConditions(app.id);
-  const [nothingChanged, setNothingChanged] = useState(false);
   const form = useForm<FormInput, unknown, FormData>({
     resolver: zodResolver(formSchema),
     defaultValues: formDefaults(app, tu),
@@ -45,13 +44,12 @@ export function EditTechnicalConditionsForm({
   const {
     handleSubmit,
     setError,
-    formState: { errors, isSubmitting, isDirty },
+    formState: { isSubmitting, isDirty },
   } = form;
 
   const onSubmit = handleSubmit(async (values) => {
     const input = changedFields(tu, values);
-    setNothingChanged(!input && !scanChanged);
-    if (!input && !scanChanged) return;
+    if (!input && !scanChanged) return notifyInfo('Змін немає — зберігати нічого.');
     if (input) {
       try {
         await update.mutateAsync({ id: tu.id, input });
@@ -71,9 +69,6 @@ export function EditTechnicalConditionsForm({
   return (
     <FormProvider {...form}>
       <form className={styles.form} onSubmit={onSubmit} noValidate>
-        {errors.root?.message && <Alert variant="error">{errors.root.message}</Alert>}
-        {nothingChanged && <Alert variant="info">Змін немає — зберігати нічого.</Alert>}
-
         <fieldset className={styles.section}>
           <legend>Технічні умови</legend>
           <div className={layout.documentRow}>

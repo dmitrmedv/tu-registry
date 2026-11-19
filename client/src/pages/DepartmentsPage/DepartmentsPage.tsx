@@ -9,16 +9,16 @@ import {
   useRestoreDepartment,
 } from '@/features/departments';
 import { toApiError } from '@/shared/api/apiError';
-import { notifySuccess } from '@/shared/lib/notify';
-import { Alert, Button, ConfirmDialog, Spinner } from '@/shared/ui';
+import { notifyError, notifySuccess } from '@/shared/lib/notify';
+import { Button, ConfirmDialog, LoadFailed, Spinner } from '@/shared/ui';
 import pageStyles from '../page.module.scss';
 
 type DialogState =
   | { kind: 'none' }
   | { kind: 'create' }
   | { kind: 'edit'; department: DepartmentAdminDto }
-  | { kind: 'archive'; department: DepartmentAdminDto; error?: string }
-  | { kind: 'delete'; department: DepartmentAdminDto; error?: string };
+  | { kind: 'archive'; department: DepartmentAdminDto }
+  | { kind: 'delete'; department: DepartmentAdminDto };
 
 export function DepartmentsPage() {
   const list = useDepartmentList();
@@ -26,7 +26,6 @@ export function DepartmentsPage() {
   const restore = useRestoreDepartment();
   const remove = useDeleteDepartment();
   const [dialog, setDialog] = useState<DialogState>({ kind: 'none' });
-  const [error, setError] = useState<string>();
   const close = () => setDialog({ kind: 'none' });
 
   // The admin's list carries the counts (the API adds them for admins).
@@ -34,19 +33,12 @@ export function DepartmentsPage() {
   const nextCode = Math.max(0, ...departments.map((department) => department.code)) + 1;
 
   const run = async (action: () => Promise<unknown>, done: string) => {
-    setError(undefined);
     try {
       await action();
       notifySuccess(done);
       close();
     } catch (e) {
-      const message = toApiError(e).message;
-      setDialog((current) =>
-        current.kind === 'archive' || current.kind === 'delete'
-          ? { ...current, error: message }
-          : current,
-      );
-      if (dialog.kind === 'none') setError(message);
+      notifyError(toApiError(e).message);
     }
   };
 
@@ -62,17 +54,11 @@ export function DepartmentsPage() {
         Код іде в номер заяви (1т/26-8). Управління з користувачами чи заявами не видаляється, а
         архівується: його заяви лишаються, але нових користувачів і заяв у ньому створити не можна.
       </p>
-      {error && <Alert variant="error">{error}</Alert>}
 
       {list.isPending ? (
         <Spinner label="Завантаження управлінь…" />
       ) : list.isError ? (
-        <Alert variant="error">
-          {toApiError(list.error).message}{' '}
-          <Button size="sm" onClick={() => list.refetch()}>
-            Повторити
-          </Button>
-        </Alert>
+        <LoadFailed error={list.error} onRetry={() => list.refetch()} />
       ) : (
         <DepartmentsTable
           departments={departments}
@@ -110,7 +96,6 @@ export function DepartmentsPage() {
           title={`Архівувати управління «${dialog.department.name}»?`}
           confirmLabel="Архівувати"
           loading={archive.isPending}
-          error={dialog.error}
           onCancel={close}
           onConfirm={() =>
             run(
@@ -135,7 +120,6 @@ export function DepartmentsPage() {
           title={`Видалити управління «${dialog.department.name}»?`}
           confirmLabel="Видалити"
           loading={remove.isPending}
-          error={dialog.error}
           onCancel={close}
           onConfirm={() =>
             run(

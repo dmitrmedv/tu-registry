@@ -7,6 +7,7 @@ import {
 import type { FieldPath, UseFormSetError } from 'react-hook-form';
 import type { z } from 'zod';
 import { toApiError } from '@/shared/api/apiError';
+import { notifyError } from '@/shared/lib/notify';
 
 // The version is not a field: the dialog adds the one it saw when saving.
 export const formSchema = saveTuPaymentSchema;
@@ -55,5 +56,5 @@ export function showServerError(error: unknown, setError: UseFormSetError<FormIn
   for (const [field, messages] of fields) {
     if (messages?.[0]) setError(field as FieldPath<FormInput>, { message: messages[0] });
   }
-  if (fields.length === 0) setError('root', { message: apiError.message });
+  if (fields.length === 0) notifyError(apiError.message);
 }

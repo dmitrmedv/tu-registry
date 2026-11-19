@@ -11,8 +11,8 @@ import {
 } from '@/features/documents';
 import { toApiError } from '@/shared/api/apiError';
 import { openPdf } from '@/shared/lib/pdf';
-import { notifySuccess } from '@/shared/lib/notify';
-import { Alert, Badge, Button, CardFooter, ConfirmDialog, IconButton, Spinner } from '@/shared/ui';
+import { notifyError, notifySuccess } from '@/shared/lib/notify';
+import { Badge, CardFooter, ConfirmDialog, IconButton, LoadFailed, Spinner } from '@/shared/ui';
 import { responsesApi } from './api';
 import { useCancelResponse, useDeleteResponse, useResponses, useRestoreResponse } from './queries';
 import { ResponseDialog } from './ResponseDialog';
@@ -37,22 +37,16 @@ export function ResponsesTab({ app }: { app: ApplicationDto }) {
   const cancel = useCancelResponse(app.id);
   const restore = useRestoreResponse(app.id);
   const remove = useDeleteResponse(app.id);
-  const [deleteError, setDeleteError] = useState<string>();
   const [dialog, setDialog] = useState<DialogState>({ kind: 'none' });
-  const [error, setError] = useState<string>();
-  const close = () => {
-    setDialog({ kind: 'none' });
-    setDeleteError(undefined);
-  };
+  const close = () => setDialog({ kind: 'none' });
   const manage = canManageDocuments(app, user);
 
   const run = async (action: () => Promise<unknown>, done?: string) => {
-    setError(undefined);
     try {
       await action();
       if (done) notifySuccess(done);
     } catch (e) {
-      setError(toApiError(e).message);
+      notifyError(toApiError(e).message);
     }
   };
   const openScanOf = (response: ResponseDto, fileId?: string, name = response.scan?.name ?? '') =>
@@ -60,20 +54,11 @@ export function ResponsesTab({ app }: { app: ApplicationDto }) {
 
   if (responses.isPending) return <Spinner label="Завантаження відповідей…" />;
   if (responses.isError) {
-    return (
-      <Alert variant="error">
-        {toApiError(responses.error).message}{' '}
-        <Button size="sm" onClick={() => responses.refetch()}>
-          Повторити
-        </Button>
-      </Alert>
-    );
+    return <LoadFailed error={responses.error} onRetry={() => responses.refetch()} />;
   }
 
   return (
     <>
-      {error && <Alert variant="error">{error}</Alert>}
-
       {responses.data.length === 0 ? (
         <p className={styles.muted}>Відповідей на заяву не надавали.</p>
       ) : (
@@ -168,7 +153,6 @@ export function ResponsesTab({ app }: { app: ApplicationDto }) {
           response={dialog.kind === 'edit' ? dialog.response : undefined}
           onClose={close}
           onSaved={(saved) => {
-            setError(undefined);
             notifySuccess(
               dialog.kind === 'edit'
                 ? `Відповідь № ${saved.outgoingNumber} збережено`
@@ -197,17 +181,15 @@ export function ResponsesTab({ app }: { app: ApplicationDto }) {
           title={`Видалити відповідь № ${dialog.response.outgoingNumber}?`}
           confirmLabel="Видалити"
           loading={remove.isPending}
-          error={deleteError}
           onCancel={close}
           onConfirm={async () => {
             const { response } = dialog;
-            setDeleteError(undefined);
             try {
               await remove.mutateAsync({ id: response.id, version: response.version });
               close();
               notifySuccess(`Відповідь № ${response.outgoingNumber} видалено`);
             } catch (e) {
-              setDeleteError(toApiError(e).message);
+              notifyError(toApiError(e).message);
             }
           }}
         >

@@ -6,7 +6,7 @@ import {
   type UserDto,
 } from '@tu-registry/shared';
 import { useForm } from 'react-hook-form';
-import { Alert, Button, CheckboxField, Dialog, SelectField, TextField } from '@/shared/ui';
+import { Button, CheckboxField, Dialog, SelectField, TextField } from '@/shared/ui';
 import { useDepartments } from '@/features/departments';
 import { DEPARTMENT_HINT, MANAGE_REGISTRATION_HINT, ROLE_OPTIONS } from './roleOptions';
 import styles from './users.module.scss';
@@ -19,10 +19,9 @@ type Props = {
   onClose: () => void;
   /** Receives only the changed fields; the parent decides whether to confirm first. */
   onSubmit: (changes: UpdateUserInput) => Promise<void>;
-  error?: string;
 };
 
-export function EditUserDialog({ user, isSelf, onClose, onSubmit, error }: Props) {
+export function EditUserDialog({ user, isSelf, onClose, onSubmit }: Props) {
   const departments = useDepartments();
   const {
     register,
@@ -62,7 +61,6 @@ export function EditUserDialog({ user, isSelf, onClose, onSubmit, error }: Props
       }
     >
       <form id={FORM_ID} onSubmit={submit} noValidate className={styles.formContents}>
-        {error && <Alert variant="error">{error}</Alert>}
         <TextField label="ПІБ" error={errors.fullName?.message} {...register('fullName')} />
         {/* Once the departments are loaded: the select must have the current value's option when it mounts. */}
         {!departments.isPending && (

@@ -29,18 +29,18 @@ import { toApiError } from '@/shared/api/apiError';
 import { useHeightVariable } from '@/shared/hooks/useHeightVariable';
 import { formatObjectCategory } from '@/shared/lib/labels';
 import {
-  Alert,
   Badge,
   Button,
   CardFooter,
   ConfirmDialog,
   IconButton,
   IconLink,
+  LoadFailed,
   Spinner,
   Tabs,
 } from '@/shared/ui';
 import pageStyles from '../page.module.scss';
-import { notifySuccess } from '@/shared/lib/notify';
+import { notifyError, notifySuccess } from '@/shared/lib/notify';
 import styles from './ApplicationPage.module.scss';
 
 /** Navigation state: where "back to registry" returns, and a one-off message. */
@@ -72,8 +72,6 @@ export function ApplicationPage() {
     'annul' | 'restore' | 'delete' | 'history' | 'module' | null
   >(null);
   const [adding, setAdding] = useState<CardModuleId | null>(null);
-  const [restoreError, setRestoreError] = useState<string>();
-  const [scanError, setScanError] = useState<string>();
 
   const registry = { pathname: '/', search: state?.registrySearch ?? '' };
 
@@ -84,12 +82,7 @@ export function ApplicationPage() {
       <section className={pageStyles.narrow}>
         <h1>{error.status === 404 ? 'Заяву не знайдено' : 'Не вдалося завантажити заяву'}</h1>
         {error.status !== 404 && (
-          <Alert variant="error">
-            {error.message}{' '}
-            <Button size="sm" onClick={() => application.refetch()}>
-              Повторити
-            </Button>
-          </Alert>
+          <LoadFailed error={application.error} onRetry={() => application.refetch()} />
         )}
       </section>
     );
@@ -116,16 +109,12 @@ export function ApplicationPage() {
   const addingModule = CARD_MODULES.find((module) => module.id === adding);
   const SelectedTab = CARD_MODULES.find((module) => module.id === selected)?.Tab;
 
-  const closeDialog = () => {
-    setDialog(null);
-    setRestoreError(undefined);
-  };
+  const closeDialog = () => setDialog(null);
   const viewScan = async () => {
-    setScanError(undefined);
     try {
       await openScan(app.id, app.scan!.name);
     } catch (e) {
-      setScanError(`Не вдалося відкрити скан: ${toApiError(e).message}`);
+      notifyError(`Не вдалося відкрити скан: ${toApiError(e).message}`);
     }
   };
   const confirmRestore = async () => {
@@ -133,7 +122,7 @@ export function ApplicationPage() {
       await restore.mutateAsync(app.version);
       closeDialog();
     } catch (e) {
-      setRestoreError(toApiError(e).message);
+      notifyError(toApiError(e).message);
     }
   };
 
@@ -162,8 +151,6 @@ export function ApplicationPage() {
           </Button>
         )}
       </header>
-
-      {scanError && <Alert variant="error">{scanError}</Alert>}
 
       <div className={styles.layout}>
         <aside className={styles.side}>
@@ -276,7 +263,6 @@ export function ApplicationPage() {
           title={`Відновити заяву ${app.regNumber}?`}
           confirmLabel="Відновити"
           loading={restore.isPending}
-          error={restoreError}
           onCancel={closeDialog}
           onConfirm={confirmRestore}
         >

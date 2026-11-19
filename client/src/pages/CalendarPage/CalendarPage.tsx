@@ -10,15 +10,15 @@ import {
 } from '@/features/calendar';
 import { toApiError } from '@/shared/api/apiError';
 import { formatCalendarDate } from '@/shared/lib/format';
-import { notifySuccess } from '@/shared/lib/notify';
-import { Alert, Button, ConfirmDialog, SelectField, Spinner } from '@/shared/ui';
+import { notifyError, notifySuccess } from '@/shared/lib/notify';
+import { Button, ConfirmDialog, LoadFailed, SelectField, Spinner } from '@/shared/ui';
 import pageStyles from '../page.module.scss';
 
 type DialogState =
   | { kind: 'none' }
   | { kind: 'create' }
   | { kind: 'edit'; day: CalendarDayDto }
-  | { kind: 'delete'; day: CalendarDayDto; error?: string };
+  | { kind: 'delete'; day: CalendarDayDto };
 
 /** The year shown lives in the URL (?year=2027); the current Kyiv year by default. */
 function useYear() {
@@ -69,12 +69,7 @@ export function CalendarPage() {
       {days.isPending ? (
         <Spinner label="Завантаження календаря…" />
       ) : days.isError ? (
-        <Alert variant="error">
-          {toApiError(days.error).message}{' '}
-          <Button size="sm" onClick={() => days.refetch()}>
-            Повторити
-          </Button>
-        </Alert>
+        <LoadFailed error={days.error} onRetry={() => days.refetch()} />
       ) : days.data.length === 0 ? (
         <p className={pageStyles.muted}>У {year} році винятків немає.</p>
       ) : (
@@ -109,7 +104,6 @@ export function CalendarPage() {
           title={`Видалити ${describe(dialog.day)} з календаря?`}
           confirmLabel="Видалити"
           loading={remove.isPending}
-          error={dialog.error}
           onCancel={close}
           onConfirm={async () => {
             try {
@@ -117,7 +111,7 @@ export function CalendarPage() {
               notifySuccess(`День ${describe(dialog.day)} видалено з календаря`);
               close();
             } catch (e) {
-              setDialog({ ...dialog, error: toApiError(e).message });
+              notifyError(toApiError(e).message);
             }
           }}
         >

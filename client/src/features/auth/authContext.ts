@@ -6,8 +6,6 @@ export type AuthStatus = 'loading' | 'authenticated' | 'anonymous';
 export type AuthContextValue = {
   status: AuthStatus;
   user: UserDto | null;
-  /** True when the previous session ended on its own (expired, revoked, deactivated). */
-  sessionEnded: boolean;
   /**
    * Who may be returned to the page they were on after signing in again: the user whose
    * session ended on its own. Null after a page load (anyone may follow a link) and after an

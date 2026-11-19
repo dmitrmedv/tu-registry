@@ -20,6 +20,7 @@ import { ApplicationContentFields } from './ApplicationContentFields';
 import styles from './ApplicationForm.module.scss';
 import { ManualNumberStatus } from './ManualNumberStatus';
 import { useUpdateApplication } from './queries';
+import { notifyError, notifyInfo } from '@/shared/lib/notify';
 
 type ServerErrorDetails = { fieldErrors?: Record<string, string[] | undefined> };
 
@@ -117,7 +118,6 @@ export function EditApplicationForm({
   const update = useUpdateApplication(app.id);
   const [conflict, setConflict] = useState(false);
   const [pending, setPending] = useState<UpdateApplicationInput | null>(null);
-  const [nothingChanged, setNothingChanged] = useState(false);
   const departments = useDepartments();
   // Outside the form schema (it describes the application's content); admins only.
   const [department, setDepartment] = useState<Department>(app.department);
@@ -154,7 +154,7 @@ export function EditApplicationForm({
           setError(field as FieldPath<ManualApplicationInput>, { message: messages[0] });
         }
       }
-      return setError('root', { message: apiError.message });
+      return notifyError(apiError.message);
     } finally {
       setPending(null);
     }
@@ -171,7 +171,8 @@ export function EditApplicationForm({
     const changes = changedFields(app, values, canEditRegistration);
     if (department !== app.department) changes.department = department;
     const changedKeys = Object.keys(changes).filter((key) => key !== 'version');
-    setNothingChanged(changedKeys.length === 0 && !scanChanged);
+    if (changedKeys.length === 0 && !scanChanged)
+      return notifyInfo('Змін немає — зберігати нічого.');
     if (changedKeys.length === 0) return scanChanged ? save(null) : undefined;
     // Changing the registration date, number or department is confirmed separately.
     if (
@@ -211,8 +212,6 @@ export function EditApplicationForm({
             </div>
           </Alert>
         )}
-        {errors.root?.message && <Alert variant="error">{errors.root.message}</Alert>}
-        {nothingChanged && <Alert variant="info">Змін немає — зберігати нічого.</Alert>}
 
         <ApplicationContentFields />
 

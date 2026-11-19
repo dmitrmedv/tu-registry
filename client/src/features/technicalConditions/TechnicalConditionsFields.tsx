@@ -7,13 +7,12 @@ import {
 } from '@tu-registry/shared';
 import { useFormContext } from 'react-hook-form';
 import { useEngineerOptions } from '@/features/engineers';
-import { toApiError } from '@/shared/api/apiError';
 import {
   CONNECTION_POINT_LABELS,
   CONNECTION_TYPE_LABELS,
   GAS_PRESSURE_LABELS,
 } from '@/shared/lib/labels';
-import { Alert, ChoiceField, SelectField, Spinner, TextField } from '@/shared/ui';
+import { ChoiceField, LoadFailed, SelectField, Spinner, TextField } from '@/shared/ui';
 import type { FormInput } from './technicalConditionsForm';
 
 const options = <Code extends string>(codes: readonly Code[], labels: Record<Code, string>) =>
@@ -52,7 +51,7 @@ export function DocumentFields({
         // An uncontrolled select would otherwise settle on whichever option comes first.
         <Spinner label="Завантаження інженерів…" />
       ) : engineers.isError ? (
-        <Alert variant="error">{toApiError(engineers.error).message}</Alert>
+        <LoadFailed error={engineers.error} onRetry={() => engineers.refetch()} />
       ) : (
         <SelectField
           label="Інженер, який розробив ТУ"

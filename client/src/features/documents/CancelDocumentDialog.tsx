@@ -1,7 +1,8 @@
 import { cancelDocumentSchema } from '@tu-registry/shared';
 import { useState } from 'react';
 import { toApiError } from '@/shared/api/apiError';
-import { Alert, Button, Dialog, TextAreaField } from '@/shared/ui';
+import { Button, Dialog, TextAreaField } from '@/shared/ui';
+import { notifyError } from '@/shared/lib/notify';
 
 type Props = {
   title: string;
@@ -14,7 +15,6 @@ type Props = {
 export function CancelDocumentDialog({ title, onConfirm, onClose }: Props) {
   const [reason, setReason] = useState('');
   const [fieldError, setFieldError] = useState<string>();
-  const [error, setError] = useState<string>();
   const [pending, setPending] = useState(false);
 
   const submit = async () => {
@@ -29,7 +29,7 @@ export function CancelDocumentDialog({ title, onConfirm, onClose }: Props) {
       await onConfirm(parsed.data);
       onClose();
     } catch (e) {
-      setError(toApiError(e).message);
+      notifyError(toApiError(e).message);
     } finally {
       setPending(false);
     }
@@ -58,7 +58,6 @@ export function CancelDocumentDialog({ title, onConfirm, onClose }: Props) {
         error={fieldError}
         autoFocus
       />
-      {error && <Alert variant="error">{error}</Alert>}
     </Dialog>
   );
 }

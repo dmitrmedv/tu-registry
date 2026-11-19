@@ -5,8 +5,8 @@ import { FormProvider, useForm } from 'react-hook-form';
 import { ScanDropzone } from '@/features/applications';
 import { documentStyles as styles } from '@/features/documents';
 import { toApiError } from '@/shared/api/apiError';
-import { notifySuccess } from '@/shared/lib/notify';
-import { Alert, Button, Dialog } from '@/shared/ui';
+import { notifyError, notifySuccess } from '@/shared/lib/notify';
+import { Button, Dialog } from '@/shared/ui';
 import {
   useCreateTechnicalConditions,
   useUpdateTechnicalConditions,
@@ -38,7 +38,6 @@ type Props = {
 export function TechnicalConditionsDialog({ app, onClose, onSaved }: Props) {
   const [saved, setSaved] = useState<TechnicalConditionsDto>();
   const [file, setFile] = useState<File | null>(null);
-  const [scanError, setScanError] = useState<string>();
   const create = useCreateTechnicalConditions(app.id);
   const update = useUpdateTechnicalConditions(app.id);
   const uploadScan = useUploadTechnicalConditionsScan(app.id);
@@ -49,7 +48,7 @@ export function TechnicalConditionsDialog({ app, onClose, onSaved }: Props) {
   const {
     handleSubmit,
     setError,
-    formState: { errors, isSubmitting },
+    formState: { isSubmitting },
   } = form;
 
   const save = async (values: FormData) => {
@@ -59,7 +58,6 @@ export function TechnicalConditionsDialog({ app, onClose, onSaved }: Props) {
   };
 
   const onSubmit = handleSubmit(async (values) => {
-    setScanError(undefined);
     let result: TechnicalConditionsDto;
     try {
       result = await save(values);
@@ -70,10 +68,10 @@ export function TechnicalConditionsDialog({ app, onClose, onSaved }: Props) {
       try {
         result = await uploadScan.mutateAsync({ id: result.id, file });
       } catch (error) {
-        // The conditions stand: that is a notification; the scan's failure stays here.
+        // The conditions stand, the scan does not: two notifications.
         notifySuccess(`Технічні умови № ${result.tuNumber} збережено`);
         setSaved(result);
-        setScanError(`Скан не завантажено: ${toApiError(error).message}`);
+        notifyError(`Скан не завантажено: ${toApiError(error).message}`);
         return;
       }
     }
@@ -94,8 +92,6 @@ export function TechnicalConditionsDialog({ app, onClose, onSaved }: Props) {
     >
       <FormProvider {...form}>
         <form id={FORM_ID} onSubmit={onSubmit} noValidate className={styles.formContents}>
-          {errors.root?.message && <Alert variant="error">{errors.root.message}</Alert>}
-          {scanError && <Alert variant="error">{scanError}</Alert>}
           <DocumentFields department={app.department} />
           <CustomerFields />
           <ConnectionFields />

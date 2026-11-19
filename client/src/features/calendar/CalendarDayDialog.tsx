@@ -10,10 +10,11 @@ import type { z } from 'zod';
 import { toApiError } from '@/shared/api/apiError';
 import { formatCalendarDate } from '@/shared/lib/format';
 import { CALENDAR_DAY_KIND_LABELS } from '@/shared/lib/labels';
-import { Alert, Button, ChoiceField, Dialog, TextField } from '@/shared/ui';
+import { Button, ChoiceField, Dialog, TextField } from '@/shared/ui';
 import styles from './calendar.module.scss';
 import { useCreateCalendarDay, useUpdateCalendarDay } from './queries';
 import { weekdayOf } from './weekday';
+import { notifyError } from '@/shared/lib/notify';
 
 type FormInput = z.input<typeof createCalendarDaySchema>;
 type FormOutput = z.output<typeof createCalendarDaySchema>;
@@ -70,7 +71,7 @@ export function CalendarDayDialog({ day, onClose, onSaved }: Props) {
       for (const [field, messages] of fields) {
         if (messages?.[0]) setError(field as FieldPath<FormInput>, { message: messages[0] });
       }
-      if (fields.length === 0) setError('root', { message: apiError.message });
+      if (fields.length === 0) notifyError(apiError.message);
     }
   });
 
@@ -89,7 +90,6 @@ export function CalendarDayDialog({ day, onClose, onSaved }: Props) {
       }
     >
       <form id={FORM_ID} onSubmit={onSubmit} noValidate className={styles.formContents}>
-        {errors.root?.message && <Alert variant="error">{errors.root.message}</Alert>}
         {day ? (
           // The date is the entry's key: to move it, delete it and add another.
           <p>

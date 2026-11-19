@@ -13,8 +13,7 @@ import {
   useUploadScan,
 } from '@/features/applications';
 import { useCurrentUser } from '@/features/auth';
-import { toApiError } from '@/shared/api/apiError';
-import { Alert, LinkButton, Spinner } from '@/shared/ui';
+import { LinkButton, LoadFailed, Spinner } from '@/shared/ui';
 import { notifySuccess } from '@/shared/lib/notify';
 import type { ApplicationPageState } from '../ApplicationPage';
 import pageStyles from '../page.module.scss';
@@ -35,7 +34,7 @@ export function EditApplicationPage() {
 
   if (application.isPending) return <Spinner label="Завантаження заяви…" />;
   if (application.isError) {
-    return <Alert variant="error">{toApiError(application.error).message}</Alert>;
+    return <LoadFailed error={application.error} onRetry={() => application.refetch()} />;
   }
 
   const app = application.data;

@@ -16,3 +16,4 @@ export * from './schemas/response';
 export * from './schemas/technicalConditions';
 export * from './schemas/processing';
 export * from './schemas/tuPayment';
+export * from './schemas/preferences';

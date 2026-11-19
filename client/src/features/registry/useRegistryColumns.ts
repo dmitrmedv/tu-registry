@@ -1,62 +1,108 @@
+import type { TablePreferences } from '@tu-registry/shared';
 import { useCallback, useMemo, useState } from 'react';
+import { useTablePreferences } from '@/features/preferences';
 import type { ColumnWidths } from '@/shared/ui';
 import { REGISTRY_COLUMNS, type RegistryColumn } from './registryColumns';
 
 type ColumnId = RegistryColumn['id'];
 /** Only what the viewer changed: columns added later still follow their default. */
 type Choices = Partial<Record<ColumnId, boolean>>;
+type Layout = { choices: Choices; widths: ColumnWidths; order: ColumnId[] };
 
 const KEY_PREFIX = 'tu-registry:registry-columns:';
 const WIDTHS_KEY_PREFIX = 'tu-registry:registry-widths:';
 const ORDER_KEY_PREFIX = 'tu-registry:registry-order:';
 /** «№» is not a RegistryColumn, but its width is the viewer's choice too. */
 const KNOWN = new Set<string>(['regNumber', ...REGISTRY_COLUMNS.map((column) => column.id)]);
+const EMPTY: Layout = { choices: {}, widths: {}, order: [] };
 
 const isChoice = (value: unknown) => typeof value === 'boolean';
 const isWidth = (value: unknown) =>
   typeof value === 'number' && Number.isFinite(value) && value > 0;
 
-/** A per-viewer convenience: storage may be unavailable (private mode), then defaults apply. */
-function load<V>(key: string, isValid: (value: unknown) => boolean): Partial<Record<string, V>> {
-  try {
-    const stored = JSON.parse(window.localStorage.getItem(key) ?? '{}') as Record<string, unknown>;
-    return Object.fromEntries(
-      Object.entries(stored).filter(([id, value]) => KNOWN.has(id) && isValid(value)),
-    ) as Partial<Record<string, V>>;
-  } catch {
-    return {};
-  }
+/** Keeps what this version knows: the server or the browser may hold columns since removed. */
+function known<V>(stored: unknown, isValid: (value: unknown) => boolean) {
+  if (!stored || typeof stored !== 'object' || Array.isArray(stored)) return {};
+  return Object.fromEntries(
+    Object.entries(stored).filter(([id, value]) => KNOWN.has(id) && isValid(value)),
+  ) as Partial<Record<string, V>>;
 }
 
 /** The viewer's order of the columns after «№»; columns added later go to the end. */
-function loadOrder(key: string): ColumnId[] {
+function knownOrder(stored: unknown): ColumnId[] {
+  if (!Array.isArray(stored)) return [];
+  const ids = stored.filter((id): id is ColumnId => typeof id === 'string' && KNOWN.has(id));
+  return [...new Set(ids)];
+}
+
+const toLayout = ({ visible, widths, order }: TablePreferences): Layout => ({
+  choices: known<boolean>(visible, isChoice) as Choices,
+  widths: known<number>(widths, isWidth) as ColumnWidths,
+  order: knownOrder(order),
+});
+const toPreferences = ({ choices, widths, order }: Layout): TablePreferences => ({
+  visible: choices as Record<string, boolean>,
+  widths,
+  order,
+});
+
+/** This browser's copy: storage may be unavailable (private mode), then defaults apply. */
+function read(key: string, fallback: string): unknown {
   try {
-    const stored = JSON.parse(window.localStorage.getItem(key) ?? '[]') as unknown;
-    if (!Array.isArray(stored)) return [];
-    const ids = stored.filter((id): id is ColumnId => typeof id === 'string' && KNOWN.has(id));
-    return [...new Set(ids)];
+    return JSON.parse(window.localStorage.getItem(key) ?? fallback);
   } catch {
-    return [];
+    return undefined;
   }
 }
 
-function save(key: string, value: object) {
+function write(key: string, value: object) {
   try {
     window.localStorage.setItem(key, JSON.stringify(value));
   } catch {
-    // Not saved: the choice still applies until the page is reloaded.
+    // Not cached: the server still has it.
   }
 }
 
-/** Which registry columns this user shows, and how wide; remembered in this browser, per user. */
+/**
+ * Which registry columns this user shows, in what order and how wide. Kept on the server per
+ * user (`useTablePreferences`), so the layout follows them to another computer; this browser
+ * keeps a copy for the first paint.
+ */
 export function useRegistryColumns(userId: string, isAdmin: boolean) {
-  const key = KEY_PREFIX + userId;
-  const widthsKey = WIDTHS_KEY_PREFIX + userId;
-  const orderKey = ORDER_KEY_PREFIX + userId;
-  const [order, setOrder] = useState<ColumnId[]>(() => loadOrder(orderKey));
-  const [choices, setChoices] = useState<Choices>(() => load<boolean>(key, isChoice) as Choices);
-  const [widths, setWidthsState] = useState<ColumnWidths>(
-    () => load<number>(widthsKey, isWidth) as ColumnWidths,
+  const keys = useMemo(
+    () => ({
+      choices: KEY_PREFIX + userId,
+      widths: WIDTHS_KEY_PREFIX + userId,
+      order: ORDER_KEY_PREFIX + userId,
+    }),
+    [userId],
+  );
+  const [layout, setLayout] = useState<Layout>(() =>
+    toLayout({
+      visible: read(keys.choices, '{}') as Record<string, boolean>,
+      widths: read(keys.widths, '{}') as Record<string, number>,
+      order: read(keys.order, '[]') as string[],
+    }),
+  );
+  const { choices, widths, order } = layout;
+
+  const show = useCallback(
+    (next: Layout) => {
+      setLayout(next);
+      write(keys.choices, next.choices);
+      write(keys.widths, next.widths);
+      write(keys.order, next.order);
+    },
+    [keys],
+  );
+  const apply = useCallback((saved: TablePreferences) => show(toLayout(saved)), [show]);
+  const { persist } = useTablePreferences('registry', { current: toPreferences(layout), apply });
+  const change = useCallback(
+    (next: Layout) => {
+      show(next);
+      persist(toPreferences(next));
+    },
+    [show, persist],
   );
 
   const available = useMemo(() => {
@@ -73,22 +119,14 @@ export function useRegistryColumns(userId: string, isAdmin: boolean) {
     [choices],
   );
   const setVisible = useCallback(
-    (id: ColumnId, visible: boolean) => {
-      setChoices((current) => {
-        const next = { ...current, [id]: visible };
-        save(key, next);
-        return next;
-      });
-    },
-    [key],
+    (id: ColumnId, visible: boolean) =>
+      change({ ...layout, choices: { ...choices, [id]: visible } }),
+    [change, layout, choices],
   );
-  // Saved on every step of a drag: the value is a few dozen bytes.
+  // Every step of a drag: the cache follows at once, the server once the drag settles.
   const setWidths = useCallback(
-    (next: ColumnWidths) => {
-      setWidthsState(next);
-      save(widthsKey, next);
-    },
-    [widthsKey],
+    (next: ColumnWidths) => change({ ...layout, widths: next }),
+    [change, layout],
   );
   /** Puts the column where the target is: after it when moving down/right, before it otherwise. */
   const moveColumn = useCallback(
@@ -98,18 +136,11 @@ export function useRegistryColumns(userId: string, isAdmin: boolean) {
       if (!ids.includes(id) || to === -1 || id === targetId) return;
       const next = ids.filter((other) => other !== id);
       next.splice(to, 0, id);
-      setOrder(next);
-      save(orderKey, next);
+      change({ ...layout, order: next });
     },
-    [available, orderKey],
+    [available, change, layout],
   );
-  const resetColumns = useCallback(() => {
-    setChoices({});
-    save(key, {});
-    setWidths({});
-    setOrder([]);
-    save(orderKey, []);
-  }, [key, orderKey, setWidths]);
+  const resetColumns = useCallback(() => change(EMPTY), [change]);
 
   return {
     available,

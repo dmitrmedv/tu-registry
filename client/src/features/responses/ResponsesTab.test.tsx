@@ -233,11 +233,9 @@ describe('responses in the application card', () => {
     await user.upload(within(dialog).getByLabelText('PDF-файл скану'), makePdf());
     await user.click(within(dialog).getByRole('button', { name: 'Додати' }));
 
-    // The response stands — a notification; the scan's failure stays in the dialog.
+    // The response stands, the scan does not: two notifications; the dialog stays for the file.
     expect(await screen.findByText('Відповідь № 125/01-15 збережено')).toBeVisible();
-    expect(
-      await within(dialog).findByText('Скан не завантажено: Файл не є PDF-документом'),
-    ).toBeVisible();
+    expect(await screen.findByText('Скан не завантажено: Файл не є PDF-документом')).toBeVisible();
     await user.click(within(dialog).getByRole('button', { name: 'Зберегти' }));
     expect(await screen.findByText('Відповідь № 125/01-15 додано')).toBeVisible();
     expect([posts, uploads]).toEqual([1, 2]);

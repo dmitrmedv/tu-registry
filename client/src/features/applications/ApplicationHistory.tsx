@@ -1,6 +1,5 @@
 import type { ApplicationChangeDto } from '@tu-registry/shared';
 import { useDepartments } from '@/features/departments';
-import { toApiError } from '@/shared/api/apiError';
 import { formatDateTime } from '@/shared/lib/format';
 import {
   APPLICATION_FIELD_LABELS,
@@ -10,7 +9,7 @@ import {
   formatFieldValue,
   HISTORY_DOCUMENT_LABELS,
 } from '@/shared/lib/labels';
-import { Alert, Spinner } from '@/shared/ui';
+import { LoadFailed, Spinner } from '@/shared/ui';
 import styles from './ApplicationDetails.module.scss';
 import { useApplicationHistory } from './queries';
 
@@ -90,7 +89,9 @@ function Entry({ entry }: { entry: ApplicationChangeDto }) {
 export function ApplicationHistory({ applicationId }: { applicationId: string }) {
   const history = useApplicationHistory(applicationId);
   if (history.isPending) return <Spinner label="Завантаження історії…" />;
-  if (history.isError) return <Alert variant="error">{toApiError(history.error).message}</Alert>;
+  if (history.isError) {
+    return <LoadFailed error={history.error} onRetry={() => history.refetch()} />;
+  }
   return (
     <ol className={styles.history} aria-label="Історія змін">
       {history.data.map((entry) => (

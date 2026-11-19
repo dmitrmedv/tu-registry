@@ -1,6 +1,6 @@
 import { Navigate, useLocation } from 'react-router';
 import { LoginForm, useAuth } from '@/features/auth';
-import { Alert, FullPageSpinner } from '@/shared/ui';
+import { FullPageSpinner } from '@/shared/ui';
 import styles from './LoginPage.module.scss';
 
 type ReturnState = { from?: unknown; forUser?: unknown } | null;
@@ -16,7 +16,7 @@ function returnPath(state: unknown, userId: string) {
 }
 
 export function LoginPage() {
-  const { status, sessionEnded, user } = useAuth();
+  const { status, user } = useAuth();
   const location = useLocation();
 
   if (status === 'loading') return <FullPageSpinner />;
@@ -29,7 +29,6 @@ export function LoginPage() {
       <div className={styles.card}>
         <h1 className={styles.title}>Вхід до системи</h1>
         <p className={styles.subtitle}>Реєстр заяв на технічні умови</p>
-        {sessionEnded && <Alert variant="info">Сесія завершилась. Увійдіть знову.</Alert>}
         <LoginForm />
       </div>
     </main>

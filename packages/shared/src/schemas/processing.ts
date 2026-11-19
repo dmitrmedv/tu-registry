@@ -34,6 +34,8 @@ export type TimelineEventDto = {
   sinceDocumentsReceived: number | null;
   /** A cancelled document stays where it was, struck through. */
   cancelled: boolean;
+  /** An event known by its month only ("YYYY-MM"): the act handed to accounting. */
+  month: string | null;
 };
 
 export type ProcessingDto = {

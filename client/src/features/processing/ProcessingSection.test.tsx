@@ -12,6 +12,7 @@ const APP = makeApplication();
 const event = (overrides: Partial<TimelineEventDto>): TimelineEventDto => ({
   type: 'RESPONSE',
   date: '2026-03-16',
+  month: null,
   number: null,
   person: null,
   documentId: null,

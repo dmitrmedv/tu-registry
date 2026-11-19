@@ -1,6 +1,7 @@
 import {
   type AuditAction,
   formatHryvnias,
+  formatMonth,
   fromKopecks,
   type SaveTuPaymentData,
   toKopecks,
@@ -13,7 +14,7 @@ import type { Actor } from '../applications/application.access';
 import type { ApplicationDocument } from '../applications/application.dto';
 import { loadEditableApplication } from '../applications/application.edit.service';
 import { type RequestContext, recordAudit } from '../audit/audit.service';
-import { assertDocumentDate, regNumberOf } from '../documents/document.rules';
+import { assertDocumentDate, fieldError, regNumberOf } from '../documents/document.rules';
 import { loadChangeable, loadDocument } from '../documents/document.service';
 import { deleteScanFile } from '../scans/scan.storage';
 import {
@@ -76,8 +77,21 @@ export async function auditPayment(
 const DATE_FIELDS = [
   ['invoiceDate', 'Дата рахунку'],
   ['paidDate', 'Дата оплати'],
-  ['actTransferredDate', 'Дата передачі в бухгалтерію'],
 ] as const;
+
+/**
+ * Not before the month of the registration. A coming month is allowed: the act may be planned
+ * for accounting ahead (agreed 2026-11-19).
+ */
+function assertTransferMonth(app: ApplicationDocument, month: string) {
+  const regMonth = toIsoDate(app.regDate).slice(0, 7);
+  if (month < regMonth) {
+    throw fieldError(
+      'actTransferMonth',
+      `Місяць передачі не може бути раніше місяця реєстрації заяви (${formatMonth(regMonth)})`,
+    );
+  }
+}
 
 /**
  * Adds the payment (no `version`) or changes the one the user saw. Every date lies between
@@ -95,12 +109,13 @@ export async function saveTuPayment(
     const value = input[field];
     if (value) assertDocumentDate(app, field, value, label);
   }
+  if (input.actTransferMonth) assertTransferMonth(app, input.actTransferMonth);
   const values = {
     invoiceNumber: input.invoiceNumber,
     invoiceDate: fromIsoDate(input.invoiceDate),
     amountKopecks: toKopecks(input.amount),
     paidDate: input.paidDate ? fromIsoDate(input.paidDate) : null,
-    actTransferredDate: input.actTransferredDate ? fromIsoDate(input.actTransferredDate) : null,
+    actTransferMonth: input.actTransferMonth,
   };
   const current = await findPayment(tu);
 
@@ -134,7 +149,7 @@ export async function saveTuPayment(
     invoiceDate: toIsoDate(current.invoiceDate),
     amount: formatHryvnias(fromKopecks(current.amountKopecks)),
     paidDate: current.paidDate ? toIsoDate(current.paidDate) : null,
-    actTransferredDate: current.actTransferredDate ? toIsoDate(current.actTransferredDate) : null,
+    actTransferMonth: current.actTransferMonth,
   };
   const wanted = { ...input, amount: formatHryvnias(input.amount) };
   const changes = (Object.keys(shown) as (keyof typeof shown)[])

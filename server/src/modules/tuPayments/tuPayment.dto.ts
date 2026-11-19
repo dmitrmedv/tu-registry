@@ -16,7 +16,7 @@ export type TuPaymentRecord = {
   paidDate: Date | null;
   receiptScan?: ScanRecord | null;
   actScan?: ScanRecord | null;
-  actTransferredDate: Date | null;
+  actTransferMonth: string | null;
   createdBy: Types.ObjectId;
   createdAt: Date;
   version: number;
@@ -61,7 +61,7 @@ export async function paymentDtos(tuIds: Types.ObjectId[]) {
         invoiceDate: toIsoDate(row.invoiceDate),
         amount: fromKopecks(row.amountKopecks),
         paidDate: row.paidDate ? toIsoDate(row.paidDate) : null,
-        actTransferredDate: row.actTransferredDate ? toIsoDate(row.actTransferredDate) : null,
+        actTransferMonth: row.actTransferMonth,
         receiptScan: scanDto(row.receiptScan),
         actScan: scanDto(row.actScan),
         createdBy: person(row.createdBy),

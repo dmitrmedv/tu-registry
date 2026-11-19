@@ -127,6 +127,7 @@ export function makeProcessing(overrides: Partial<ProcessingDto> = {}): Processi
       {
         type: 'REGISTERED',
         date: '2026-03-12',
+        month: null,
         number: '14т/26-8',
         person: 'Олена Коваль',
         documentId: null,

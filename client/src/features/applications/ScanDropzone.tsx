@@ -5,7 +5,7 @@ import {
   SCAN_MIME_TYPE,
 } from '@tu-registry/shared';
 import clsx from 'clsx';
-import { type DragEvent, useId, useRef, useState } from 'react';
+import { type DragEvent, type ReactNode, useId, useRef, useState } from 'react';
 import { Button } from '@/shared/ui';
 import styles from './ScanDropzone.module.scss';
 
@@ -24,6 +24,13 @@ type Props = {
   onChange: (file: File | null) => void;
   /** Label of the choose button: "Обрати файл", "Замінити". */
   chooseLabel?: string;
+  /** A line on top, inside the zone (e.g. «Скан не додано.»). */
+  note?: string;
+  /**
+   * What is already there, shown in the zone instead of the choose button (the TU payment
+   * dialog, 2026-11-19): nothing more can be dropped until it is taken away.
+   */
+  added?: ReactNode;
   disabled?: boolean;
 };
 
@@ -31,7 +38,15 @@ type Props = {
  * Choosing one PDF: drag it onto the area or press the button (keyboard and screen readers
  * use the button). Files that are not PDFs or are too large are refused with a reason.
  */
-export function ScanDropzone({ file, onChange, chooseLabel = 'Обрати файл', disabled }: Props) {
+export function ScanDropzone({
+  file,
+  onChange,
+  chooseLabel = 'Обрати файл',
+  note,
+  added,
+  disabled,
+}: Props) {
+  const accepts = !disabled && !added;
   const inputRef = useRef<HTMLInputElement>(null);
   const [dragging, setDragging] = useState(false);
   const [problem, setProblem] = useState<string | null>(null);
@@ -47,7 +62,7 @@ export function ScanDropzone({ file, onChange, chooseLabel = 'Обрати фа�
   const onDrop = (event: DragEvent<HTMLDivElement>) => {
     event.preventDefault();
     setDragging(false);
-    if (!disabled) take(event.dataTransfer.files[0]);
+    if (accepts) take(event.dataTransfer.files[0]);
   };
 
   return (
@@ -56,7 +71,7 @@ export function ScanDropzone({ file, onChange, chooseLabel = 'Обрати фа�
         className={clsx(styles.zone, dragging && styles.dragging, disabled && styles.disabled)}
         onDragEnter={(event) => {
           event.preventDefault();
-          if (!disabled) setDragging(true);
+          if (accepts) setDragging(true);
         }}
         onDragOver={(event) => event.preventDefault()}
         onDragLeave={(event) => {
@@ -65,11 +80,16 @@ export function ScanDropzone({ file, onChange, chooseLabel = 'Обрати фа�
         }}
         onDrop={onDrop}
       >
-        <p className={styles.prompt}>Перетягніть PDF сюди або</p>
-        <Button size="sm" disabled={disabled} onClick={() => inputRef.current?.click()}>
-          {chooseLabel}
-        </Button>
-        <p className={styles.limits}>Лише PDF, до {SCAN_MAX_LABEL}</p>
+        {added ?? (
+          <>
+            {note && <p className={styles.limits}>{note}</p>}
+            <p className={styles.prompt}>Перетягніть PDF сюди або</p>
+            <Button size="sm" disabled={disabled} onClick={() => inputRef.current?.click()}>
+              {chooseLabel}
+            </Button>
+            <p className={styles.limits}>Лише PDF, до {SCAN_MAX_LABEL}</p>
+          </>
+        )}
         <input
           ref={inputRef}
           type="file"
@@ -78,7 +98,7 @@ export function ScanDropzone({ file, onChange, chooseLabel = 'Обрати фа�
           tabIndex={-1}
           aria-label="PDF-файл скану"
           aria-describedby={problem ? problemId : undefined}
-          disabled={disabled}
+          disabled={!accepts}
           onChange={(event) => {
             take(event.target.files?.[0]);
             // The same file can be chosen again after being removed.
@@ -91,7 +111,7 @@ export function ScanDropzone({ file, onChange, chooseLabel = 'Обрати фа�
           {problem}
         </p>
       )}
-      {file && (
+      {file && !added && (
         <div className={styles.file}>
           <span className={styles.fileName}>{file.name}</span>
           <span className={styles.fileSize}>{formatFileSize(file.size)}</span>

@@ -5,7 +5,7 @@ import {
   type TimelineEventType,
   TU_DEADLINE_DAYS,
 } from '@tu-registry/shared';
-import { kyivToday, toIsoDate } from '../../utils/kyivDate';
+import { fromIsoDate, kyivToday, toIsoDate } from '../../utils/kyivDate';
 import type { Actor } from '../applications/application.access';
 import { loadApplication } from '../applications/application.edit.service';
 import { loadExceptions } from '../calendar/calendar.service';
@@ -20,6 +20,11 @@ import { TuPayment } from '../tuPayments/tuPayment.model';
 import { findUserSummaries } from '../users/user.service';
 import { deadlinesTracked } from './deadlinesTracked';
 import { byResponseOrder, stageOf } from './processing.summary';
+
+function actTransferPlace(payment: TuPaymentRecord) {
+  const monthStart = fromIsoDate(`${payment.actTransferMonth}-01`);
+  return payment.paidDate && payment.paidDate > monthStart ? payment.paidDate : monthStart;
+}
 
 /** Events of one day: registration, then responses, the documents they asked for, then TU. */
 const TYPE_ORDER: Record<TimelineEventType, number> = {
@@ -72,6 +77,7 @@ export async function getProcessing(applicationId: string, actor: Actor): Promis
         overdueBy: 0,
         sinceDocumentsReceived: null,
         cancelled: false,
+        month: null,
         ...rest,
       } satisfies TimelineEventDto,
     };
@@ -147,9 +153,11 @@ export async function getProcessing(applicationId: string, actor: Actor): Promis
               }),
             ]
           : []),
-        ...(payment.actTransferredDate
+        ...(payment.actTransferMonth
           ? [
-              event('TU_ACT_TRANSFERRED', payment.actTransferredDate, {
+              // A month, shown as such; placed at its start, or after the payment that month.
+              event('TU_ACT_TRANSFERRED', actTransferPlace(payment), {
+                month: payment.actTransferMonth,
                 ...common,
                 scanName: payment.actScan?.name ?? null,
               }),

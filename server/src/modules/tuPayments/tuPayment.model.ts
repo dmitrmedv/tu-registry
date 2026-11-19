@@ -1,4 +1,4 @@
-import { TU_INVOICE_NUMBER_MAX, TU_PAYMENT_AMOUNT_MAX } from '@tu-registry/shared';
+import { MONTH_PATTERN, TU_INVOICE_NUMBER_MAX, TU_PAYMENT_AMOUNT_MAX } from '@tu-registry/shared';
 import { type InferSchemaType, Schema, model } from 'mongoose';
 import { scanRecordSchema } from '../scans/scanRecord.schema';
 
@@ -28,7 +28,8 @@ const tuPaymentSchema = new Schema(
     paidDate: { type: Date, default: null },
     receiptScan: { type: scanRecordSchema, default: undefined },
     actScan: { type: scanRecordSchema, default: undefined },
-    actTransferredDate: { type: Date, default: null },
+    // The month the act went to accounting, "YYYY-MM" (agreed 2026-11-19: a month, not a day).
+    actTransferMonth: { type: String, match: MONTH_PATTERN, default: null },
     createdBy: { type: Schema.Types.ObjectId, ref: 'User', required: true },
     updatedBy: { type: Schema.Types.ObjectId, ref: 'User' },
     version: { type: Number, default: 1, min: 1 },
@@ -39,7 +40,7 @@ const tuPaymentSchema = new Schema(
 tuPaymentSchema.index({ technicalConditionsId: 1 }, { unique: true });
 tuPaymentSchema.index({ applicationId: 1 });
 // For the report on acts handed to accounting (a later task).
-tuPaymentSchema.index({ department: 1, actTransferredDate: 1 });
+tuPaymentSchema.index({ department: 1, actTransferMonth: 1 });
 
 export type TuPaymentData = InferSchemaType<typeof tuPaymentSchema>;
 export const TuPayment = model('TuPayment', tuPaymentSchema);

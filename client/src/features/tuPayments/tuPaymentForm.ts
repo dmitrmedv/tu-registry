@@ -18,11 +18,26 @@ export function formDefaults(payment: TuPaymentDto | null): FormInput {
   return {
     invoiceNumber: payment?.invoiceNumber ?? '',
     invoiceDate: payment?.invoiceDate ?? kyivCalendarDate(),
-    // As people write it: "1234,56".
-    amount: payment ? payment.amount.toFixed(2).replace('.', ',') : '',
+    amount: payment ? formatAmountInput(payment.amount) : '',
     paidDate: payment?.paidDate ?? '',
-    actTransferredDate: payment?.actTransferredDate ?? '',
+    actTransferMonth: payment?.actTransferMonth ?? '',
   };
+}
+
+/** 2750 → «2 750,00»: thousands apart, as sums are shown everywhere (2026-11-19). */
+export const formatAmountInput = (amount: number) =>
+  amount.toLocaleString('uk-UA', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+/**
+ * What was typed, tidied up the same way once the field is left: «2750» → «2 750,00». Left
+ * as typed when it is not a sum in kopecks, so the error names the problem.
+ */
+export function tidyAmount(typed: string) {
+  const value = Number(typed.replace(/\s/g, '').replace(',', '.'));
+  const inKopecks = Math.abs(value * 100 - Math.round(value * 100)) < 1e-6;
+  return typed.trim() !== '' && Number.isFinite(value) && value > 0 && inKopecks
+    ? formatAmountInput(value)
+    : typed;
 }
 
 export const toInput = (values: FormData, payment: TuPaymentDto | null): SaveTuPaymentInput => ({

@@ -13,6 +13,7 @@ import { clock } from '../../utils/clock';
 import { AuditLog } from '../audit/auditLog.model';
 import { Engineer } from '../engineers/engineer.model';
 import { scanPath } from '../scans/scan.storage';
+import { moveActTransferDateToMonth } from './tuPayment.migration';
 import { TuPayment } from './tuPayment.model';
 
 const app = createApp();
@@ -84,7 +85,7 @@ describe('payment for technical conditions', () => {
       invoiceDate: '2026-11-17',
       amount: 1234.56,
       paidDate: null,
-      actTransferredDate: null,
+      actTransferMonth: null,
       receiptScan: null,
       actScan: null,
       createdBy: { fullName: owner.user.fullName },
@@ -111,15 +112,21 @@ describe('payment for technical conditions', () => {
     expect(journal.body.data[0].entityLabel).toBe('125/Б до ТУ 0032/ТУ, заява 1т/26-8');
   });
 
-  it('checks the dates against the registration, today and each other', async () => {
+  it('checks the dates against the registration, today and each other; the month too', async () => {
     expect((await save({ invoiceDate: '2026-11-01' })).body.error.details.fieldErrors).toEqual({
       invoiceDate: ['Дата рахунку не може бути раніше дати реєстрації заяви (02.11.2026)'],
     });
     expect((await save({ paidDate: '2026-11-21' })).body.error.details.fieldErrors).toEqual({
       paidDate: ['Дата оплати не може бути в майбутньому'],
     });
-    expect((await save({ actTransferredDate: '2026-11-19' })).status).toBe(400);
+    expect((await save({ actTransferMonth: '2026-11' })).status).toBe(400);
     expect(await TuPayment.countDocuments()).toBe(0);
+  });
+
+  it('takes a coming month for handing the act to accounting', async () => {
+    const saved = await save({ paidDate: '2026-11-18', actTransferMonth: '2027-01' });
+    expect(saved.status).toBe(200);
+    expect(saved.body.payment.actTransferMonth).toBe('2027-01');
   });
 
   it('is filled over time with the version seen; a second invoice is refused', async () => {
@@ -135,11 +142,11 @@ describe('payment for technical conditions', () => {
       version: 2,
       amount: 1500,
       paidDate: '2026-11-18',
-      actTransferredDate: '2026-11-20',
+      actTransferMonth: '2026-11',
     });
     expect(done.body.payment).toMatchObject({
       amount: 1500,
-      actTransferredDate: '2026-11-20',
+      actTransferMonth: '2026-11',
       version: 3,
     });
     // Nothing new: no new version, no entry.
@@ -149,7 +156,7 @@ describe('payment for technical conditions', () => {
           version: 3,
           amount: '1500,00',
           paidDate: '2026-11-18',
-          actTransferredDate: '2026-11-20',
+          actTransferMonth: '2026-11',
         })
       ).body.payment.version,
     ).toBe(3);
@@ -163,7 +170,7 @@ describe('payment for technical conditions', () => {
       [{ field: 'paidDate', from: null, to: '2026-11-18' }],
       [
         { field: 'amount', from: '1 234,56 грн', to: '1 500,00 грн' },
-        { field: 'actTransferredDate', from: null, to: '2026-11-20' },
+        { field: 'actTransferMonth', from: null, to: '2026-11' },
       ],
     ]);
   });
@@ -233,7 +240,7 @@ describe('payment for technical conditions', () => {
   });
 
   it('shows in the timeline after its technical conditions', async () => {
-    await save({ paidDate: '2026-11-18', actTransferredDate: '2026-11-20' });
+    await save({ paidDate: '2026-11-18', actTransferMonth: '2026-11' });
     await upload('receipt', 'квитанція');
 
     const { body } = await request(app)
@@ -245,8 +252,10 @@ describe('payment for technical conditions', () => {
       'TECHNICAL_CONDITIONS 2026-11-16',
       'TU_INVOICE 2026-11-17',
       'TU_PAID 2026-11-18',
-      'TU_ACT_TRANSFERRED 2026-11-20',
+      // A month: placed after the payment made that month.
+      'TU_ACT_TRANSFERRED 2026-11-18',
     ]);
+    expect(body.events[4].month).toBe('2026-11');
     expect(body.events[2]).toMatchObject({ number: '125/Б', documentId: tuId });
     expect(body.events[3].scanName).toBe('квитанція.pdf');
   });
@@ -265,5 +274,22 @@ describe('payment for technical conditions', () => {
 
     expect(await TuPayment.countDocuments()).toBe(0);
     expect(existsSync(scanPath(file))).toBe(false);
+  });
+
+  it('turns an act transfer date entered before into its month, once', async () => {
+    await save({ paidDate: '2026-11-18' });
+    await TuPayment.collection.updateOne(
+      {},
+      {
+        $set: { actTransferredDate: new Date('2026-11-19T00:00:00Z') },
+        $unset: { actTransferMonth: '' },
+      },
+    );
+
+    expect(await moveActTransferDateToMonth()).toBe(1);
+    expect(await moveActTransferDateToMonth()).toBe(0);
+    const stored = await TuPayment.collection.findOne({});
+    expect(stored).toMatchObject({ actTransferMonth: '2026-11' });
+    expect(stored).not.toHaveProperty('actTransferredDate');
   });
 });

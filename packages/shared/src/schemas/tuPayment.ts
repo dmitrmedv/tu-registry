@@ -1,10 +1,12 @@
 import { z } from 'zod';
+import { MONTH_PATTERN } from '../dates';
 import type { ScanDto } from '../scan';
 
 /**
  * Payment for technical conditions (agreed 2026-11-19): one per set of TU. Accounting issues
  * the invoice; the user enters it, then the payment date with the receipt, then the act of
- * work done and the day it went to accounting. Filled over time in one form.
+ * work done and the month it went to accounting (a month, not a day: agreed 2026-11-19).
+ * Filled over time in one form.
  */
 export const TU_INVOICE_NUMBER_MAX = 50;
 /** Hryvnias; far above any real invoice, a guard against typos. */
@@ -17,6 +19,10 @@ export type TuPaymentScanKind = (typeof TU_PAYMENT_SCAN_KINDS)[number];
 const versionField = z.number('Відсутня версія документа').int().min(1);
 const emptyToNull = (value: unknown) => (value === '' || value === undefined ? null : value);
 const optionalDate = z.preprocess(emptyToNull, z.iso.date('Вкажіть коректну дату').nullable());
+const optionalMonth = z.preprocess(
+  emptyToNull,
+  z.string().regex(MONTH_PATTERN, 'Вкажіть місяць і рік').nullable(),
+);
 
 /** Hryvnias with up to two decimals; the form sends "1 234,56", an API client 1234.56. */
 const amountField = z.preprocess(
@@ -49,7 +55,7 @@ export const saveTuPaymentSchema = z
     invoiceDate: z.iso.date('Вкажіть дату рахунку'),
     amount: amountField,
     paidDate: optionalDate.default(null),
-    actTransferredDate: optionalDate.default(null),
+    actTransferMonth: optionalMonth.default(null),
   })
   .strict()
   .superRefine((data, ctx) => {
@@ -60,18 +66,22 @@ export const saveTuPaymentSchema = z
         message: 'Дата оплати не може бути раніше дати рахунку',
       });
     }
-    if (data.actTransferredDate && !data.paidDate) {
+    if (data.actTransferMonth && !data.paidDate) {
       ctx.addIssue({
         code: 'custom',
-        path: ['actTransferredDate'],
+        path: ['actTransferMonth'],
         message: 'Спершу вкажіть дату оплати',
       });
     }
-    if (data.actTransferredDate && data.paidDate && data.actTransferredDate < data.paidDate) {
+    if (
+      data.actTransferMonth &&
+      data.paidDate &&
+      data.actTransferMonth < data.paidDate.slice(0, 7)
+    ) {
       ctx.addIssue({
         code: 'custom',
-        path: ['actTransferredDate'],
-        message: 'Дата передачі не може бути раніше дати оплати',
+        path: ['actTransferMonth'],
+        message: 'Місяць передачі не може бути раніше місяця оплати',
       });
     }
   });
@@ -96,7 +106,8 @@ export type TuPaymentDto = {
   /** Hryvnias. */
   amount: number;
   paidDate: string | null;
-  actTransferredDate: string | null;
+  /** "YYYY-MM". */
+  actTransferMonth: string | null;
   receiptScan: ScanDto | null;
   actScan: ScanDto | null;
   createdBy: Person;

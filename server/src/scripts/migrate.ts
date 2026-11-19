@@ -13,6 +13,7 @@ import {
   moveCadastralNumberIntoAddress,
   moveCountersToDefaultDepartment,
 } from '../modules/applications/application.migration';
+import { moveActTransferDateToMonth } from '../modules/tuPayments/tuPayment.migration';
 
 /** Data changes required by new schema rules. Safe to run repeatedly (and on every deploy). */
 async function main() {
@@ -41,6 +42,8 @@ async function main() {
     // After the settlements: the address of the conditions includes it.
     const tuCustomers = await backfillTechnicalConditionsCustomer();
     logger.info({ tuCustomers }, 'Technical conditions given the application customer and address');
+    const actMonths = await moveActTransferDateToMonth();
+    logger.info({ actMonths }, 'Act transfer dates of TU payments turned into months');
   } finally {
     await disconnectDb();
   }

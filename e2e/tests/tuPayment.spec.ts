@@ -44,18 +44,19 @@ test('enters the payment for technical conditions over time; an admin deletes it
   // Then the payment with its receipt, and the act handed to accounting.
   await payment.getByRole('button', { name: 'Редагувати оплату' }).click();
   dialog = page.getByRole('dialog', { name: 'Рахунок № 125/Б' });
-  await dialog.getByLabel('Дата оплати (необовʼязково)').fill(today);
+  await dialog.getByLabel('Дата оплати').fill(today);
   await dialog
     .getByRole('region', { name: 'Скан квитанції' })
     .getByLabel('PDF-файл скану')
     .setInputFiles({ name: 'квитанція.pdf', mimeType: 'application/pdf', buffer: pdf('к') });
-  await dialog.getByLabel('Дата передачі в бухгалтерію (необовʼязково)').fill(today);
+  await dialog.getByLabel('Місяць передачі акта виконаних робіт').fill(today.slice(0, 7));
   await dialog
     .getByRole('region', { name: 'Скан акта виконаних робіт' })
     .getByLabel('PDF-файл скану')
     .setInputFiles({ name: 'акт.pdf', mimeType: 'application/pdf', buffer: pdf('а') });
   await dialog.getByRole('button', { name: 'Зберегти' }).click();
   await expect(dialog).toBeHidden();
+  await expect(payment.getByText(new RegExp(`^[а-яіїєґ]+ ${today.slice(0, 4)}$`))).toBeVisible();
   await expect(payment.getByRole('button', { name: /^Квитанція/ })).toBeVisible();
   await expect(payment.getByRole('button', { name: /^Акт/ })).toBeVisible();
   await expect(page.getByRole('button', { name: /^Акт передано в бухгалтерію/ })).toBeVisible();

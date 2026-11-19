@@ -1,4 +1,4 @@
-import type { AuditLogDto, CalendarDayKind } from '@tu-registry/shared';
+import { type AuditLogDto, type CalendarDayKind, formatMonth } from '@tu-registry/shared';
 import { formatCalendarDate } from '@/shared/lib/format';
 import {
   CALENDAR_DAY_KIND_LABELS,
@@ -26,7 +26,7 @@ const PAYMENT_FIELD_LABELS: Record<string, string> = {
   invoiceDate: 'дата рахунку',
   amount: 'сума',
   paidDate: 'дата оплати',
-  actTransferredDate: 'передано в бухгалтерію',
+  actTransferMonth: 'місяць передачі акта',
   receiptScan: 'скан квитанції',
   actScan: 'скан акта',
 };
@@ -161,7 +161,7 @@ export function describeDetails(entry: AuditLogDto): string {
           ? '—'
           : /^\d{4}-\d{2}-\d{2}$/.test(text(value))
             ? formatCalendarDate(text(value))
-            : text(value);
+            : formatMonth(text(value));
       return changes
         .map((c) => {
           const label = PAYMENT_FIELD_LABELS[c.field] ?? c.field;

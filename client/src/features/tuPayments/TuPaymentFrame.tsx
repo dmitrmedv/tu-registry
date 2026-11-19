@@ -1,6 +1,7 @@
 import {
   type ApplicationDto,
   formatHryvnias,
+  formatMonth,
   type TechnicalConditionsDto,
   type TuPaymentScanKind,
 } from '@tu-registry/shared';
@@ -106,7 +107,9 @@ export function TuPaymentFrame({ app, tu, onError }: Props) {
           </DataRow>
           <DataRow label="Сума">{formatHryvnias(payment.amount)}</DataRow>
           <DataRow label="Дата оплати">{date(payment.paidDate)}</DataRow>
-          <DataRow label="Передано в бухгалтерію">{date(payment.actTransferredDate)}</DataRow>
+          <DataRow label="Місяць передачі акта">
+            {payment.actTransferMonth && formatMonth(payment.actTransferMonth)}
+          </DataRow>
         </DataList>
       ) : (
         <div className={styles.frameEmpty}>
@@ -141,8 +144,8 @@ export function TuPaymentFrame({ app, tu, onError }: Props) {
           onConfirm={confirmDelete}
         >
           <p>
-            Рахунок № {payment.invoiceNumber}, дати оплати й передачі та скани квитанції й акта буде
-            видалено назавжди. Запис про видалення лишиться в журналі аудиту.
+            Рахунок № {payment.invoiceNumber}, дату оплати, місяць передачі акта та скани квитанції
+            й акта буде видалено назавжди. Запис про видалення лишиться в журналі аудиту.
           </p>
         </ConfirmDialog>
       )}

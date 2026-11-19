@@ -1,5 +1,5 @@
 import type { TechnicalConditionsDto, TuPaymentDto, UserDto } from '@tu-registry/shared';
-import { screen, within } from '@testing-library/react';
+import { fireEvent, screen, within } from '@testing-library/react';
 import { http as mock, HttpResponse } from 'msw';
 import { describe, expect, it } from 'vitest';
 import { makeApplication, makePdf, makeProcessing, makeTechnicalConditions } from '@/test/fixtures';
@@ -19,7 +19,7 @@ const makePayment = (overrides: Partial<TuPaymentDto> = {}): TuPaymentDto => ({
   invoiceDate: '2026-03-23',
   amount: 1234.5,
   paidDate: null,
-  actTransferredDate: null,
+  actTransferMonth: null,
   receiptScan: null,
   actScan: null,
   createdBy: { id: owner.id, fullName: 'Олена Коваль' },
@@ -50,6 +50,10 @@ function openCard(payment: TuPaymentDto | null, user: UserDto = owner) {
 }
 
 const frame = () => screen.findByRole('region', { name: 'Оплата за технічні умови' });
+const MONTH = 'Місяць передачі акта виконаних робіт';
+// user-event types into date fields only; a month field takes its value whole.
+const setMonth = (dialog: HTMLElement, value: string) =>
+  fireEvent.change(within(dialog).getByLabelText(MONTH), { target: { value } });
 const withPayment = (current: { tu: TechnicalConditionsDto }, payment: TuPaymentDto) => {
   current.tu = makeTechnicalConditions({ payment });
   return HttpResponse.json(current.tu);
@@ -77,7 +81,7 @@ describe('payment for technical conditions', () => {
     await user.clear(within(dialog).getByLabelText('Дата рахунку'));
     await user.type(within(dialog).getByLabelText('Дата рахунку'), '2026-03-23');
     await user.type(within(dialog).getByLabelText('Сума, грн'), '1 234,5');
-    await user.type(within(dialog).getByLabelText('Дата оплати (необовʼязково)'), '2026-03-24');
+    await user.type(within(dialog).getByLabelText('Дата оплати'), '2026-03-24');
     const receiptPanel = within(dialog).getByRole('region', { name: 'Скан квитанції' });
     await user.upload(
       within(receiptPanel).getByLabelText('PDF-файл скану'),
@@ -92,7 +96,7 @@ describe('payment for technical conditions', () => {
         invoiceDate: '2026-03-23',
         amount: 1234.5,
         paidDate: '2026-03-24',
-        actTransferredDate: null,
+        actTransferMonth: null,
       },
     ]);
     expect(receipt!.name).toBe('квитанція.pdf');
@@ -100,6 +104,22 @@ describe('payment for technical conditions', () => {
     expect(await within(shown).findByText('№ 125/Б від 23.03.2026')).toBeVisible();
     expect(within(shown).getByText(/^1\s234,50 грн$/)).toBeVisible();
     expect(await within(shown).findByRole('button', { name: /^Квитанція/ })).toBeVisible();
+  });
+
+  it('groups the sum once it is typed and shows the act’s month', async () => {
+    const { user } = openCard(makePayment({ amount: 2750, actTransferMonth: '2026-11' }));
+    const shown = await frame();
+    expect(within(shown).getByText(/^2\s750,00 грн$/)).toBeVisible();
+    expect(within(shown).getByText('листопад 2026')).toBeVisible();
+
+    await user.click(within(shown).getByRole('button', { name: 'Редагувати оплату' }));
+    const dialog = screen.getByRole('dialog', { name: 'Рахунок № 125/Б' });
+    const amount = within(dialog).getByLabelText<HTMLInputElement>('Сума, грн');
+    await user.clear(amount);
+    await user.type(amount, '12500');
+    await user.tab();
+    expect(amount.value).toMatch(/^12\s500,00$/);
+    expect(within(dialog).getByLabelText(MONTH)).toHaveValue('2026-11');
   });
 
   it('checks the form and shows the server’s refusal next to its field', async () => {
@@ -123,10 +143,7 @@ describe('payment for technical conditions', () => {
     await user.click(within(await frame()).getByRole('button', { name: 'Додати рахунок' }));
     const dialog = screen.getByRole('dialog', { name: 'Новий рахунок' });
     await user.type(within(dialog).getByLabelText('Сума, грн'), '10,555');
-    await user.type(
-      within(dialog).getByLabelText('Дата передачі в бухгалтерію (необовʼязково)'),
-      '2026-03-24',
-    );
+    setMonth(dialog, '2026-03');
     await user.click(within(dialog).getByRole('button', { name: 'Зберегти' }));
 
     for (const message of [
@@ -140,7 +157,7 @@ describe('payment for technical conditions', () => {
     await user.type(within(dialog).getByLabelText('№ рахунку'), '125/Б');
     await user.clear(within(dialog).getByLabelText('Сума, грн'));
     await user.type(within(dialog).getByLabelText('Сума, грн'), '100');
-    await user.clear(within(dialog).getByLabelText('Дата передачі в бухгалтерію (необовʼязково)'));
+    setMonth(dialog, '');
     await user.click(within(dialog).getByRole('button', { name: 'Зберегти' }));
     expect(
       await within(dialog).findByText('Дата рахунку не може бути в майбутньому'),
@@ -160,7 +177,7 @@ describe('payment for technical conditions', () => {
       }),
       mock.put(`${PAYMENT}/scans/act`, async ({ request }) => {
         act = (await request.formData()).get('scan') as File;
-        return withPayment(current, makePayment({ actTransferredDate: '2026-03-25' }));
+        return withPayment(current, makePayment({ actTransferMonth: '2026-03' }));
       }),
     );
 
@@ -168,14 +185,24 @@ describe('payment for technical conditions', () => {
     expect(within(shown).getByText('24.03.2026')).toBeVisible();
     await user.click(within(shown).getByRole('button', { name: 'Редагувати оплату' }));
     const dialog = screen.getByRole('dialog', { name: 'Рахунок № 125/Б' });
-    expect(within(dialog).getByLabelText('Сума, грн')).toHaveValue('1234,50');
-    expect(within(dialog).getByText('квитанція.pdf')).toBeVisible();
-    await user.type(
-      within(dialog).getByLabelText('Дата передачі в бухгалтерію (необовʼязково)'),
-      '2026-03-25',
+    expect(within(dialog).getByLabelText<HTMLInputElement>('Сума, грн').value).toMatch(
+      /^1\s234,50$/,
     );
+    const receiptPanel = within(dialog).getByRole('region', { name: 'Скан квитанції' });
+    // Only that it is there: no file name, author or time.
+    expect(within(receiptPanel).getByText('Скан додано')).toBeVisible();
+    expect(within(dialog).queryByText('квитанція.pdf')).toBeNull();
+    expect(within(receiptPanel).queryByRole('button', { name: 'Обрати файл' })).toBeNull();
+    // A removal waits in the zone; it can be taken back.
+    await user.click(within(receiptPanel).getByRole('button', { name: 'Видалити скан' }));
+    expect(within(receiptPanel).getByText('Скан буде видалено після збереження.')).toBeVisible();
+    await user.click(within(receiptPanel).getByRole('button', { name: 'Не видаляти' }));
+    expect(within(receiptPanel).getByRole('button', { name: 'Переглянути скан' })).toBeVisible();
+    setMonth(dialog, '2026-03');
     const actPanel = within(dialog).getByRole('region', { name: 'Скан акта виконаних робіт' });
     await user.upload(within(actPanel).getByLabelText('PDF-файл скану'), makePdf('акт.pdf'));
+    expect(within(actPanel).getByText('Скан додано')).toBeVisible();
+    expect(within(dialog).queryByText('акт.pdf')).toBeNull();
     expect(act).toBeNull();
     await user.click(within(dialog).getByRole('button', { name: 'Зберегти' }));
 
@@ -187,7 +214,7 @@ describe('payment for technical conditions', () => {
         invoiceDate: '2026-03-23',
         amount: 1234.5,
         paidDate: '2026-03-24',
-        actTransferredDate: '2026-03-25',
+        actTransferMonth: '2026-03',
       },
     ]);
     expect(act!.name).toBe('акт.pdf');

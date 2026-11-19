@@ -15,7 +15,7 @@ describe('saveTuPaymentSchema', () => {
       invoiceDate: '2026-11-02',
       amount: 1234.56,
       paidDate: null,
-      actTransferredDate: null,
+      actTransferMonth: null,
     });
     expect(saveTuPaymentSchema.parse({ ...invoice, paidDate: '', version: 2 })).toMatchObject({
       paidDate: null,
@@ -39,16 +39,16 @@ describe('saveTuPaymentSchema', () => {
     expect(errorsOf({ ...invoice, paidDate: '2026-11-01' }).paidDate).toEqual([
       'Дата оплати не може бути раніше дати рахунку',
     ]);
-    expect(errorsOf({ ...invoice, actTransferredDate: '2026-11-05' }).actTransferredDate).toEqual([
+    expect(errorsOf({ ...invoice, actTransferMonth: '2026-11' }).actTransferMonth).toEqual([
       'Спершу вкажіть дату оплати',
     ]);
-    expect(
-      errorsOf({ ...invoice, paidDate: '2026-11-04', actTransferredDate: '2026-11-03' })
-        .actTransferredDate,
-    ).toEqual(['Дата передачі не може бути раніше дати оплати']);
-    expect(
-      errorsOf({ ...invoice, paidDate: '2026-11-04', actTransferredDate: '2026-11-04' }),
-    ).toEqual({});
+    const withPaid = (month: string) =>
+      errorsOf({ ...invoice, paidDate: '2026-11-04', actTransferMonth: month });
+    expect(withPaid('2026-10').actTransferMonth).toEqual([
+      'Місяць передачі не може бути раніше місяця оплати',
+    ]);
+    expect(withPaid('2026-13').actTransferMonth).toEqual(['Вкажіть місяць і рік']);
+    expect(withPaid('2026-11')).toEqual({});
   });
 
   it('requires the number, date and sum, and nothing else', () => {

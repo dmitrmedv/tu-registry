@@ -35,7 +35,9 @@ export async function deleteApplication(
     ...(await ApplicationResponse.find(byApplication).select('scan previousScans').lean()),
     ...(await TechnicalConditions.find(byApplication).select('scan previousScans').lean()),
   ];
-  const payments = await TuPayment.find(byApplication).select('receiptScan actScan').lean();
+  const payments = await TuPayment.find(byApplication)
+    .select('invoiceScan receiptScan actScan')
+    .lean();
   const files = [
     ...(current.scan ? [current.scan.fileId] : []),
     ...documentFileIds(documents),

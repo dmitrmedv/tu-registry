@@ -14,6 +14,7 @@ export type TuPaymentRecord = {
   invoiceDate: Date;
   amountKopecks: number;
   paidDate: Date | null;
+  invoiceScan?: ScanRecord | null;
   receiptScan?: ScanRecord | null;
   actScan?: ScanRecord | null;
   actTransferMonth: string | null;
@@ -22,8 +23,12 @@ export type TuPaymentRecord = {
   version: number;
 };
 
-export const paymentFileIds = (rows: Pick<TuPaymentRecord, 'receiptScan' | 'actScan'>[]) =>
-  rows.flatMap((row) => [row.receiptScan?.fileId, row.actScan?.fileId]).filter(Boolean) as string[];
+export const paymentFileIds = (
+  rows: Pick<TuPaymentRecord, 'invoiceScan' | 'receiptScan' | 'actScan'>[],
+) =>
+  rows
+    .flatMap((row) => [row.invoiceScan?.fileId, row.receiptScan?.fileId, row.actScan?.fileId])
+    .filter(Boolean) as string[];
 
 /** The payments of these technical conditions, by their id, in API shape. */
 export async function paymentDtos(tuIds: Types.ObjectId[]) {
@@ -35,6 +40,7 @@ export async function paymentDtos(tuIds: Types.ObjectId[]) {
   const names = await findUserSummaries(
     rows.flatMap((row) => [
       String(row.createdBy),
+      row.invoiceScan ? String(row.invoiceScan.uploadedBy) : null,
       row.receiptScan ? String(row.receiptScan.uploadedBy) : null,
       row.actScan ? String(row.actScan.uploadedBy) : null,
     ]),
@@ -62,6 +68,7 @@ export async function paymentDtos(tuIds: Types.ObjectId[]) {
         amount: fromKopecks(row.amountKopecks),
         paidDate: row.paidDate ? toIsoDate(row.paidDate) : null,
         actTransferMonth: row.actTransferMonth,
+        invoiceScan: scanDto(row.invoiceScan),
         receiptScan: scanDto(row.receiptScan),
         actScan: scanDto(row.actScan),
         createdBy: person(row.createdBy),

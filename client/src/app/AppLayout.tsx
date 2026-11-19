@@ -41,22 +41,23 @@ export function AppLayout() {
     <div className={styles.shell}>
       <header ref={headerRef} className={styles.header}>
         <div className={styles.inner}>
-          <div className={styles.identity}>
-            <p className={styles.userLine}>
-              <span className={styles.userName}>{user.fullName}</span> — {ROLE_LABELS[user.role]}
-            </p>
-            <p className={styles.department}>{nameOf(user.department)} управління</p>
-          </div>
-          <div className={styles.navRow}>
-            {!restricted && (
-              <nav aria-label="Основна навігація">
-                <NavLink to="/" end className={navClass}>
-                  Реєстр заяв на ТУ
-                </NavLink>
-              </nav>
-            )}
+          {/* «Налаштування» opposite the user's name (2026-11-19). */}
+          <div className={styles.topRow}>
+            <div className={styles.identity}>
+              <p className={styles.userLine}>
+                <span className={styles.userName}>{user.fullName}</span> — {ROLE_LABELS[user.role]}
+              </p>
+              <p className={styles.department}>{nameOf(user.department)} управління</p>
+            </div>
             <MenuButton label="Налаштування" items={settings} />
           </div>
+          {!restricted && (
+            <nav aria-label="Основна навігація" className={styles.navRow}>
+              <NavLink to="/" end className={navClass}>
+                Головна
+              </NavLink>
+            </nav>
+          )}
         </div>
       </header>
       <main className={styles.main}>

@@ -13,7 +13,8 @@ export const TU_INVOICE_NUMBER_MAX = 50;
 export const TU_PAYMENT_AMOUNT_MAX = 100_000_000;
 
 /** The two scans a payment may have, as they appear in the API path. */
-export const TU_PAYMENT_SCAN_KINDS = ['receipt', 'act'] as const;
+/** The invoice's scan was added on 2026-11-19. */
+export const TU_PAYMENT_SCAN_KINDS = ['invoice', 'receipt', 'act'] as const;
 export type TuPaymentScanKind = (typeof TU_PAYMENT_SCAN_KINDS)[number];
 
 const versionField = z.number('Відсутня версія документа').int().min(1);
@@ -108,6 +109,7 @@ export type TuPaymentDto = {
   paidDate: string | null;
   /** "YYYY-MM". */
   actTransferMonth: string | null;
+  invoiceScan: ScanDto | null;
   receiptScan: ScanDto | null;
   actScan: ScanDto | null;
   createdBy: Person;

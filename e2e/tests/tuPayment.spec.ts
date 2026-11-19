@@ -33,7 +33,7 @@ test('enters the payment for technical conditions over time; an admin deletes it
 
   // The invoice first.
   await payment.getByRole('button', { name: 'Додати рахунок' }).click();
-  let dialog = page.getByRole('dialog', { name: 'Новий рахунок' });
+  let dialog = page.getByRole('dialog', { name: 'Інформація про рахунок' });
   await dialog.getByLabel('№ рахунку').fill('125/Б');
   await dialog.getByLabel('Сума, грн').fill('1 234,56');
   await dialog.getByRole('button', { name: 'Зберегти' }).click();
@@ -49,9 +49,9 @@ test('enters the payment for technical conditions over time; an admin deletes it
     .getByRole('region', { name: 'Скан квитанції' })
     .getByLabel('PDF-файл скану')
     .setInputFiles({ name: 'квитанція.pdf', mimeType: 'application/pdf', buffer: pdf('к') });
-  await dialog.getByLabel('Місяць передачі акта виконаних робіт').fill(today.slice(0, 7));
+  await dialog.getByLabel('Місяць здачі акта').fill(today.slice(0, 7));
   await dialog
-    .getByRole('region', { name: 'Скан акта виконаних робіт' })
+    .getByRole('region', { name: 'Скан акта' })
     .getByLabel('PDF-файл скану')
     .setInputFiles({ name: 'акт.pdf', mimeType: 'application/pdf', buffer: pdf('а') });
   await dialog.getByRole('button', { name: 'Зберегти' }).click();

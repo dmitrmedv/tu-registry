@@ -62,6 +62,14 @@ export function TuPaymentFrame({ app, tu, onError }: Props) {
   const footer = payment && (
     <>
       <div className={styles.frameScans}>
+        {payment.invoiceScan && (
+          <Button
+            title={payment.invoiceScan.name}
+            onClick={() => openScan('invoice', payment.invoiceScan!.name)}
+          >
+            Рахунок <Icon name="eye" />
+          </Button>
+        )}
         {payment.receiptScan && (
           <Button
             title={payment.receiptScan.name}

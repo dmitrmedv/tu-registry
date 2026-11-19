@@ -42,7 +42,7 @@ export function RegistryPage() {
   return (
     <section className={pageStyles.wide}>
       <div className={pageStyles.header}>
-        <h1>Реєстр заяв</h1>
+        {/* <h1>Реєстр заяв</h1> */}
         <LinkButton to="/applications/new" variant="primary">
           Нова заява
         </LinkButton>

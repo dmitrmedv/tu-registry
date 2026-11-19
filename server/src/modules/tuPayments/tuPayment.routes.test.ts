@@ -68,7 +68,7 @@ describe('payment for technical conditions', () => {
       .put(url())
       .set(who.auth)
       .send({ ...invoice, ...body });
-  const upload = (kind: 'receipt' | 'act', text: string, who = owner) =>
+  const upload = (kind: 'invoice' | 'receipt' | 'act', text: string, who = owner) =>
     request(app)
       .put(url(`/scans/${kind}`))
       .set(who.auth)
@@ -175,7 +175,7 @@ describe('payment for technical conditions', () => {
     ]);
   });
 
-  it('keeps one receipt and one act: a replaced file is deleted, a removed one too', async () => {
+  it('keeps one scan of each kind: a replaced file is deleted, a removed one too', async () => {
     expect((await upload('receipt', 'квитанція')).status).toBe(404); // no invoice yet
     await save();
 
@@ -191,7 +191,12 @@ describe('payment for technical conditions', () => {
     expect(download.headers['content-type']).toBe('application/pdf');
     expect((await request(app).get(url('/scans/act')).set(elsewhere.auth)).status).toBe(404);
     expect((await upload('act', 'чуже', elsewhere)).status).toBe(404);
-    expect((await request(app).get(url('/scans/invoice')).set(owner.auth)).status).toBe(400);
+    expect((await request(app).get(url('/scans/contract')).set(owner.auth)).status).toBe(400);
+
+    // The invoice's own scan (2026-11-19), and the files go with the payment.
+    const invoiceScan = await upload('invoice', 'рахунок');
+    expect(invoiceScan.body.payment.invoiceScan.name).toBe('рахунок.pdf');
+    expect((await request(app).get(url('/scans/invoice')).set(owner.auth)).status).toBe(200);
 
     const act = (await TuPayment.findOne().lean())!.actScan!.fileId;
     const removed = await request(app).delete(url('/scans/act')).set(owner.auth);
@@ -202,6 +207,7 @@ describe('payment for technical conditions', () => {
       { field: 'receiptScan', from: null, to: 'новий файл' },
       { field: 'receiptScan', from: 'файл', to: 'новий файл' },
       { field: 'actScan', from: null, to: 'новий файл' },
+      { field: 'invoiceScan', from: null, to: 'новий файл' },
       { field: 'actScan', from: 'файл', to: null },
     ]);
   });
@@ -209,7 +215,10 @@ describe('payment for technical conditions', () => {
   it('is deleted by an admin only, with its files', async () => {
     await save();
     await upload('receipt', 'квитанція');
-    const file = (await TuPayment.findOne().lean())!.receiptScan!.fileId;
+    await upload('invoice', 'рахунок');
+    const stored = (await TuPayment.findOne().lean())!;
+    const file = stored.receiptScan!.fileId;
+    const invoiceFile = stored.invoiceScan!.fileId;
 
     expect((await remove(1, owner)).status).toBe(403);
     expect((await remove(2)).body.error.code).toBe('VERSION_CONFLICT');
@@ -219,6 +228,7 @@ describe('payment for technical conditions', () => {
     expect(res.body.payment).toBeNull();
     expect(await TuPayment.countDocuments()).toBe(0);
     expect(existsSync(scanPath(file))).toBe(false);
+    expect(existsSync(scanPath(invoiceFile))).toBe(false);
     expect(await AuditLog.countDocuments({ action: 'TU_PAYMENT_DELETED' })).toBe(1);
     expect((await remove(1)).status).toBe(404);
   });
@@ -263,7 +273,10 @@ describe('payment for technical conditions', () => {
   it('goes with its application, files included', async () => {
     await save();
     await upload('act', 'акт');
-    const file = (await TuPayment.findOne().lean())!.actScan!.fileId;
+    await upload('invoice', 'рахунок');
+    const stored = (await TuPayment.findOne().lean())!;
+    const file = stored.actScan!.fileId;
+    const invoiceFile = stored.invoiceScan!.fileId;
     const version = (await request(app).get(`${APPLICATIONS}/${applicationId}`).set(admin.auth))
       .body.version as number;
 
@@ -274,6 +287,7 @@ describe('payment for technical conditions', () => {
 
     expect(await TuPayment.countDocuments()).toBe(0);
     expect(existsSync(scanPath(file))).toBe(false);
+    expect(existsSync(scanPath(invoiceFile))).toBe(false);
   });
 
   it('turns an act transfer date entered before into its month, once', async () => {

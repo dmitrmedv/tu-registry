@@ -2,6 +2,7 @@ import type { ScanDto } from '@tu-registry/shared';
 import { useState } from 'react';
 import { ScanDropzone } from '@/features/applications';
 import { toApiError } from '@/shared/api/apiError';
+import { notifySuccess } from '@/shared/lib/notify';
 import { openPdf } from '@/shared/lib/pdf';
 import { Alert, ConfirmDialog } from '@/shared/ui';
 
@@ -22,8 +23,7 @@ type Props = {
 
 /**
  * A document's scan in its dialog, in the common zone (`ScanDropzone`). Removing the stored
- * scan is immediate, after confirming; the dialog stays open, so the outcome is an `Alert` in
- * it: its backdrop would cover a notification.
+ * scan is immediate, after confirming, and said by a notification (it shows over the dialog).
  */
 export function DocumentScanField({
   title,
@@ -38,7 +38,6 @@ export function DocumentScanField({
   const [confirming, setConfirming] = useState(false);
   const [removing, setRemoving] = useState(false);
   const [error, setError] = useState<string>();
-  const [removed, setRemoved] = useState(false);
 
   const view = async () => {
     if (!scan) return;
@@ -56,7 +55,7 @@ export function DocumentScanField({
     try {
       await onRemove();
       setConfirming(false);
-      setRemoved(true);
+      notifySuccess('Скан видалено');
     } catch (failure) {
       setError(toApiError(failure).message);
     } finally {
@@ -83,7 +82,6 @@ export function DocumentScanField({
         }
         disabled={disabled}
       >
-        {removed && !scan && <Alert variant="success">Скан видалено</Alert>}
         {error && !confirming && <Alert variant="error">{error}</Alert>}
       </ScanDropzone>
       {confirming && scan && (

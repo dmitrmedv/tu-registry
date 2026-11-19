@@ -11,6 +11,7 @@ import type { z } from 'zod';
 import { DocumentScanField, documentStyles as styles } from '@/features/documents';
 import { useEngineerOptions } from '@/features/engineers';
 import { toApiError } from '@/shared/api/apiError';
+import { notifySuccess } from '@/shared/lib/notify';
 import { Alert, Button, Dialog, SelectField, Spinner, TextField } from '@/shared/ui';
 import { responsesApi } from './api';
 import {
@@ -103,8 +104,10 @@ export function ResponseDialog({ app, response: initial, onClose, onSaved }: Pro
       try {
         saved = await uploadScan.mutateAsync({ id: saved.id, file });
       } catch (error) {
+        // The response stands: that is a notification; the scan's failure stays here.
+        notifySuccess(`Відповідь № ${saved.outgoingNumber} збережено`);
         setResponse(saved);
-        setScanError(`Відповідь збережено, але скан не завантажено: ${toApiError(error).message}`);
+        setScanError(`Скан не завантажено: ${toApiError(error).message}`);
         return;
       }
     }

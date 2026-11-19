@@ -1,5 +1,6 @@
 import type { UserWithTemporaryPassword } from '@tu-registry/shared';
 import { useState } from 'react';
+import { notifySuccess } from '@/shared/lib/notify';
 import { Alert, Button, Dialog } from '@/shared/ui';
 import styles from './users.module.scss';
 
@@ -10,14 +11,15 @@ type Props = {
 };
 
 export function TemporaryPasswordDialog({ result, reason, onClose }: Props) {
-  const [copy, setCopy] = useState<'idle' | 'done' | 'failed'>('idle');
+  const [copyFailed, setCopyFailed] = useState(false);
 
   const copyPassword = async () => {
     try {
       await navigator.clipboard.writeText(result.temporaryPassword);
-      setCopy('done');
+      setCopyFailed(false);
+      notifySuccess('Пароль скопійовано');
     } catch {
-      setCopy('failed');
+      setCopyFailed(true);
     }
   };
 
@@ -44,9 +46,7 @@ export function TemporaryPasswordDialog({ result, reason, onClose }: Props) {
           Копіювати
         </Button>
       </div>
-      {/* Inline, not a notification: the open dialog's backdrop would cover one. */}
-      {copy === 'done' && <Alert variant="success">Скопійовано</Alert>}
-      {copy === 'failed' && (
+      {copyFailed && (
         <Alert variant="warning">Не вдалося скопіювати автоматично — виділіть пароль вручну.</Alert>
       )}
       <Alert variant="warning">

@@ -9,7 +9,7 @@ import { Alert, Button } from '@/shared/ui';
 import pageStyles from '../page.module.scss';
 import styles from './NewApplicationPage.module.scss';
 
-/** «Заяву зареєстровано: 15т/26-8 від 12.03.2026»: the page and the notification say the same. */
+/** «Заяву зареєстровано: 15т/26-8 від 12.03.2026». */
 const registeredText = (app: ApplicationDto) =>
   `${app.registrationMode === 'MANUAL' ? 'Заяву внесено вручну' : 'Заяву зареєстровано'}: ${
     app.regNumber
@@ -38,6 +38,8 @@ export function NewApplicationPage() {
           onProgress: setProgress,
         });
       } catch (error) {
+        // Registered all the same: a notification; the page stays, saying where to add the scan.
+        notifySuccess(registeredText(result));
         setScanError(toApiError(error).message);
         setScan(null);
         setCreated(result);
@@ -57,17 +59,14 @@ export function NewApplicationPage() {
   };
 
   return (
-    <section className={pageStyles.wide}>
+    <section className={pageStyles.centered}>
       <h1>Нова заява</h1>
       {created ? (
         <div className={styles.result}>
-          <Alert variant="success">
-            {created.registrationMode === 'MANUAL'
-              ? 'Заяву внесено вручну: '
-              : 'Заяву зареєстровано: '}
-            <strong className={styles.number}>{created.regNumber}</strong> від{' '}
+          <p>
+            Заява <strong className={styles.number}>{created.regNumber}</strong> від{' '}
             {formatCalendarDate(created.regDate)}
-          </Alert>
+          </p>
           {scanError && (
             <Alert variant="warning">
               Скан не завантажено: {scanError} Додайте його в{' '}

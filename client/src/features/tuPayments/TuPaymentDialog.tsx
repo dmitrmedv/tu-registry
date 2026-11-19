@@ -48,6 +48,7 @@ export function TuPaymentDialog({ applicationId, tu, onClose, onSaved }: Props) 
       upload.mutateAsync({ kind, file, onProgress }),
     remove: () => removeScan.mutateAsync(kind),
   });
+  const invoice = useScanChange(scanChange('invoice'));
   const receipt = useScanChange(scanChange('receipt'));
   const act = useScanChange(scanChange('act'));
   const {
@@ -71,6 +72,7 @@ export function TuPaymentDialog({ applicationId, tu, onClose, onSaved }: Props) 
     // From here on the dialog changes this payment, whatever happens to the scans.
     setPayment(saved.payment);
     try {
+      await invoice.apply();
       await receipt.apply();
       await act.apply();
     } catch {
@@ -88,7 +90,7 @@ export function TuPaymentDialog({ applicationId, tu, onClose, onSaved }: Props) 
       busy={isSubmitting}
       open
       size="lg"
-      title={payment ? `Рахунок № ${payment.invoiceNumber}` : 'Новий рахунок'}
+      title={payment ? `Рахунок № ${payment.invoiceNumber}` : 'Інформація про рахунок'}
       onClose={onClose}
       footer={
         <Button type="submit" form={FORM_ID} variant="primary" loading={isSubmitting}>
@@ -98,60 +100,67 @@ export function TuPaymentDialog({ applicationId, tu, onClose, onSaved }: Props) 
     >
       <form id={FORM_ID} onSubmit={onSubmit} noValidate className={documentStyles.formContents}>
         {errors.root?.message && <Alert variant="error">{errors.root.message}</Alert>}
+        {/* The mock-up of 2026-11-19: each step's fields on the left, its scan beside them. */}
         <div className={styles.layout}>
-          <TextField
-            className={styles.number}
-            label="№ рахунку"
-            autoComplete="off"
-            error={errors.invoiceNumber?.message}
-            {...register('invoiceNumber')}
-          />
-          <TextField
-            className={styles.date}
-            label="Дата рахунку"
-            type="date"
-            max={today}
-            error={errors.invoiceDate?.message}
-            {...register('invoiceDate')}
-          />
-          <TextField
-            className={styles.amount}
-            label="Сума, грн"
-            inputMode="decimal"
-            autoComplete="off"
-            placeholder="1 234,56"
-            error={errors.amount?.message}
-            {...register('amount', {
-              onBlur: (event: FocusEvent<HTMLInputElement>) =>
-                setValue('amount', tidyAmount(event.target.value)),
-            })}
-          />
-          <TextField
-            className={styles.paid}
-            label="Дата оплати"
-            type="date"
-            max={today}
-            error={errors.paidDate?.message}
-            {...register('paidDate')}
-          />
+          <div className={styles.fields}>
+            <TextField
+              label="№ рахунку"
+              autoComplete="off"
+              error={errors.invoiceNumber?.message}
+              {...register('invoiceNumber')}
+            />
+            <TextField
+              label="Дата рахунку"
+              type="date"
+              max={today}
+              error={errors.invoiceDate?.message}
+              {...register('invoiceDate')}
+            />
+          </div>
           <ScanPanel
-            className={styles.receipt}
+            title="Скан рахунку"
+            scan={payment?.invoiceScan ?? null}
+            scanChange={invoice}
+            onView={view('invoice', payment?.invoiceScan?.name ?? '')}
+            disabled={isSubmitting}
+          />
+          <div className={styles.fields}>
+            <TextField
+              label="Сума, грн"
+              inputMode="decimal"
+              autoComplete="off"
+              placeholder="1 234,56"
+              error={errors.amount?.message}
+              {...register('amount', {
+                onBlur: (event: FocusEvent<HTMLInputElement>) =>
+                  setValue('amount', tidyAmount(event.target.value)),
+              })}
+            />
+            <TextField
+              label="Дата оплати"
+              type="date"
+              max={today}
+              error={errors.paidDate?.message}
+              {...register('paidDate')}
+            />
+          </div>
+          <ScanPanel
             title="Скан квитанції"
             scan={payment?.receiptScan ?? null}
             scanChange={receipt}
             onView={view('receipt', payment?.receiptScan?.name ?? '')}
             disabled={isSubmitting}
           />
-          <TextField
-            className={styles.month}
-            label="Місяць передачі акта виконаних робіт"
-            type="month"
-            error={errors.actTransferMonth?.message}
-            {...register('actTransferMonth')}
-          />
+          <div className={styles.fields}>
+            <TextField
+              label="Місяць здачі акта"
+              type="month"
+              error={errors.actTransferMonth?.message}
+              {...register('actTransferMonth')}
+            />
+          </div>
           <ScanPanel
-            className={styles.act}
-            title="Скан акта виконаних робіт"
+            title="Скан акта"
             scan={payment?.actScan ?? null}
             scanChange={act}
             onView={view('act', payment?.actScan?.name ?? '')}

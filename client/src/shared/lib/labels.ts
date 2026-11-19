@@ -144,6 +144,7 @@ export const PAYMENT_FIELD_LABELS: Record<string, string> = {
   amount: 'сума',
   paidDate: 'дата оплати',
   actTransferMonth: 'місяць передачі акта',
+  invoiceScan: 'скан рахунку',
   receiptScan: 'скан квитанції',
   actScan: 'скан акта',
 };
@@ -189,7 +190,7 @@ export const DOCUMENT_CHANGE_ACTION_LABELS: Record<ApplicationChangeAction, stri
   DELETED: 'видалено',
 };
 
-const DOCUMENT_SCAN_FIELDS = new Set(['scan', 'receiptScan', 'actScan']);
+const DOCUMENT_SCAN_FIELDS = new Set(['scan', 'invoiceScan', 'receiptScan', 'actScan']);
 
 /** A changed field of a document in the history: «Номер: 125/01 → 126/01», «Скан: додано». */
 export function describeDocumentChange(

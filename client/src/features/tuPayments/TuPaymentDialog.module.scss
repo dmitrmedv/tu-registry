@@ -1,49 +1,26 @@
 @use '@/styles/mixins' as *;
 
-// The mock-up of 2026-11-19: the invoice and payment fields in two columns on the left, the
-// receipt beside them; the month of the act under them, its scan beside it. One column on
-// phones, in the order things happen.
+// The mock-up of 2026-11-19: each step — the invoice, the payment, the act — is a row, its
+// fields on the left and its scan on the right. One column on phones, in the same order.
 .layout {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
-  grid-template-areas: 'number' 'date' 'amount' 'paid' 'receipt' 'month' 'act';
   gap: var(--space-4);
 
   @include up(md) {
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1.15fr);
-    grid-template-areas:
-      'number date receipt'
-      'amount paid receipt'
-      'month month act';
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     align-items: start;
-    gap: var(--space-4) var(--space-6);
+    gap: var(--space-6);
   }
 }
 
-.number {
-  grid-area: number;
-}
+// Lined up with the scan's title beside them.
+.fields {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
 
-.date {
-  grid-area: date;
-}
-
-.amount {
-  grid-area: amount;
-}
-
-.paid {
-  grid-area: paid;
-}
-
-.receipt {
-  grid-area: receipt;
-}
-
-.month {
-  grid-area: month;
-}
-
-.act {
-  grid-area: act;
+  @include up(md) {
+    padding-top: var(--space-2);
+  }
 }

@@ -144,7 +144,11 @@ export async function getProcessing(applicationId: string, actor: Actor): Promis
         createdAt: payment.createdAt,
       };
       return [
-        event('TU_INVOICE', payment.invoiceDate, { ...common, number: payment.invoiceNumber }),
+        event('TU_INVOICE', payment.invoiceDate, {
+          ...common,
+          number: payment.invoiceNumber,
+          scanName: payment.invoiceScan?.name ?? null,
+        }),
         ...(payment.paidDate
           ? [
               event('TU_PAID', payment.paidDate, {

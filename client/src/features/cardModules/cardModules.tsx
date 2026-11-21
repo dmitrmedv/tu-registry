@@ -1,10 +1,14 @@
 import type { ApplicationDto, TimelineEventDto } from '@tu-registry/shared';
 import type { ComponentType } from 'react';
 import { ContractTab, useContracts } from '@/features/contracts';
+import { InvoiceTab, useInvoices } from '@/features/invoices';
+import { ProjectTab, useProjects } from '@/features/projects';
 import { ResponsesTab, useResponses } from '@/features/responses';
 import { TechnicalConditionsTab, useTechnicalConditions } from '@/features/technicalConditions';
 import {
   type AddDialogProps,
+  AddInvoiceDialog,
+  AddProjectDialog,
   AddResponseDialog,
   AddTechnicalConditionsDialog,
 } from './AddModuleDialogs';
@@ -56,6 +60,22 @@ export const CARD_MODULES = [
     // A large form with two files: a page, not a dialog (agreed 2026-11-20).
     addPath: (applicationId) => `/applications/${applicationId}/contracts/new`,
   },
+  {
+    id: 'project',
+    tabLabel: 'Проєкт',
+    menuLabel: 'Проєкт',
+    eventTypes: ['PROJECT'],
+    Tab: ProjectTab,
+    AddDialog: AddProjectDialog,
+  },
+  {
+    id: 'invoice',
+    tabLabel: 'Рахунок',
+    menuLabel: 'Рахунок',
+    eventTypes: ['INVOICE'],
+    Tab: InvoiceTab,
+    AddDialog: AddInvoiceDialog,
+  },
 ] as const satisfies readonly CardModule[];
 
 export type CardModuleId = (typeof CARD_MODULES)[number]['id'];
@@ -80,9 +100,13 @@ export function useModulePresence(
   const responses = useResponses(applicationId);
   const technicalConditions = useTechnicalConditions(applicationId);
   const contracts = useContracts(applicationId);
+  const projects = useProjects(applicationId);
+  const invoices = useInvoices(applicationId);
   return {
     response: responses.data && responses.data.length > 0,
     tu: technicalConditions.data && technicalConditions.data.length > 0,
     contract: contracts.data && contracts.data.length > 0,
+    project: projects.data && projects.data.length > 0,
+    invoice: invoices.data && invoices.data.length > 0,
   };
 }

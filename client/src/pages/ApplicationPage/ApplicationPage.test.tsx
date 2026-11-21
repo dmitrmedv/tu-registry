@@ -50,6 +50,8 @@ function openCard(
       HttpResponse.json(withDocuments ? [makeTechnicalConditions()] : []),
     ),
     mock.get(`*/api/v1/applications/${app.id}/contracts`, () => HttpResponse.json([])),
+    mock.get(`*/api/v1/applications/${app.id}/projects`, () => HttpResponse.json([])),
+    mock.get(`*/api/v1/applications/${app.id}/invoices`, () => HttpResponse.json([])),
     mock.get('*/api/v1/engineers', () => HttpResponse.json([])),
     mock.get(`*/api/v1/applications/${app.id}/processing`, () =>
       HttpResponse.json(makeProcessing()),
@@ -261,6 +263,8 @@ describe('ApplicationPage', () => {
       'Відповідьуже додано',
       'Технічні умовиуже додано',
       'Договір',
+      'Проєкт',
+      'Рахунок',
     ]);
     expect(choices[2]).toBeEnabled();
     for (const choice of choices.slice(0, 2)) {

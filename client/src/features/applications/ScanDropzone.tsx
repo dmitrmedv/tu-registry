@@ -9,8 +9,11 @@ import { type DragEvent, type ReactNode, useId, useRef, useState } from 'react';
 import { Button, Icon, IconButton } from '@/shared/ui';
 import styles from './ScanDropzone.module.scss';
 
-/** A scan is a PDF; a contract is also kept as a Word document (agreed 2026-11-20). */
-export type DropzoneFileType = 'pdf' | 'docx';
+/**
+ * A scan is a PDF; a contract is also kept as a Word document (agreed 2026-11-20), a project's
+ * estimate check as an IMD file (2026-11-21).
+ */
+export type DropzoneFileType = 'pdf' | 'docx' | 'imd';
 
 const FILE_TYPES = {
   pdf: {
@@ -43,14 +46,30 @@ const FILE_TYPES = {
     replace: 'Замінити документ',
     remove: 'Видалити документ',
   },
+  // No registered type: the extension alone decides.
+  imd: {
+    mime: null,
+    extension: /\.imd$/i,
+    accept: '.imd',
+    inputLabel: 'Файл IMD',
+    wrongType: 'Оберіть файл .imd',
+    name: 'IMD',
+    none: 'Файл не додано.',
+    added: 'Файл додано',
+    removal: 'Файл буде видалено після збереження.',
+    view: 'Завантажити файл',
+    viewIcon: 'download',
+    replace: 'Замінити файл',
+    remove: 'Видалити файл',
+  },
 } as const;
 
 /** Checks what the browser can tell; the server checks the content again. */
 function fileProblem(file: File, type: DropzoneFileType) {
   const rule = FILE_TYPES[type];
   // Some systems report no type (or a generic one); the extension is the fallback.
-  const known = file.type === rule.mime;
-  const unknown = !file.type || file.type === 'application/octet-stream';
+  const known = rule.mime !== null && file.type === rule.mime;
+  const unknown = !file.type || file.type === 'application/octet-stream' || rule.mime === null;
   if (!known && !(unknown && rule.extension.test(file.name))) return rule.wrongType;
   if (file.size > SCAN_MAX_BYTES) return `Файл більший за ${SCAN_MAX_LABEL}`;
   return null;

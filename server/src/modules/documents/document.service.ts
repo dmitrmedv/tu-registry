@@ -30,7 +30,7 @@ export type DocumentKind<R extends DocumentRecord> = {
   // version and applicationId and reads documents back as `R`.
   // eslint-disable-next-line @typescript-eslint/no-explicit-any -- see above
   model: Model<any>;
-  entityType: 'ApplicationResponse' | 'TechnicalConditions';
+  entityType: 'ApplicationResponse' | 'TechnicalConditions' | 'Project';
   actions: { updated: AuditAction; cancelled: AuditAction; restored: AuditAction };
   /** Our own numbers and dates for the audit entry; customer data never goes there. */
   auditDetails: (record: R) => Record<string, unknown>;

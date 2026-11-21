@@ -14,8 +14,11 @@ const scansDir = () => path.join(root(), 'scans');
 
 const FILE_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 
-/** Scans are PDF; a contract is also kept as a Word document (agreed 2026-11-20). */
-export type StoredFileType = 'pdf' | 'docx';
+/**
+ * Scans are PDF; a contract is also kept as a Word document (agreed 2026-11-20), a project's
+ * estimate check as an IMD file (2026-11-21).
+ */
+export type StoredFileType = 'pdf' | 'docx' | 'imd';
 
 /** The stored file of a scan. The id comes from our database; checked anyway (path safety). */
 export function scanPath(fileId: string, type: StoredFileType = 'pdf') {

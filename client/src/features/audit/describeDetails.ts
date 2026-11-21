@@ -4,7 +4,9 @@ import {
   CALENDAR_DAY_KIND_LABELS,
   DOCUMENT_FIELD_LABELS,
   CONTRACT_FIELD_LABELS,
+  INVOICE_FIELD_LABELS,
   PAYMENT_FIELD_LABELS,
+  PROJECT_FIELD_LABELS,
   TU_VALUE_LABELS,
 } from '@/shared/lib/labels';
 
@@ -165,6 +167,56 @@ export function describeDetails(entry: AuditLogDto): string {
               : /^\d{4}-\d{2}-\d{2}$/.test(text(value))
                 ? formatCalendarDate(text(value))
                 : text(value);
+          return `${label}: ${show(c.from)} → ${show(c.to)}`;
+        })
+        .join(', ');
+    }
+    case 'PROJECT_CREATED':
+      return d.approvalDate ? `від ${formatCalendarDate(text(d.approvalDate))}` : '';
+    case 'PROJECT_UPDATED': {
+      const changes = Array.isArray(d.changes)
+        ? (d.changes as { field: string; from: unknown; to: unknown }[])
+        : [];
+      const files = ['scan', 'estimateScan', 'estimateImd'];
+      const show = (value: unknown) =>
+        value === null || value === undefined
+          ? '—'
+          : /^\d{4}-\d{2}-\d{2}$/.test(text(value))
+            ? formatCalendarDate(text(value))
+            : text(value);
+      return changes
+        .map((c) => {
+          const label = PROJECT_FIELD_LABELS[c.field] ?? c.field;
+          if (files.includes(c.field)) {
+            return `${label}: ${!c.from ? 'додано' : c.to ? 'замінено' : 'видалено'}`;
+          }
+          return `${label}: ${show(c.from)} → ${show(c.to)}`;
+        })
+        .join(', ');
+    }
+    case 'INVOICE_CREATED':
+      return [
+        d.invoiceDate ? `від ${formatCalendarDate(text(d.invoiceDate))}` : '',
+        d.total ? text(d.total) : '',
+      ]
+        .filter(Boolean)
+        .join(', ');
+    case 'INVOICE_UPDATED': {
+      const changes = Array.isArray(d.changes)
+        ? (d.changes as { field: string; from: unknown; to: unknown }[])
+        : [];
+      const show = (value: unknown) =>
+        value === null || value === undefined
+          ? '—'
+          : /^\d{4}-\d{2}-\d{2}$/.test(text(value))
+            ? formatCalendarDate(text(value))
+            : text(value);
+      return changes
+        .map((c) => {
+          const label = INVOICE_FIELD_LABELS[c.field] ?? c.field;
+          if (c.field === 'scan' || c.field === 'basis') {
+            return `${label}: ${!c.from ? 'додано' : c.to ? 'замінено' : 'видалено'}`;
+          }
           return `${label}: ${show(c.from)} → ${show(c.to)}`;
         })
         .join(', ');

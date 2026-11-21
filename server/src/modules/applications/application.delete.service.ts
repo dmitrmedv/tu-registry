@@ -4,6 +4,10 @@ import { toIsoDate } from '../../utils/kyivDate';
 import { type RequestContext, recordAudit } from '../audit/audit.service';
 import { contractFiles } from '../contracts/contract.dto';
 import { Contract } from '../contracts/contract.model';
+import { Invoice } from '../invoices/invoice.model';
+import { invoiceFiles } from '../invoices/invoice.service';
+import { Project } from '../projects/project.model';
+import { PROJECT_FILE_FIELDS, type ProjectRecord, projectFiles } from '../projects/project.service';
 import { departmentCode } from '../departments/department.service';
 import { documentFileIds } from '../documents/document.dto';
 import { PAYMENT_FILE_FIELDS, paymentFiles } from '../tuPayments/tuPayment.dto';
@@ -18,7 +22,7 @@ import { ApplicationChange } from './applicationChange.model';
 
 /**
  * Admin only (enforced by the route). Removes the application with its change history and
- * its responses, technical conditions, payments and contracts (with every file they ever had); the
+ * its responses, technical conditions, payments, contracts, projects and invoices (with every file they ever had); the
  * number becomes free for manual entry (the automatic counter never goes back). The audit
  * entry keeps the number and date only — customer data does not belong in the audit log.
  */
@@ -39,6 +43,10 @@ export async function deleteApplication(
   ];
   const payments = await TuPayment.find(byApplication).select(PAYMENT_FILE_FIELDS).lean();
   const contracts = await Contract.find(byApplication).select('document scan').lean();
+  const projects = await Project.find(byApplication)
+    .select(PROJECT_FILE_FIELDS)
+    .lean<ProjectRecord[]>();
+  const invoices = await Invoice.find(byApplication).select('scan basis').lean();
   const files = [...(current.scan ? [current.scan.fileId] : []), ...documentFileIds(documents)];
 
   await inTransaction(async (session) => {
@@ -52,6 +60,8 @@ export async function deleteApplication(
     await TechnicalConditions.deleteMany({ applicationId: current._id }, { session });
     await TuPayment.deleteMany({ applicationId: current._id }, { session });
     await Contract.deleteMany({ applicationId: current._id }, { session });
+    await Project.deleteMany({ applicationId: current._id }, { session });
+    await Invoice.deleteMany({ applicationId: current._id }, { session });
     await recordAudit(
       {
         action: 'APPLICATION_DELETED',
@@ -70,8 +80,11 @@ export async function deleteApplication(
   // After the commit: a failed deletion must not lose the files of a still existing application.
   await Promise.all([
     ...files.map(deleteScanFile),
-    ...[...paymentFiles(payments), ...contractFiles(contracts)].map(({ fileId, type }) =>
-      deleteStoredFile(fileId, type),
-    ),
+    ...[
+      ...paymentFiles(payments),
+      ...contractFiles(contracts),
+      ...projectFiles(projects),
+      ...invoiceFiles(invoices),
+    ].map(({ fileId, type }) => deleteStoredFile(fileId, type)),
   ]);
 }

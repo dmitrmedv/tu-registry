@@ -42,6 +42,8 @@ export type AuditLogDto = {
     | 'TechnicalConditions'
     | 'TuPayment'
     | 'Contract'
+    | 'Project'
+    | 'Invoice'
     | null;
   entityId: string | null;
   /** Human-readable object: the application number or the user's login. */

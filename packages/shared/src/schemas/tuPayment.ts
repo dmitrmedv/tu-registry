@@ -37,7 +37,7 @@ const optionalMonth = z.preprocess(
 );
 
 /** Hryvnias with up to two decimals; the form sends "1 234,56", an API client 1234.56. */
-const amountField = z.preprocess(
+export const amountField = z.preprocess(
   (value) =>
     typeof value === 'string' && value.trim() !== ''
       ? Number(value.replace(/\s/g, '').replace(',', '.'))

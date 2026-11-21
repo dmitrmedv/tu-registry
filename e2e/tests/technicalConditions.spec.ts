@@ -76,13 +76,15 @@ test('technical conditions after a response: one valid set, replaced only after 
   await expect(first).toContainText('Адреса за ТУм. Київ, вул. Тестова, 1');
   // One valid set: no second «Додати ТУ» until this one is cancelled; no module left to add.
   await expect(section.getByRole('button', { name: 'Додати ТУ' })).toHaveCount(0);
-  // Both modules with documents are there and cannot be added again; «Договір» is still empty.
+  // Both modules with documents are there and cannot be added again; «Договір», «Проєкт» and «Рахунок» are still empty.
   await page.getByRole('button', { name: 'Додати модуль' }).click();
   const modules = page.getByRole('dialog', { name: 'Додати модуль' }).getByRole('list');
-  await expect(modules.getByRole('button')).toHaveCount(3);
+  await expect(modules.getByRole('button')).toHaveCount(5);
   await expect(modules.getByRole('button', { name: 'Відповідь' })).toBeDisabled();
   await expect(modules.getByRole('button', { name: 'Технічні умови' })).toBeDisabled();
   await expect(modules.getByRole('button', { name: 'Договір' })).toBeEnabled();
+  await expect(modules.getByRole('button', { name: 'Проєкт' })).toBeEnabled();
+  await expect(modules.getByRole('button', { name: 'Рахунок' })).toBeEnabled();
   await page.keyboard.press('Escape');
   await expect(page.getByRole('dialog')).toHaveCount(0);
   // The response stays in its tab, with its documents.

@@ -7,6 +7,8 @@ import {
 import { uploadScan } from '../../middlewares/upload';
 import * as processingController from '../processing/processing.controller';
 import { contractRouter } from '../contracts/contract.routes';
+import { invoiceRouter } from '../invoices/invoice.routes';
+import { projectRouter } from '../projects/project.routes';
 import { responseRouter } from '../responses/response.routes';
 import { technicalConditionsRouter } from '../technicalConditions/technicalConditions.routes';
 import * as controller from './application.controller';
@@ -36,3 +38,5 @@ applicationRouter.post('/:id/restore', requireRole('ADMIN'), controller.restore)
 applicationRouter.use('/:id/responses', responseRouter);
 applicationRouter.use('/:id/technical-conditions', technicalConditionsRouter);
 applicationRouter.use('/:id/contracts', contractRouter);
+applicationRouter.use('/:id/projects', projectRouter);
+applicationRouter.use('/:id/invoices', invoiceRouter);

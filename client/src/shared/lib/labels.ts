@@ -13,6 +13,7 @@ import {
   formatPhone,
   GASIFICATION_TYPE_LABELS,
   type HistoryDocumentKind,
+  type InvoiceWorkGroup,
   type GasificationType,
   OBJECT_CATEGORY_LABELS,
   OBJECT_TYPE_LABELS,
@@ -117,6 +118,16 @@ export const AUDIT_ACTION_LABELS: Record<AuditAction, string> = {
   CONTRACT_UPDATED: 'Змінено договір',
   CONTRACT_CANCELLED: 'Анульовано договір',
   CONTRACT_DELETED: 'Видалено договір',
+  PROJECT_CREATED: 'Додано проєкт',
+  PROJECT_UPDATED: 'Змінено проєкт',
+  PROJECT_CANCELLED: 'Скасовано проєкт',
+  PROJECT_RESTORED: 'Відновлено проєкт',
+  PROJECT_DELETED: 'Видалено проєкт',
+  INVOICE_CREATED: 'Додано рахунок',
+  INVOICE_UPDATED: 'Змінено рахунок',
+  INVOICE_CANCELLED: 'Скасовано рахунок',
+  INVOICE_RESTORED: 'Відновлено рахунок',
+  INVOICE_DELETED: 'Видалено рахунок',
   ACCESS_DENIED: 'Відмовлено в доступі',
 };
 
@@ -175,6 +186,33 @@ export const CONTRACT_FIELD_LABELS: Record<string, string> = {
   scan: 'скан укладеного договору',
 };
 
+/** Fields of the project and its estimate, in the journal and the history. */
+export const PROJECT_FIELD_LABELS: Record<string, string> = {
+  approvalNumber: '№ узгодження',
+  approvalDate: 'дата узгодження',
+  engineer: 'виконавець',
+  scan: 'скан проєкту',
+  estimateCheckDate: 'дата перевірки кошторису',
+  estimateScan: 'скан кошторису',
+  estimateImd: 'файл перевірки кошторису (IMD)',
+};
+
+/** Fields of the invoice for the connection, in the journal and the history. */
+export const INVOICE_FIELD_LABELS: Record<string, string> = {
+  invoiceNumber: '№ рахунку',
+  invoiceDate: 'дата рахунку',
+  works: 'загальна вартість робіт',
+  scan: 'скан рахунку',
+  basis: 'підстава рахунку',
+};
+
+/** The invoice's groups of works (2026-11-21). */
+export const INVOICE_WORK_GROUP_LABELS: Record<InvoiceWorkGroup, string> = {
+  CONSTRUCTION: 'Будівельно-монтажні роботи',
+  TIE_IN: 'Врізання',
+  WORK_PLAN: 'ПВР',
+};
+
 /** Fields of responses and technical conditions, in the journal and the history. */
 export const DOCUMENT_FIELD_LABELS: Record<string, string> = {
   outgoingNumber: 'номер',
@@ -205,6 +243,8 @@ export const HISTORY_DOCUMENT_LABELS: Record<HistoryDocumentKind, string> = {
   TECHNICAL_CONDITIONS: 'Технічні умови',
   TU_PAYMENT: 'Рахунок за ТУ',
   CONTRACT: 'Договір',
+  PROJECT: 'Проєкт',
+  INVOICE: 'Рахунок',
 };
 
 /** What was done to a document: added rather than registered. */
@@ -220,6 +260,8 @@ export const DOCUMENT_CHANGE_ACTION_LABELS: Record<ApplicationChangeAction, stri
 const FIELD_LABELS: Partial<Record<HistoryDocumentKind, Record<string, string>>> = {
   TU_PAYMENT: PAYMENT_FIELD_LABELS,
   CONTRACT: CONTRACT_FIELD_LABELS,
+  PROJECT: PROJECT_FIELD_LABELS,
+  INVOICE: INVOICE_FIELD_LABELS,
 };
 const DOCUMENT_SCAN_FIELDS = new Set([
   'scan',
@@ -228,6 +270,9 @@ const DOCUMENT_SCAN_FIELDS = new Set([
   'actScan',
   'contractScan',
   'contractDocument',
+  'estimateScan',
+  'estimateImd',
+  'basis',
 ]);
 
 /**

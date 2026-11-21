@@ -82,3 +82,16 @@ export const uploadDocx = singleFileUpload({
   tooLarge: `Документ більший за ${SCAN_MAX_LABEL}`,
   malformed: 'Надішліть один файл .docx у полі «document»',
 });
+
+/**
+ * One estimate check file (.imd, agreed 2026-11-21) from the "imd" field, like `uploadScan`.
+ * The format has no registered type or known signature: the extension decides, and the
+ * service refuses an empty file.
+ */
+export const uploadImd = singleFileUpload({
+  field: 'imd',
+  accepts: (file) => /\.imd$/i.test(file.originalname),
+  wrongType: () => new ApiError(400, 'NOT_IMD', 'Файл перевірки кошторису має бути у форматі .imd'),
+  tooLarge: `Файл більший за ${SCAN_MAX_LABEL}`,
+  malformed: 'Надішліть один файл .imd у полі «imd»',
+});

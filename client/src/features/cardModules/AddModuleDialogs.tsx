@@ -1,4 +1,6 @@
 import type { ApplicationDto } from '@tu-registry/shared';
+import { InvoiceDialog } from '@/features/invoices';
+import { ProjectDialog } from '@/features/projects';
 import { ResponseDialog } from '@/features/responses';
 import { TechnicalConditionsDialog } from '@/features/technicalConditions';
 
@@ -26,6 +28,26 @@ export function AddTechnicalConditionsDialog({ app, onClose, onAdded }: AddDialo
       app={app}
       onClose={onClose}
       onSaved={(saved) => onAdded(`Технічні умови № ${saved.tuNumber} додано`)}
+    />
+  );
+}
+
+export function AddProjectDialog({ app, onClose, onAdded }: AddDialogProps) {
+  return (
+    <ProjectDialog
+      app={app}
+      onClose={onClose}
+      onSaved={(saved) => onAdded(`Проєкт № ${saved.approvalNumber} додано`)}
+    />
+  );
+}
+
+export function AddInvoiceDialog({ app, onClose, onAdded }: AddDialogProps) {
+  return (
+    <InvoiceDialog
+      app={app}
+      onClose={onClose}
+      onSaved={(saved) => onAdded(`Рахунок № ${saved.invoiceNumber} додано`)}
     />
   );
 }

@@ -4,6 +4,8 @@ import { toIsoDate } from '../../utils/kyivDate';
 import { type RequestContext, recordAudit } from '../audit/audit.service';
 import { contractFiles } from '../contracts/contract.dto';
 import { Contract } from '../contracts/contract.model';
+import { Estimate } from '../estimates/estimate.model';
+import { estimateFiles } from '../estimates/estimate.service';
 import { Invoice } from '../invoices/invoice.model';
 import { invoiceFiles } from '../invoices/invoice.service';
 import { Project } from '../projects/project.model';
@@ -22,7 +24,7 @@ import { ApplicationChange } from './applicationChange.model';
 
 /**
  * Admin only (enforced by the route). Removes the application with its change history and
- * its responses, technical conditions, payments, contracts, projects and invoices (with every file they ever had); the
+ * its responses, technical conditions, payments, contracts, projects, estimates and invoices (with every file they ever had); the
  * number becomes free for manual entry (the automatic counter never goes back). The audit
  * entry keeps the number and date only — customer data does not belong in the audit log.
  */
@@ -46,6 +48,7 @@ export async function deleteApplication(
   const projects = await Project.find(byApplication)
     .select(PROJECT_FILE_FIELDS)
     .lean<ProjectRecord[]>();
+  const estimates = await Estimate.find(byApplication).select('scan imd').lean();
   const invoices = await Invoice.find(byApplication).select('scan basis').lean();
   const files = [...(current.scan ? [current.scan.fileId] : []), ...documentFileIds(documents)];
 
@@ -61,6 +64,7 @@ export async function deleteApplication(
     await TuPayment.deleteMany({ applicationId: current._id }, { session });
     await Contract.deleteMany({ applicationId: current._id }, { session });
     await Project.deleteMany({ applicationId: current._id }, { session });
+    await Estimate.deleteMany({ applicationId: current._id }, { session });
     await Invoice.deleteMany({ applicationId: current._id }, { session });
     await recordAudit(
       {
@@ -84,6 +88,7 @@ export async function deleteApplication(
       ...paymentFiles(payments),
       ...contractFiles(contracts),
       ...projectFiles(projects),
+      ...estimateFiles(estimates),
       ...invoiceFiles(invoices),
     ].map(({ fileId, type }) => deleteStoredFile(fileId, type)),
   ]);

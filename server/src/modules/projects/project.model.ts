@@ -28,10 +28,6 @@ const projectSchema = new Schema(
     engineerName: { type: String, required: true },
     scan: { type: scanRecordSchema, default: undefined },
     previousScans: { type: [scanRecordSchema], default: [] },
-    // «Кошторис»: the date it was checked, its scan (PDF) and the check file (.imd).
-    estimateCheckDate: { type: Date, default: null },
-    estimateScan: { type: scanRecordSchema, default: undefined },
-    estimateImd: { type: scanRecordSchema, default: undefined },
     cancellation: { type: cancellationSchema, default: undefined },
     // Not cancelled. A separate flag because a partial index cannot test for a missing field.
     active: { type: Boolean, default: true, required: true },

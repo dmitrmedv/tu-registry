@@ -5,17 +5,13 @@ import {
   type UpdateProjectInput,
 } from '@tu-registry/shared';
 import type { FieldPath, UseFormSetError } from 'react-hook-form';
-import { z } from 'zod';
+import type { z } from 'zod';
 import { toApiError } from '@/shared/api/apiError';
 import { notifyError } from '@/shared/lib/notify';
 
-// The form always sends the engineer (the TU's by default); an empty check date is none.
+// The form always sends the engineer (the TU's by default).
 export const formSchema = createProjectSchema.extend({
   engineer: createProjectSchema.shape.engineer.unwrap(),
-  estimateCheckDate: z.preprocess(
-    (value) => (value === '' ? null : value),
-    z.iso.date('Вкажіть коректну дату').nullable(),
-  ),
 });
 export type FormInput = z.input<typeof formSchema>;
 export type FormData = z.output<typeof formSchema>;
@@ -27,7 +23,6 @@ export function formDefaults(project?: ProjectDto, tuEngineerId?: string): FormI
     approvalNumber: project?.approvalNumber ?? '',
     approvalDate: project?.approvalDate ?? kyivCalendarDate(),
     engineer: project?.engineer.id ?? tuEngineerId ?? '',
-    estimateCheckDate: project?.estimateCheckDate ?? '',
   };
 }
 
@@ -37,7 +32,6 @@ export function changedFields(project: ProjectDto, values: FormData): UpdateProj
     approvalNumber: project.approvalNumber,
     approvalDate: project.approvalDate,
     engineer: project.engineer.id,
-    estimateCheckDate: project.estimateCheckDate,
   };
   const changed = (Object.keys(current) as (keyof FormData)[]).filter(
     (field) => values[field] !== current[field],

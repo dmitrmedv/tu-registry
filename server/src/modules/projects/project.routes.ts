@@ -19,11 +19,3 @@ projectRouter.post('/:pid/restore', requireRole('ADMIN'), controller.restore);
 projectRouter.put('/:pid/scan', controller.checkEditable, uploadScan, controller.uploadScan);
 projectRouter.get('/:pid/scan', controller.downloadScan);
 projectRouter.delete('/:pid/scan', controller.removeScan);
-projectRouter.put(
-  '/:pid/files/:kind',
-  controller.checkEditable,
-  controller.receiveFile,
-  controller.uploadFile,
-);
-projectRouter.get('/:pid/files/:kind', controller.downloadFile);
-projectRouter.delete('/:pid/files/:kind', controller.removeFile);

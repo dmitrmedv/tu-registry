@@ -172,12 +172,13 @@
 // at the right, like the title on the left.
 .titledFrame.frameCancelled {
   border-color: var(--color-danger);
+}
 
-  .frameBadge {
-    top: 0;
-    right: var(--space-4);
-    transform: translateY(-50%);
-  }
+// «Скасовано», «Перераховано»: on the top border of a titled frame.
+.titledFrame .frameBadge {
+  top: 0;
+  right: var(--space-4);
+  transform: translateY(-50%);
 }
 
 // The title sits on the top border, like a fieldset's legend.

@@ -1,7 +1,6 @@
 import type {
   CancelDocumentInput,
   CreateProjectInput,
-  ProjectFileKind,
   UpdateProjectInput,
 } from '@tu-registry/shared';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -59,23 +58,3 @@ export const useUploadProjectScan = (applicationId: string) =>
 
 export const useRemoveProjectScan = (applicationId: string) =>
   useProjectMutation((id: string) => api.removeScan(applicationId, id));
-
-export const useUploadProjectFile = (applicationId: string) =>
-  useProjectMutation(
-    ({
-      id,
-      kind,
-      file,
-      onProgress,
-    }: {
-      id: string;
-      kind: ProjectFileKind;
-      file: File;
-      onProgress?: (p: number) => void;
-    }) => api.uploadFile(applicationId, id, kind, file, onProgress),
-  );
-
-export const useRemoveProjectFile = (applicationId: string) =>
-  useProjectMutation(({ id, kind }: { id: string; kind: ProjectFileKind }) =>
-    api.removeFile(applicationId, id, kind),
-  );

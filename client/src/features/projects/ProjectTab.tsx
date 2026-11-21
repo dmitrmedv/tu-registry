@@ -1,8 +1,9 @@
-import type { ApplicationDto, ProjectDto, ProjectFileKind } from '@tu-registry/shared';
+import type { ApplicationDto, ProjectDto } from '@tu-registry/shared';
 import clsx from 'clsx';
 import { useState } from 'react';
 import { canDeleteDocument, canManageDocuments, canRestoreDocument } from '@/features/applications';
 import { useCurrentUser } from '@/features/auth';
+import { EstimateFrame } from '@/features/estimates';
 import {
   CancelDocumentDialog,
   DocumentFrame,
@@ -13,15 +14,13 @@ import {
 import { toApiError } from '@/shared/api/apiError';
 import { formatCalendarDate, formatDateTime, shortName } from '@/shared/lib/format';
 import { notifyError, notifySuccess } from '@/shared/lib/notify';
-import { downloadFile, openPdf } from '@/shared/lib/pdf';
+import { openPdf } from '@/shared/lib/pdf';
 import {
   Badge,
-  Button,
   CardFooter,
   ConfirmDialog,
   DataList,
   DataRow,
-  Icon,
   IconButton,
   LoadFailed,
   Spinner,
@@ -41,10 +40,10 @@ const titleOf = (project: ProjectDto) =>
   `№ ${project.approvalNumber} від ${formatCalendarDate(project.approvalDate)}`;
 
 /**
- * The «Проєкт» tab of the card: the project and its «Кошторис» side by side, each in its frame
- * (2026-11-21); the estimate's scan opens with 👁, its IMD file downloads with «⤓ .imd». The
- * valid project first, cancelled ones paged with ‹ ›. ＋ adds a new
- * one only while there is no valid one (the server enforces it too).
+ * The «Проєкт» tab of the card: the project and the «Кошторис» of the project shown side by side,
+ * each in its frame (2026-11-21). The estimate is a document of its own (`EstimateFrame`): it is
+ * recalculated without the project. The valid project first, cancelled ones paged with ‹ ›. ＋ adds
+ * a new one only while there is no valid one (the server enforces it too).
  */
 export function ProjectTab({ app }: { app: ApplicationDto }) {
   const user = useCurrentUser();
@@ -67,14 +66,6 @@ export function ProjectTab({ app }: { app: ApplicationDto }) {
   };
   const openScanOf = (project: ProjectDto, fileId?: string, name = project.scan?.name ?? '') =>
     run(() => openPdf(() => projectsApi.scanFile(app.id, project.id, fileId), name));
-  const openFile = (project: ProjectDto, kind: ProjectFileKind) => {
-    const load = () => projectsApi.file(app.id, project.id, kind);
-    return run(() =>
-      kind === 'estimateImd'
-        ? downloadFile(load, project.estimateImd?.name ?? 'кошторис.imd')
-        : openPdf(load, project.estimateScan?.name ?? 'кошторис.pdf'),
-    );
-  };
 
   if (list.isPending) return <Spinner label="Завантаження проєктів…" />;
   if (list.isError) return <LoadFailed error={list.error} onRetry={() => list.refetch()} />;
@@ -179,42 +170,7 @@ export function ProjectTab({ app }: { app: ApplicationDto }) {
               onOpenScan={(scan) => openScanOf(shown, scan.id, scan.name)}
             />
           </DocumentFrame>
-          <DocumentFrame
-            title="Кошторис"
-            label={`Кошторис до проєкту ${titleOf(shown)}`}
-            cancelled={Boolean(shown.cancellation)}
-            footer={
-              (shown.estimateScan || shown.estimateImd) && (
-                <div className={styles.frameActions}>
-                  {shown.estimateScan && (
-                    <IconButton
-                      icon="eye"
-                      label="Відкрити скан кошторису"
-                      title={shown.estimateScan.name}
-                      onClick={() => openFile(shown, 'estimateScan')}
-                    />
-                  )}
-                  {shown.estimateImd && (
-                    <Button
-                      size="sm"
-                      aria-label="Завантажити файл перевірки кошторису (.imd)"
-                      title={shown.estimateImd.name}
-                      onClick={() => openFile(shown, 'estimateImd')}
-                    >
-                      <Icon name="download" />
-                      .imd
-                    </Button>
-                  )}
-                </div>
-              )
-            }
-          >
-            <DataList labels="fixed">
-              <DataRow label="Дата перевірки кошторису">
-                {shown.estimateCheckDate ? formatCalendarDate(shown.estimateCheckDate) : '—'}
-              </DataRow>
-            </DataList>
-          </DocumentFrame>
+          <EstimateFrame key={shown.id} app={app} project={shown} />
         </div>
       ) : (
         <>

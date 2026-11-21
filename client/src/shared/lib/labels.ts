@@ -123,6 +123,9 @@ export const AUDIT_ACTION_LABELS: Record<AuditAction, string> = {
   PROJECT_CANCELLED: 'Скасовано проєкт',
   PROJECT_RESTORED: 'Відновлено проєкт',
   PROJECT_DELETED: 'Видалено проєкт',
+  ESTIMATE_CREATED: 'Додано кошторис',
+  ESTIMATE_UPDATED: 'Змінено кошторис',
+  ESTIMATE_DELETED: 'Видалено кошторис',
   INVOICE_CREATED: 'Додано рахунок',
   INVOICE_UPDATED: 'Змінено рахунок',
   INVOICE_CANCELLED: 'Скасовано рахунок',
@@ -186,7 +189,10 @@ export const CONTRACT_FIELD_LABELS: Record<string, string> = {
   scan: 'скан укладеного договору',
 };
 
-/** Fields of the project and its estimate, in the journal and the history. */
+/**
+ * Fields of the project in the journal and the history; the estimate's ones stay for the entries
+ * made before it became a document of its own (2026-11-21).
+ */
 export const PROJECT_FIELD_LABELS: Record<string, string> = {
   approvalNumber: '№ узгодження',
   approvalDate: 'дата узгодження',
@@ -195,6 +201,15 @@ export const PROJECT_FIELD_LABELS: Record<string, string> = {
   estimateCheckDate: 'дата перевірки кошторису',
   estimateScan: 'скан кошторису',
   estimateImd: 'файл перевірки кошторису (IMD)',
+};
+
+/** Fields of the estimate (2026-11-21), in the journal and the history. */
+export const ESTIMATE_FIELD_LABELS: Record<string, string> = {
+  checkDate: 'дата перевірки',
+  amount: 'сума кошторису',
+  scan: 'скан кошторису',
+  imd: 'файл перевірки (IMD)',
+  superseded: 'стан',
 };
 
 /** Fields of the invoice for the connection, in the journal and the history. */
@@ -244,6 +259,7 @@ export const HISTORY_DOCUMENT_LABELS: Record<HistoryDocumentKind, string> = {
   TU_PAYMENT: 'Рахунок за ТУ',
   CONTRACT: 'Договір',
   PROJECT: 'Проєкт',
+  ESTIMATE: 'Кошторис до проєкту',
   INVOICE: 'Рахунок',
 };
 
@@ -261,6 +277,7 @@ const FIELD_LABELS: Partial<Record<HistoryDocumentKind, Record<string, string>>>
   TU_PAYMENT: PAYMENT_FIELD_LABELS,
   CONTRACT: CONTRACT_FIELD_LABELS,
   PROJECT: PROJECT_FIELD_LABELS,
+  ESTIMATE: ESTIMATE_FIELD_LABELS,
   INVOICE: INVOICE_FIELD_LABELS,
 };
 const DOCUMENT_SCAN_FIELDS = new Set([
@@ -272,6 +289,7 @@ const DOCUMENT_SCAN_FIELDS = new Set([
   'contractDocument',
   'estimateScan',
   'estimateImd',
+  'imd',
   'basis',
 ]);
 

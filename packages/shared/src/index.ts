@@ -19,4 +19,5 @@ export * from './schemas/tuPayment';
 export * from './schemas/preferences';
 export * from './schemas/contract';
 export * from './schemas/project';
+export * from './schemas/estimate';
 export * from './schemas/invoice';

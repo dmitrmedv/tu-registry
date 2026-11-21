@@ -43,6 +43,7 @@ export type AuditLogDto = {
     | 'TuPayment'
     | 'Contract'
     | 'Project'
+    | 'Estimate'
     | 'Invoice'
     | null;
   entityId: string | null;

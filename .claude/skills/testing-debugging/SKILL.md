@@ -35,16 +35,7 @@ export default defineConfig({
 });
 ```
 
-```ts
-// server/src/test/setup.ts
-let mongo: MongoMemoryServer;
-beforeAll(async () => { mongo = await MongoMemoryServer.create(); await mongoose.connect(mongo.getUri()); });
-afterEach(async () => {
-  // Ізоляція тестів: чистимо всі колекції
-  await Promise.all(Object.values(mongoose.connection.collections).map(c => c.deleteMany({})));
-});
-afterAll(async () => { await mongoose.disconnect(); await mongo.stop(); });
-```
+Серверні тести працюють на `MongoMemoryReplSet` (транзакціям потрібен replica set): спільне налаштування — `server/src/test/globalSetup.ts`, хелпери — `server/src/test/db.ts`, `auth.ts`, `applications.ts`. Не створюй окремий `MongoMemoryServer` без replica set.
 
 ## Тест API (Supertest)
 
@@ -52,10 +43,10 @@ afterAll(async () => { await mongoose.disconnect(); await mongo.stop(); });
 // modules/posts/post.test.ts
 const app = createApp();
 
-async function authAs(email = 'a@test.dev') {
-  const res = await request(app).post('/api/v1/auth/register')
-    .send({ email, name: 'Test', password: 'password123' });
-  return res.body.accessToken as string;
+// Самореєстрації немає: користувача створює й логінить хелпер із server/src/test/auth.ts
+async function authAs(options?: TestUserOptions) {
+  const { accessToken } = await signedInUser(app, options);
+  return accessToken;
 }
 
 describe('POST /api/v1/posts', () => {
@@ -87,7 +78,7 @@ describe('POST /api/v1/posts', () => {
 });
 ```
 
-Для кожного ендпоінта мінімум: успіх, валідація (400), без автентифікації (401), чужий ресурс (403), неіснуючий (404).
+Для кожного ендпоінта мінімум: успіх, валідація (400), без автентифікації (401), недостатня роль (403), заява чужого управління й неіснуюча (обидві — 404).
 
 ## Тест компонента
 
@@ -116,7 +107,7 @@ it('показує помилки валідації і не відправля�
 ## E2E (Playwright)
 
 ```ts
-// playwright.config.ts
+// e2e/playwright.config.ts (фактичні порти й webServer — у самому файлі)
 export default defineConfig({
   testDir: './e2e',
   use: { baseURL: 'http://localhost:5173', trace: 'on-first-retry', screenshot: 'only-on-failure' },
@@ -127,16 +118,7 @@ export default defineConfig({
   projects: [{ name: 'chromium', use: devices['Desktop Chrome'] }, { name: 'mobile', use: devices['Pixel 7'] }],
 });
 
-// e2e/auth.spec.ts
-test('користувач реєструється і бачить свій профіль', async ({ page }) => {
-  const email = `u${Date.now()}@test.dev`; // унікальні дані — тести незалежні
-  await page.goto('/register');
-  await page.getByLabel('Email').fill(email);
-  await page.getByLabel('Ім\'я').fill('Test');
-  await page.getByLabel('Пароль').fill('password123');
-  await page.getByRole('button', { name: 'Зареєструватися' }).click();
-  await expect(page.getByRole('heading', { name: /профіль/i })).toBeVisible();
-});
+// Самореєстрації в застосунку немає: акаунти створює адміністратор, тож E2E входять тестовими користувачами з фікстур (приклади — наявні `e2e/*.spec.ts`).
 ```
 
 - Ніяких `page.waitForTimeout` — лише авто-очікування локаторів і `expect(...).toBeVisible()`.
@@ -171,7 +153,7 @@ npm run build        # перед завершенням етапу
 | Симптом | Перевір |
 |---|---|
 | CORS error у браузері | `origin` у cors(), `credentials: true` на обох сторонах, реальний статус відповіді (CORS часто маскує 500) |
-| Запит «висить» | async-контролер без `asyncHandler` (Express 4), відсутній `res.send`/`next` |
+| Запит «висить» | відсутній `res.send`/`next`, незавершений проміс у middleware |
 | 401 після логіну | заголовок `Authorization` в інтерсепторі, TTL, секрет у `.env` того середовища |
 | Cookie не встановлюється | `withCredentials`, `sameSite`/`secure` на http, `path` cookie |
 | Mongoose `CastError` | невалідний ObjectId — додати Zod `objectId` |

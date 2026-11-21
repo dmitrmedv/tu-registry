@@ -19,7 +19,7 @@ export const disconnectDb = () => mongoose.disconnect();
 ```
 
 - Сервер не стартує, якщо БД недоступна (лог + `process.exit(1)`).
-- Окремі бази для `development` і `test`; у тестах — `mongodb-memory-server`.
+- Окремі бази для `development` і `test`; у тестах — `MongoMemoryReplSet` з `mongodb-memory-server`.
 
 ## Проєктування схем
 
@@ -125,7 +125,7 @@ const stats = await Post.aggregate([
 
 ## Транзакції
 
-Потрібні, коли кілька записів мають змінитися атомарно (переказ, замовлення + списання складу). Вимагають replica set (у docker-compose — `--replSet rs0`).
+Потрібні, коли кілька записів мають змінитися атомарно (переказ, замовлення + списання складу). Вимагають replica set: локально — `npm run db:start -w server` (нативний `mongod` як replica set з одного вузла), у тестах — `MongoMemoryReplSet`.
 
 ```ts
 const session = await mongoose.startSession();

@@ -1,6 +1,6 @@
 ---
 name: react-development
-description: Розробка frontend на React + Vite + TypeScript — компоненти, хуки, React Router, TanStack Query, Redux Toolkit, React Hook Form/Formik, Axios. Використовуй при створенні або зміні компонентів, сторінок, маршрутів, роботі зі станом, формами та запитами до API.
+description: Розробка frontend на React + Vite + TypeScript — компоненти, хуки, React Router, TanStack Query, React Hook Form, Axios. Використовуй при створенні або зміні компонентів, сторінок, маршрутів, роботі зі станом, формами та запитами до API.
 ---
 
 # React Development
@@ -9,7 +9,7 @@ description: Розробка frontend на React + Vite + TypeScript — ком
 
 - Функціональні компоненти + хуки. Класи — лише для Error Boundary (або `react-error-boundary`).
 - Компонент = одна відповідальність. Логіку виносимо в кастомні хуки, UI лишається простим.
-- **Серверний стан** → TanStack Query. **Стан UI** → `useState`/`useReducer`. **Глобальний клієнтський стан** → Context або Redux Toolkit (лише якщо справді складний).
+- **Серверний стан** → TanStack Query. **Стан UI** → `useState`/`useReducer`. **Глобальний клієнтський стан** → Context.
 - Не зберігай у стані те, що можна обчислити з props/іншого стану.
 - `useEffect` — лише для синхронізації із зовнішнім світом (DOM API, підписки). Не для завантаження даних і не для похідного стану.
 
@@ -112,8 +112,8 @@ export function PostForm({ onSuccess }: { onSuccess?: () => void }) {
       await mutateAsync(values);
       onSuccess?.();
     } catch (e) {
-      // Показуємо помилку сервера біля форми, а не лише в консолі
-      setError('root', { message: toApiError(e).message });
+      // Помилки дії — нотифікацією; помилки окремих полів — під полями
+      notifyError(toApiError(e).message);
     }
   });
 
@@ -121,14 +121,11 @@ export function PostForm({ onSuccess }: { onSuccess?: () => void }) {
     <form onSubmit={onSubmit} noValidate>
       <Input label="Заголовок" {...register('title')} error={errors.title?.message} />
       <Textarea label="Текст" {...register('body')} error={errors.body?.message} />
-      {errors.root && <p role="alert">{errors.root.message}</p>}
       <Button type="submit" disabled={isPending}>Зберегти</Button>
     </form>
   );
 }
 ```
-
-Formik (якщо використовується в проєкті): `validationSchema` через `toFormikValidationSchema` (zod-formik-adapter) або Yup; `setStatus`/`setErrors` для серверних помилок.
 
 ## React Router
 
@@ -157,23 +154,6 @@ export const router = createBrowserRouter([
 - Фільтри/пагінація — у `useSearchParams` (посилання можна поділитися).
 - Захищені маршрути — через layout-route, а не перевіркою в кожній сторінці.
 
-## Redux Toolkit (лише коли потрібен)
-
-```ts
-const cartSlice = createSlice({
-  name: 'cart',
-  initialState: { items: [] as CartItem[] },
-  reducers: {
-    added(state, { payload }: PayloadAction<CartItem>) { state.items.push(payload); },
-  },
-});
-// Типізовані хуки
-export const useAppDispatch = useDispatch.withTypes<AppDispatch>();
-export const useAppSelector = useSelector.withTypes<RootState>();
-```
-
-Не клади в Redux дані з API — для цього TanStack Query (або RTK Query, але не обидва).
-
 ## Продуктивність
 
 - Спершу вимірюй (React DevTools Profiler), потім оптимізуй.
@@ -194,7 +174,7 @@ export const useAppSelector = useSelector.withTypes<RootState>();
 | `useEffect(() => { fetch… setData… }, [])` | `useQuery` |
 | `const [fullName, setFullName]` похідне від `first`+`last` | обчислити під час рендеру |
 | Мутація без інвалідації кешу | `invalidateQueries` в `onSuccess` |
-| Помилка запиту лише в `console.log` | показати користувачу + кнопка повтору |
+| Помилка запиту лише в `console.log` | `notifyError()` з `shared/lib/notify.ts` + кнопка «Повторити» на місці даних |
 | Prop drilling на 4+ рівні | композиція (`children`) або Context |
 | Компонент на 400 рядків | розбити на підкомпоненти + хук |
 | Імпорт з `features/a/components/X` в `features/b` | через `features/a/index.ts` або перенести в `shared` |

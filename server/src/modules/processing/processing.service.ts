@@ -13,6 +13,8 @@ import { countWorkingDays, deadline } from '../calendar/workingDays';
 import { regNumberOf } from '../documents/document.rules';
 import { ApplicationResponse } from '../responses/response.model';
 import type { ResponseRecord } from '../responses/response.service';
+import { Contract } from '../contracts/contract.model';
+import type { ContractRecord } from '../contracts/contract.dto';
 import { TechnicalConditions } from '../technicalConditions/technicalConditions.model';
 import type { TechnicalConditionsRecord } from '../technicalConditions/technicalConditions.service';
 import type { TuPaymentRecord } from '../tuPayments/tuPayment.dto';
@@ -35,6 +37,8 @@ const TYPE_ORDER: Record<TimelineEventType, number> = {
   TU_INVOICE: 4,
   TU_PAID: 5,
   TU_ACT_TRANSFERRED: 6,
+  CONTRACT: 7,
+  CONTRACT_SIGNED: 8,
 };
 
 /**
@@ -44,10 +48,11 @@ const TYPE_ORDER: Record<TimelineEventType, number> = {
 export async function getProcessing(applicationId: string, actor: Actor): Promise<ProcessingDto> {
   const app = await loadApplication(applicationId, actor);
   const regDate = toIsoDate(app.regDate);
-  const [responses, tus, payments, exceptions, regNumber, names] = await Promise.all([
+  const [responses, tus, payments, contracts, exceptions, regNumber, names] = await Promise.all([
     ApplicationResponse.find({ applicationId: app._id }).lean<ResponseRecord[]>(),
     TechnicalConditions.find({ applicationId: app._id }).lean<TechnicalConditionsRecord[]>(),
     TuPayment.find({ applicationId: app._id }).lean<TuPaymentRecord[]>(),
+    Contract.find({ applicationId: app._id }).lean<ContractRecord[]>(),
     loadExceptions(regDate),
     regNumberOf(app),
     findUserSummaries([String(app.createdBy)]),
@@ -164,6 +169,26 @@ export async function getProcessing(applicationId: string, actor: Actor): Promis
                 month: payment.actTransferMonth,
                 ...common,
                 scanName: payment.actScan?.name ?? null,
+              }),
+            ]
+          : []),
+      ];
+    }),
+    // The contract on its date, and again when signed; annulled, both are struck through.
+    ...contracts.flatMap((contract) => {
+      const common = {
+        number: contract.contractNumber,
+        documentId: String(contract._id),
+        cancelled: !!contract.cancellation,
+        createdAt: contract.createdAt,
+      };
+      return [
+        event('CONTRACT', contract.contractDate, common),
+        ...(contract.signedDate
+          ? [
+              event('CONTRACT_SIGNED', contract.signedDate, {
+                ...common,
+                scanName: contract.scan?.name ?? null,
               }),
             ]
           : []),

@@ -1,6 +1,7 @@
 import type {
   ApplicationChangeDto,
   ApplicationDto,
+  ContractDto,
   ProcessingDto,
   ResponseDto,
   TechnicalConditionsDto,
@@ -140,6 +141,29 @@ export function makeProcessing(overrides: Partial<ProcessingDto> = {}): Processi
         cancelled: false,
       },
     ],
+    ...overrides,
+  };
+}
+
+export function makeContract(overrides: Partial<ContractDto> = {}): ContractDto {
+  return {
+    id: 'ct000000000000000000001',
+    applicationId: 'app00000000000000000001',
+    connectionType: 'NON_STANDARD',
+    contractNumber: '125-8',
+    contractDate: '2026-03-20',
+    department: 'ODESA',
+    customer: 'Франко Іван Якович',
+    address: 'м. Одеса, вул. Лесі Українки, 34',
+    signedDate: null,
+    representative: null,
+    comment: null,
+    document: null,
+    scan: null,
+    cancellation: null,
+    createdBy: { id: 'owner000000000000000001', fullName: 'Олена Коваль' },
+    createdAt: '2026-03-21T09:00:00.000Z',
+    version: 1,
     ...overrides,
   };
 }

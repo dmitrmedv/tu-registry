@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import { toApiError } from '@/shared/api/apiError';
 import { notifyError } from '@/shared/lib/notify';
-import { Button } from '../Button';
+import { IconButton } from '../IconButton';
 
 /** One notification per failure: a remount (StrictMode, a tab switched back) does not repeat it. */
 const notified = new WeakSet<object>();
@@ -33,9 +33,7 @@ export function LoadFailed({ error, onRetry }: Props) {
   if (!onRetry) return null;
   return (
     <p>
-      <Button size="sm" onClick={onRetry}>
-        Повторити
-      </Button>
+      <IconButton icon="restore" label="Повторити" onClick={onRetry} />
     </p>
   );
 }

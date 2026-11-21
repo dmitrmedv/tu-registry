@@ -1,29 +1,85 @@
 @use '@/styles/mixins' as *;
 
-// Two columns from a medium width (the mock-up), one on phones. Inset from the tab's edge like
+// The mock-up of 2026-11-20: the registration and the customer, under them the object and the
+// comment. One column on phones, in the order people read them. Inset from the tab's edge like
 // the technical conditions (`documentStyles.current`).
 .details {
   display: grid;
+  grid-template-areas: 'registration' 'object' 'customer' 'comment';
   grid-template-columns: minmax(0, 1fr);
   gap: var(--space-8) var(--space-6);
   align-content: start;
   padding: var(--space-4) var(--space-4) 0;
 
   @include up(md) {
+    grid-template-areas:
+      'registration customer'
+      'object comment';
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 
-// Groups of one column, with room between them.
-.column {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-8);
+// The annulment above everything, only when there is one (an empty row would still get a gap).
+.withAnnulment {
+  grid-template-areas: 'annulled' 'registration' 'object' 'customer' 'comment';
+
+  @include up(md) {
+    grid-template-areas:
+      'annulled annulled'
+      'registration customer'
+      'object comment';
+  }
+}
+
+.registration {
+  grid-area: registration;
   min-width: 0;
 }
 
+.customer {
+  grid-area: customer;
+  min-width: 0;
+}
+
+.object {
+  grid-area: object;
+  min-width: 0;
+}
+
+// The mock-up of 2026-11-20: the title over a box that reaches the bottom of the object beside it.
+.comment {
+  display: flex;
+  grid-area: comment;
+  flex-direction: column;
+  gap: var(--space-3);
+  min-width: 0;
+}
+
+.commentTitle {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: var(--text-md);
+  font-weight: 600;
+}
+
+.commentText {
+  flex: 1;
+  // A long comment scrolls inside; a short one keeps the box the object's height.
+  min-height: 6rem;
+  max-height: 20rem;
+  margin: 0;
+  padding: var(--space-2) var(--space-4);
+  overflow-y: auto;
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-muted);
+  // Keep the line breaks people typed.
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
 .annulled {
-  grid-column: 1 / -1;
+  grid-area: annulled;
   padding: var(--space-3);
   border: 1px solid var(--color-danger);
   border-radius: var(--radius-md);
@@ -67,11 +123,4 @@
 .oldValue {
   color: var(--color-text-muted);
   text-decoration: line-through;
-}
-
-.comment {
-  font-weight: 400;
-  // Keep the line breaks people typed.
-  white-space: pre-wrap;
-  overflow-wrap: anywhere;
 }

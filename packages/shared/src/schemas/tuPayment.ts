@@ -12,9 +12,20 @@ export const TU_INVOICE_NUMBER_MAX = 50;
 /** Hryvnias; far above any real invoice, a guard against typos. */
 export const TU_PAYMENT_AMOUNT_MAX = 100_000_000;
 
-/** The two scans a payment may have, as they appear in the API path. */
-/** The invoice's scan was added on 2026-11-19. */
-export const TU_PAYMENT_SCAN_KINDS = ['invoice', 'receipt', 'act'] as const;
+/**
+ * The files of a payment, as they appear in the API path: PDF scans of the invoice (since
+ * 2026-11-19), the receipt, the act and the signed contract, and the contract as a Word
+ * document (`contractDocument`, DOCX; the contract since 2026-11-20).
+ */
+export const TU_PAYMENT_SCAN_KINDS = [
+  'invoice',
+  'receipt',
+  'act',
+  'contract',
+  'contractDocument',
+] as const;
+/** The largest contract number: a guard against typos. */
+export const TU_PAYMENT_CONTRACT_NUMBER_MAX = 999_999;
 export type TuPaymentScanKind = (typeof TU_PAYMENT_SCAN_KINDS)[number];
 
 const versionField = z.number('Відсутня версія документа').int().min(1);
@@ -56,7 +67,23 @@ export const saveTuPaymentSchema = z
     invoiceDate: z.iso.date('Вкажіть дату рахунку'),
     amount: amountField,
     paidDate: optionalDate.default(null),
+    /**
+     * What the bank actually took (2026-11-19): after its rounding it may differ from the
+     * invoice. Only together with the payment date; payments entered before may lack it.
+     */
+    paidAmount: z.preprocess(emptyToNull, amountField.nullable()).default(null),
     actTransferMonth: optionalMonth.default(null),
+    /**
+     * The contract for the payment (2026-11-20), rarely needed: numbered 1, 2, 3… per
+     * department, the next one offered by the form; kept only together with its date.
+     */
+    contractNumber: z
+      .preprocess((value) => {
+        const empty = emptyToNull(value);
+        return typeof empty === 'string' ? Number(empty.trim()) : empty;
+      }, z.number('Вкажіть номер договору числом').int('Вкажіть номер договору цілим числом').min(1, 'Номер договору — від 1').max(TU_PAYMENT_CONTRACT_NUMBER_MAX, 'Перевірте номер договору: він завеликий').nullable())
+      .default(null),
+    contractDate: optionalDate.default(null),
   })
   .strict()
   .superRefine((data, ctx) => {
@@ -66,6 +93,16 @@ export const saveTuPaymentSchema = z
         path: ['paidDate'],
         message: 'Дата оплати не може бути раніше дати рахунку',
       });
+    }
+    if (data.paidAmount !== null && !data.paidDate) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['paidAmount'],
+        message: 'Вкажіть і дату оплати',
+      });
+    }
+    if (data.contractDate && data.contractNumber === null) {
+      ctx.addIssue({ code: 'custom', path: ['contractNumber'], message: 'Вкажіть номер договору' });
     }
     if (data.actTransferMonth && !data.paidDate) {
       ctx.addIssue({
@@ -85,7 +122,10 @@ export const saveTuPaymentSchema = z
         message: 'Місяць передачі не може бути раніше місяця оплати',
       });
     }
-  });
+  })
+  // The form offers the next number on every invoice, and a contract is rare: without its date
+  // the number is not kept, so a payment without a contract takes no number (2026-11-20).
+  .transform((data) => (data.contractDate ? data : { ...data, contractNumber: null }));
 
 export type SaveTuPaymentInput = z.input<typeof saveTuPaymentSchema>;
 export type SaveTuPaymentData = z.output<typeof saveTuPaymentSchema>;
@@ -107,11 +147,20 @@ export type TuPaymentDto = {
   /** Hryvnias. */
   amount: number;
   paidDate: string | null;
+  /** Hryvnias actually paid; null until entered. */
+  paidAmount: number | null;
   /** "YYYY-MM". */
   actTransferMonth: string | null;
   invoiceScan: ScanDto | null;
   receiptScan: ScanDto | null;
   actScan: ScanDto | null;
+  /** The contract for the payment: its number and date, or null for both. */
+  contractNumber: number | null;
+  contractDate: string | null;
+  /** The signed contract's scan. */
+  contractScan: ScanDto | null;
+  /** The contract as a Word document. */
+  contractDocument: ScanDto | null;
   createdBy: Person;
   createdAt: string;
   version: number;

@@ -10,13 +10,15 @@
   display: grid;
   grid-template-areas:
     'heading add'
-    'meta meta';
+    'meta meta'
+    'connection connection';
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: start;
   gap: var(--space-2) var(--space-4);
   // Covers what scrolls under it; the negative margin keeps the page's own spacing.
   margin-block: calc(-1 * var(--space-2));
   padding-block: var(--space-2);
+  padding-top: 0;
   background: var(--color-bg);
   border-bottom: 1px solid var(--color-border);
 
@@ -26,8 +28,8 @@
   }
 
   @include up(lg) {
-    grid-template-areas: 'heading meta add';
-    grid-template-columns: fit-content(60%) fit-content(30%) minmax(0, 1fr);
+    grid-template-areas: 'heading meta connection add';
+    grid-template-columns: fit-content(60%) fit-content(30%) minmax(0, 1fr) auto;
     column-gap: 50px;
   }
 }
@@ -50,6 +52,18 @@
   width: 350px;
   max-width: 100%;
   min-width: 0;
+}
+
+// The valid TU's connection, large, in the free space before «Додати модуль».
+.connection {
+  grid-area: connection;
+  font-size: var(--text-xl);
+  font-weight: 700;
+
+  @include up(lg) {
+    align-self: center;
+    text-align: center;
+  }
 }
 
 .addModule {

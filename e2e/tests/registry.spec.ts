@@ -21,7 +21,7 @@ test('filters and the result bar stay under the header; paging starts from the t
   expect(filters!.y).toBeLessThan(header!.y + header!.height + 20);
   await expect(page.getByRole('status').filter({ hasText: /^Знайдено: \d+$/ })).toBeInViewport();
 
-  await page.getByRole('button', { name: 'Наступна ›' }).click();
+  await page.getByRole('button', { name: 'Наступна сторінка' }).click();
   await expect(page.getByText(/^Сторінка 2 з \d+$/)).toBeVisible();
   expect(await page.evaluate(() => window.scrollY)).toBe(0);
 });

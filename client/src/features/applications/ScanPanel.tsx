@@ -1,7 +1,7 @@
 import type { ScanDto } from '@tu-registry/shared';
 import { toApiError } from '@/shared/api/apiError';
 import { notifyError } from '@/shared/lib/notify';
-import { ScanDropzone } from './ScanDropzone';
+import { type DropzoneFileType, ScanDropzone } from './ScanDropzone';
 import styles from './ScanDropzone.module.scss';
 import type { ScanChangeState } from './useScanChange';
 
@@ -13,6 +13,8 @@ type Props = {
   scanChange: ScanChangeState;
   onView: () => Promise<void>;
   disabled?: boolean;
+  /** PDF by default; a contract's Word document is DOCX. */
+  fileType?: DropzoneFileType;
   className?: string;
 };
 
@@ -20,7 +22,15 @@ type Props = {
  * The stored scan on an edit page or in a dialog, in the common zone (`ScanDropzone`): replacing
  * or removing it is only chosen here; nothing changes until «Зберегти» (agreed 2026-11-17).
  */
-export function ScanPanel({ title, scan, scanChange, onView, disabled = false, className }: Props) {
+export function ScanPanel({
+  title,
+  scan,
+  scanChange,
+  onView,
+  disabled = false,
+  fileType,
+  className,
+}: Props) {
   const { change, choose, keep, progress } = scanChange;
   const busy = disabled || progress !== null;
 
@@ -45,6 +55,7 @@ export function ScanPanel({ title, scan, scanChange, onView, disabled = false, c
         }
         removal={scan && change.kind === 'remove' ? { onUndo: keep } : undefined}
         disabled={busy}
+        fileType={fileType}
       >
         {progress !== null && (
           <p role="status" className={styles.limits}>

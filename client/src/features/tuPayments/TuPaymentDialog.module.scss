@@ -1,16 +1,35 @@
 @use '@/styles/mixins' as *;
 
-// The mock-up of 2026-11-19: each step — the invoice, the payment, the act — is a row, its
-// fields on the left and its scan on the right. One column on phones, in the same order.
+// The steps one under another.
 .layout {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+}
+
+// A step (mock-ups 2026-11-19, 2026-11-20): its fields, then its two files side by side. On a
+// wide screen all three in a row; on a tablet the fields above the files; on a phone one column.
+.row {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   gap: var(--space-4);
+  align-items: start;
 
   @include up(md) {
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    align-items: start;
-    gap: var(--space-6);
+
+    > .fields {
+      grid-column: 1 / -1;
+    }
+  }
+
+  @include up(lg) {
+    // The two files together are 530 px wide (asked 2026-11-20); the fields take the rest.
+    grid-template-columns: minmax(0, 1fr) repeat(2, calc((530px - var(--space-4)) / 2));
+
+    > .fields {
+      grid-column: auto;
+    }
   }
 }
 
@@ -22,5 +41,16 @@
 
   @include up(md) {
     padding-top: var(--space-2);
+  }
+}
+
+// The invoice's number and sum side by side, as in the mock-up; one under the other on phones.
+.pair {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-3);
+
+  @include up(sm) {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }

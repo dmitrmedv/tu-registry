@@ -2,7 +2,7 @@ import type { UserDto } from '@tu-registry/shared';
 import { useDepartments } from '@/features/departments';
 import { formatDateTime } from '@/shared/lib/format';
 import { ROLE_LABELS } from '@/shared/lib/labels';
-import { Badge, Button, Table } from '@/shared/ui';
+import { Badge, IconButton, Table } from '@/shared/ui';
 import styles from './users.module.scss';
 
 type Props = {
@@ -57,21 +57,16 @@ export function UsersTable({ users, currentUserId, onEdit, onResetPassword }: Pr
             <td className={styles.nowrap}>{formatDateTime(user.lastLoginAt)}</td>
             <td>
               <div className={styles.actions}>
-                <Button
-                  size="sm"
+                <IconButton
+                  icon="pencil"
+                  label={`Редагувати: ${user.fullName}`}
                   onClick={() => onEdit(user)}
-                  aria-label={`Редагувати: ${user.fullName}`}
-                >
-                  Редагувати
-                </Button>
-                <Button
-                  size="sm"
-                  variant="ghost"
+                />
+                <IconButton
+                  icon="key"
+                  label={`Скинути пароль: ${user.fullName}`}
                   onClick={() => onResetPassword(user)}
-                  aria-label={`Скинути пароль: ${user.fullName}`}
-                >
-                  Скинути пароль
-                </Button>
+                />
               </div>
             </td>
           </tr>

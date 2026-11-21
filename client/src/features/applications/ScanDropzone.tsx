@@ -1,14 +1,57 @@
-import { SCAN_MAX_BYTES, SCAN_MAX_LABEL, SCAN_MIME_TYPE } from '@tu-registry/shared';
+import {
+  DOCX_MIME_TYPE,
+  SCAN_MAX_BYTES,
+  SCAN_MAX_LABEL,
+  SCAN_MIME_TYPE,
+} from '@tu-registry/shared';
 import clsx from 'clsx';
 import { type DragEvent, type ReactNode, useId, useRef, useState } from 'react';
 import { Button, Icon, IconButton } from '@/shared/ui';
 import styles from './ScanDropzone.module.scss';
 
+/** A scan is a PDF; a contract is also kept as a Word document (agreed 2026-11-20). */
+export type DropzoneFileType = 'pdf' | 'docx';
+
+const FILE_TYPES = {
+  pdf: {
+    mime: SCAN_MIME_TYPE,
+    extension: /\.pdf$/i,
+    accept: 'application/pdf,.pdf',
+    inputLabel: 'PDF-файл скану',
+    wrongType: 'Оберіть PDF-файл',
+    name: 'PDF',
+    none: 'Скан не додано.',
+    added: 'Скан додано',
+    removal: 'Скан буде видалено після збереження.',
+    view: 'Переглянути скан',
+    viewIcon: 'eye',
+    replace: 'Замінити скан',
+    remove: 'Видалити скан',
+  },
+  docx: {
+    mime: DOCX_MIME_TYPE,
+    extension: /\.docx$/i,
+    accept: `${DOCX_MIME_TYPE},.docx`,
+    inputLabel: 'Файл DOCX',
+    wrongType: 'Оберіть файл Word (.docx)',
+    name: 'DOCX',
+    none: 'Документ не додано.',
+    added: 'Документ додано',
+    removal: 'Документ буде видалено після збереження.',
+    view: 'Завантажити документ',
+    viewIcon: 'download',
+    replace: 'Замінити документ',
+    remove: 'Видалити документ',
+  },
+} as const;
+
 /** Checks what the browser can tell; the server checks the content again. */
-function scanProblem(file: File) {
-  // Some systems report no type for a PDF; the extension is the fallback.
-  const isPdf = file.type === SCAN_MIME_TYPE || (!file.type && /\.pdf$/i.test(file.name));
-  if (!isPdf) return 'Оберіть PDF-файл';
+function fileProblem(file: File, type: DropzoneFileType) {
+  const rule = FILE_TYPES[type];
+  // Some systems report no type (or a generic one); the extension is the fallback.
+  const known = file.type === rule.mime;
+  const unknown = !file.type || file.type === 'application/octet-stream';
+  if (!known && !(unknown && rule.extension.test(file.name))) return rule.wrongType;
   if (file.size > SCAN_MAX_BYTES) return `Файл більший за ${SCAN_MAX_LABEL}`;
   return null;
 }
@@ -24,6 +67,8 @@ type Props = {
   /** The stored scan goes on «Зберегти»; this takes it back. */
   removal?: { onUndo: () => void };
   disabled?: boolean;
+  /** PDF by default. */
+  fileType?: DropzoneFileType;
   /** Under the zone: the upload progress, errors. */
   children?: ReactNode;
 };
@@ -42,8 +87,10 @@ export function ScanDropzone({
   current,
   removal,
   disabled = false,
+  fileType = 'pdf',
   children,
 }: Props) {
+  const texts = FILE_TYPES[fileType];
   const inputRef = useRef<HTMLInputElement>(null);
   const [dragging, setDragging] = useState(false);
   const [problem, setProblem] = useState<string | null>(null);
@@ -54,7 +101,7 @@ export function ScanDropzone({
 
   const take = (candidate: File | undefined) => {
     if (!candidate) return;
-    const reason = scanProblem(candidate);
+    const reason = fileProblem(candidate, fileType);
     setProblem(reason);
     if (!reason) onChange(candidate);
   };
@@ -72,7 +119,7 @@ export function ScanDropzone({
       <>
         <p className={styles.added}>
           <Icon name="check" />
-          Скан додано
+          {texts.added}
         </p>
         <div className={styles.actions}>
           {file ? (
@@ -85,16 +132,16 @@ export function ScanDropzone({
           ) : (
             current && (
               <>
-                <IconButton icon="eye" label="Переглянути скан" onClick={current.onView} />
+                <IconButton icon={texts.viewIcon} label={texts.view} onClick={current.onView} />
                 <IconButton
                   icon="upload"
-                  label="Замінити скан"
+                  label={texts.replace}
                   disabled={disabled}
                   onClick={pick}
                 />
                 <IconButton
                   icon="trash"
-                  label="Видалити скан"
+                  label={texts.remove}
                   tone="danger"
                   disabled={disabled}
                   onClick={current.onRemove}
@@ -109,15 +156,17 @@ export function ScanDropzone({
     contents = (
       <>
         {removal ? (
-          <p className={styles.removal}>Скан буде видалено після збереження.</p>
+          <p className={styles.removal}>{texts.removal}</p>
         ) : (
-          <p className={styles.limits}>Скан не додано.</p>
+          <p className={styles.limits}>{texts.none}</p>
         )}
-        <p className={styles.prompt}>Перетягніть PDF сюди або</p>
+        <p className={styles.prompt}>Перетягніть {texts.name} сюди або</p>
         <Button size="sm" disabled={disabled} onClick={pick}>
           Обрати файл
         </Button>
-        <p className={styles.limits}>Лише PDF, до {SCAN_MAX_LABEL}</p>
+        <p className={styles.limits}>
+          Лише {texts.name}, до {SCAN_MAX_LABEL}
+        </p>
         {removal && (
           <Button size="sm" variant="ghost" disabled={disabled} onClick={removal.onUndo}>
             Не видаляти
@@ -149,10 +198,10 @@ export function ScanDropzone({
         <input
           ref={inputRef}
           type="file"
-          accept="application/pdf,.pdf"
+          accept={texts.accept}
           className="visually-hidden"
           tabIndex={-1}
-          aria-label="PDF-файл скану"
+          aria-label={texts.inputLabel}
           aria-describedby={problem ? problemId : undefined}
           // «Замінити скан» opens it while the stored scan is shown.
           disabled={disabled || file !== null}

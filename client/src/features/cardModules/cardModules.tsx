@@ -1,5 +1,6 @@
 import type { ApplicationDto, TimelineEventDto } from '@tu-registry/shared';
 import type { ComponentType } from 'react';
+import { ContractTab, useContracts } from '@/features/contracts';
 import { ResponsesTab, useResponses } from '@/features/responses';
 import { TechnicalConditionsTab, useTechnicalConditions } from '@/features/technicalConditions';
 import {
@@ -22,7 +23,10 @@ type CardModule = {
   /** The timeline events that open this tab. */
   eventTypes: TimelineEventDto['type'][];
   Tab: ComponentType<{ app: ApplicationDto }>;
-  AddDialog: ComponentType<AddDialogProps>;
+  /** The first document is added in a dialog over the card… */
+  AddDialog?: ComponentType<AddDialogProps>;
+  /** …or on a page of its own. */
+  addPath?: (applicationId: string) => string;
 };
 
 /** The modules in the order of the processing: the order of the tabs. */
@@ -43,9 +47,28 @@ export const CARD_MODULES = [
     Tab: TechnicalConditionsTab,
     AddDialog: AddTechnicalConditionsDialog,
   },
+  {
+    id: 'contract',
+    tabLabel: 'Договір',
+    menuLabel: 'Договір',
+    eventTypes: ['CONTRACT', 'CONTRACT_SIGNED'],
+    Tab: ContractTab,
+    // A large form with two files: a page, not a dialog (agreed 2026-11-20).
+    addPath: (applicationId) => `/applications/${applicationId}/contracts/new`,
+  },
 ] as const satisfies readonly CardModule[];
 
 export type CardModuleId = (typeof CARD_MODULES)[number]['id'];
+
+const moduleOf = (id: CardModuleId) =>
+  (CARD_MODULES as readonly CardModule[]).find((module) => module.id === id);
+
+/** The dialog of a module's first document, if it is added in one. */
+export const addDialogOf = (id: CardModuleId) => moduleOf(id)?.AddDialog;
+
+/** The page of a module's first document, if it is added on one. */
+export const addPathOf = (id: CardModuleId, applicationId: string) =>
+  moduleOf(id)?.addPath?.(applicationId);
 
 /**
  * Whether each module has documents yet: true or false once known, undefined while loading.
@@ -56,8 +79,10 @@ export function useModulePresence(
 ): Record<CardModuleId, boolean | undefined> {
   const responses = useResponses(applicationId);
   const technicalConditions = useTechnicalConditions(applicationId);
+  const contracts = useContracts(applicationId);
   return {
     response: responses.data && responses.data.length > 0,
     tu: technicalConditions.data && technicalConditions.data.length > 0,
+    contract: contracts.data && contracts.data.length > 0,
   };
 }

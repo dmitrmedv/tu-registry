@@ -1,4 +1,4 @@
-import { Button } from '../Button';
+import { IconButton } from '../IconButton';
 import styles from './Pagination.module.scss';
 
 type Props = { page: number; totalPages: number; onChange: (page: number) => void };
@@ -6,15 +6,21 @@ type Props = { page: number; totalPages: number; onChange: (page: number) => voi
 export function Pagination({ page, totalPages, onChange }: Props) {
   return (
     <nav className={styles.pagination} aria-label="Сторінки">
-      <Button size="sm" disabled={page <= 1} onClick={() => onChange(page - 1)}>
-        ‹ Попередня
-      </Button>
+      <IconButton
+        icon="chevronLeft"
+        label="Попередня сторінка"
+        disabled={page <= 1}
+        onClick={() => onChange(page - 1)}
+      />
       <span className={styles.position} aria-current="page">
         Сторінка {page} з {totalPages}
       </span>
-      <Button size="sm" disabled={page >= totalPages} onClick={() => onChange(page + 1)}>
-        Наступна ›
-      </Button>
+      <IconButton
+        icon="chevronRight"
+        label="Наступна сторінка"
+        disabled={page >= totalPages}
+        onClick={() => onChange(page + 1)}
+      />
     </nav>
   );
 }

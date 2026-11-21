@@ -5,6 +5,7 @@ import {
 } from '@tu-registry/shared';
 import type { RequestHandler } from 'express';
 import { z } from 'zod';
+import { uploadDocx, uploadScan as receiveScan } from '../../middlewares/upload';
 import { ApiError } from '../../utils/ApiError';
 import { idParamsSchema, parseRequest } from '../../utils/parseRequest';
 import { requestContext } from '../audit/audit.service';
@@ -43,6 +44,15 @@ export const remove: RequestHandler = async (req, res) => {
   );
 };
 
+export const nextContractNumber: RequestHandler = async (req, res) => {
+  const { params } = parseRequest(req, { params: paramsSchema });
+  res.json(await service.nextContractNumber(params.id, params.tid, req.user!));
+};
+
+/** The contract's Word document comes in the "document" field, every scan in "scan". */
+export const receiveFile: RequestHandler = (req, res, next) =>
+  (req.params.kind === 'contractDocument' ? uploadDocx : receiveScan)(req, res, next);
+
 export const checkScanEditable: RequestHandler = async (req, _res, next) => {
   const { params } = parseRequest(req, { params: scanParamsSchema });
   await scanService.assertScanEditable(params.id, params.tid, req.user!);
@@ -51,7 +61,11 @@ export const checkScanEditable: RequestHandler = async (req, _res, next) => {
 
 export const uploadScan: RequestHandler = async (req, res) => {
   const { params } = parseRequest(req, { params: scanParamsSchema });
-  if (!req.file) throw ApiError.badRequest('Оберіть PDF-файл');
+  if (!req.file) {
+    throw ApiError.badRequest(
+      params.kind === 'contractDocument' ? 'Оберіть файл .docx' : 'Оберіть PDF-файл',
+    );
+  }
   res.json(
     await scanService.attachPaymentScan(
       params.id,

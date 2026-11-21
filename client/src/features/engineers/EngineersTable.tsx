@@ -1,6 +1,6 @@
 import type { EngineerDto } from '@tu-registry/shared';
 import { useDepartments } from '@/features/departments';
-import { Badge, Button, Table } from '@/shared/ui';
+import { Badge, IconButton, Table } from '@/shared/ui';
 import styles from './engineers.module.scss';
 
 type Props = {
@@ -32,29 +32,24 @@ export function EngineersTable({ engineers, onEdit, onDeactivate, onActivate }: 
             <td>{engineer.isActive ? 'Активний' : <Badge>Неактивний</Badge>}</td>
             <td>
               <div className={styles.actions}>
-                <Button
-                  size="sm"
-                  aria-label={`Редагувати: ${engineer.fullName}`}
+                <IconButton
+                  icon="pencil"
+                  label={`Редагувати: ${engineer.fullName}`}
                   onClick={() => onEdit(engineer)}
-                >
-                  Редагувати
-                </Button>
+                />
                 {engineer.isActive ? (
-                  <Button
-                    size="sm"
-                    aria-label={`Деактивувати: ${engineer.fullName}`}
+                  <IconButton
+                    icon="ban"
+                    tone="danger"
+                    label={`Деактивувати: ${engineer.fullName}`}
                     onClick={() => onDeactivate(engineer)}
-                  >
-                    Деактивувати
-                  </Button>
+                  />
                 ) : (
-                  <Button
-                    size="sm"
-                    aria-label={`Активувати: ${engineer.fullName}`}
+                  <IconButton
+                    icon="check"
+                    label={`Активувати: ${engineer.fullName}`}
                     onClick={() => onActivate(engineer)}
-                  >
-                    Активувати
-                  </Button>
+                  />
                 )}
               </div>
             </td>

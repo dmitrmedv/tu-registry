@@ -17,6 +17,8 @@ import {
 } from '@/features/applications';
 import { useCurrentUser } from '@/features/auth';
 import {
+  addDialogOf,
+  addPathOf,
   CARD_MODULES,
   type CardModuleId,
   ChooseModuleDialog,
@@ -25,14 +27,16 @@ import {
 import { useDepartments } from '@/features/departments';
 import { ScanButton } from '@/features/documents';
 import { ProcessingSection } from '@/features/processing';
+import { useTechnicalConditions } from '@/features/technicalConditions';
 import { toApiError } from '@/shared/api/apiError';
 import { useHeightVariable } from '@/shared/hooks/useHeightVariable';
-import { formatObjectCategory } from '@/shared/lib/labels';
+import { CONNECTION_TYPE_TITLES, formatObjectCategory } from '@/shared/lib/labels';
 import {
   Badge,
   Button,
   CardFooter,
   ConfirmDialog,
+  Icon,
   IconButton,
   IconLink,
   LoadFailed,
@@ -66,6 +70,10 @@ export function ApplicationPage() {
   const application = useApplication(id);
   const restore = useRestoreApplication(id);
   const presence = useModulePresence(id);
+  // The valid TU's connection names the case in the header (mock-up of 2026-11-20).
+  const connection = useTechnicalConditions(id).data?.find(
+    (tu) => !tu.cancellation,
+  )?.connectionType;
   const { nameOf } = useDepartments();
   const headerRef = useHeightVariable<HTMLElement>('--card-header-height');
   const [dialog, setDialog] = useState<
@@ -106,7 +114,7 @@ export function ApplicationPage() {
       },
       { replace: true, state },
     );
-  const addingModule = CARD_MODULES.find((module) => module.id === adding);
+  const AddDialog = adding ? addDialogOf(adding) : undefined;
   const SelectedTab = CARD_MODULES.find((module) => module.id === selected)?.Tab;
 
   const closeDialog = () => setDialog(null);
@@ -133,7 +141,6 @@ export function ApplicationPage() {
         <div className={styles.heading}>
           <div className={styles.title}>
             <h1>Заява {app.regNumber}</h1>
-            {app.registrationMode === 'MANUAL' && <Badge>вручну</Badge>}
             {/* No stage badge (agreed 2026-11-17): the timeline and the tabs show it. */}
             {app.status === 'ANNULLED' && <Badge tone="danger">Анульовано</Badge>}
           </div>
@@ -145,6 +152,7 @@ export function ApplicationPage() {
           <p>{nameOf(app.department)} управління</p>
           <p>{lowerFirst(formatObjectCategory(app.objectCategory, app.objectCategoryOther))}</p>
         </div>
+        {connection && <p className={styles.connection}>{CONNECTION_TYPE_TITLES[connection]}</p>}
         {canManageDocuments(app, user) && (
           <Button className={styles.addModule} onClick={() => setDialog('module')}>
             Додати модуль
@@ -159,7 +167,7 @@ export function ApplicationPage() {
             onSelectEvent={(event) => selectTab(tabOfEvent(event))}
             toolbar={
               <Button size="sm" onClick={() => setDialog('history')}>
-                Історія змін
+                <Icon name="history" /> Історія змін
               </Button>
             }
           />
@@ -224,14 +232,14 @@ export function ApplicationPage() {
         </Tabs>
       </div>
 
-      {addingModule && (
-        <addingModule.AddDialog
+      {adding && AddDialog && (
+        <AddDialog
           app={app}
           onClose={() => setAdding(null)}
           onAdded={(message) => {
             setAdding(null);
             notifySuccess(message);
-            selectTab(addingModule.id);
+            selectTab(adding);
           }}
         />
       )}
@@ -241,7 +249,9 @@ export function ApplicationPage() {
           onClose={closeDialog}
           onChoose={(module) => {
             closeDialog();
-            setAdding(module);
+            const path = addPathOf(module, app.id);
+            if (path) navigate(path);
+            else setAdding(module);
           }}
         />
       )}

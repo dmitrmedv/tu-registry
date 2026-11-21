@@ -3,6 +3,7 @@ import { formatCalendarDate } from '@/shared/lib/format';
 import {
   CALENDAR_DAY_KIND_LABELS,
   DOCUMENT_FIELD_LABELS,
+  CONTRACT_FIELD_LABELS,
   PAYMENT_FIELD_LABELS,
   TU_VALUE_LABELS,
 } from '@/shared/lib/labels';
@@ -130,13 +131,40 @@ export function describeDetails(entry: AuditLogDto): string {
           ? '—'
           : /^\d{4}-\d{2}-\d{2}$/.test(text(value))
             ? formatCalendarDate(text(value))
-            : formatMonth(text(value));
+            : /^\d{4}-\d{2}$/.test(text(value))
+              ? formatMonth(text(value))
+              : text(value);
+      const files = ['invoiceScan', 'receiptScan', 'actScan', 'contractScan', 'contractDocument'];
       return changes
         .map((c) => {
           const label = PAYMENT_FIELD_LABELS[c.field] ?? c.field;
-          if (c.field === 'invoiceScan' || c.field === 'receiptScan' || c.field === 'actScan') {
+          if (files.includes(c.field)) {
             return `${label}: ${!c.from ? 'додано' : c.to ? 'замінено' : 'видалено'}`;
           }
+          return `${label}: ${show(c.from)} → ${show(c.to)}`;
+        })
+        .join(', ');
+    }
+    case 'CONTRACT_CREATED':
+      return d.contractDate ? `від ${formatCalendarDate(text(d.contractDate))}` : '';
+    case 'CONTRACT_UPDATED': {
+      const changes = Array.isArray(d.changes)
+        ? (d.changes as { field: string; from?: unknown; to?: unknown }[])
+        : [];
+      return changes
+        .map((c) => {
+          const label = CONTRACT_FIELD_LABELS[c.field] ?? c.field;
+          if (c.field === 'document' || c.field === 'scan') {
+            return `${label}: ${!c.from ? 'додано' : c.to ? 'замінено' : 'видалено'}`;
+          }
+          // Customer data is not journalled: only that it changed.
+          if (!('to' in c)) return `${label}: змінено`;
+          const show = (value: unknown) =>
+            value === null || value === undefined
+              ? '—'
+              : /^\d{4}-\d{2}-\d{2}$/.test(text(value))
+                ? formatCalendarDate(text(value))
+                : text(value);
           return `${label}: ${show(c.from)} → ${show(c.to)}`;
         })
         .join(', ');

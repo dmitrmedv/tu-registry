@@ -5,6 +5,7 @@ import {
   type AreaType,
   CONNECTION_POINT_LABELS,
   CONNECTION_TYPE_LABELS,
+  CONNECTION_TYPE_TITLES,
   GAS_PRESSURE_LABELS,
   type AuditAction,
   type CalendarDayKind,
@@ -29,6 +30,7 @@ export {
   GASIFICATION_TYPE_LABELS,
   CONNECTION_POINT_LABELS,
   CONNECTION_TYPE_LABELS,
+  CONNECTION_TYPE_TITLES,
   GAS_PRESSURE_LABELS,
   OBJECT_CATEGORY_LABELS,
   OBJECT_TYPE_LABELS,
@@ -111,6 +113,10 @@ export const AUDIT_ACTION_LABELS: Record<AuditAction, string> = {
   TU_PAYMENT_CREATED: 'Внесено рахунок за технічні умови',
   TU_PAYMENT_UPDATED: 'Змінено оплату за технічні умови',
   TU_PAYMENT_DELETED: 'Видалено оплату за технічні умови',
+  CONTRACT_CREATED: 'Додано договір',
+  CONTRACT_UPDATED: 'Змінено договір',
+  CONTRACT_CANCELLED: 'Анульовано договір',
+  CONTRACT_DELETED: 'Видалено договір',
   ACCESS_DENIED: 'Відмовлено в доступі',
 };
 
@@ -144,10 +150,29 @@ export const PAYMENT_FIELD_LABELS: Record<string, string> = {
   invoiceDate: 'дата рахунку',
   amount: 'сума',
   paidDate: 'дата оплати',
-  actTransferMonth: 'місяць передачі акта',
+  paidAmount: 'фактична оплата',
+  actTransferMonth: 'Здача акта',
   invoiceScan: 'скан рахунку',
   receiptScan: 'скан квитанції',
   actScan: 'скан акта',
+  contractNumber: '№ договору',
+  contractDate: 'дата договору',
+  contractScan: 'скан договору',
+  contractDocument: 'договір (DOCX)',
+};
+
+/** Fields of the contract, in the journal and the history. */
+export const CONTRACT_FIELD_LABELS: Record<string, string> = {
+  contractNumber: '№ договору',
+  contractDate: 'дата договору',
+  department: 'управління',
+  customer: 'замовник',
+  address: 'адреса обʼєкта',
+  signedDate: 'дата укладання',
+  representative: 'представник замовника',
+  comment: 'коментар',
+  document: 'документ договору',
+  scan: 'скан укладеного договору',
 };
 
 /** Fields of responses and technical conditions, in the journal and the history. */
@@ -179,6 +204,7 @@ export const HISTORY_DOCUMENT_LABELS: Record<HistoryDocumentKind, string> = {
   RESPONSE: 'Відповідь',
   TECHNICAL_CONDITIONS: 'Технічні умови',
   TU_PAYMENT: 'Рахунок за ТУ',
+  CONTRACT: 'Договір',
 };
 
 /** What was done to a document: added rather than registered. */
@@ -191,17 +217,32 @@ export const DOCUMENT_CHANGE_ACTION_LABELS: Record<ApplicationChangeAction, stri
   DELETED: 'видалено',
 };
 
-const DOCUMENT_SCAN_FIELDS = new Set(['scan', 'invoiceScan', 'receiptScan', 'actScan']);
+const FIELD_LABELS: Partial<Record<HistoryDocumentKind, Record<string, string>>> = {
+  TU_PAYMENT: PAYMENT_FIELD_LABELS,
+  CONTRACT: CONTRACT_FIELD_LABELS,
+};
+const DOCUMENT_SCAN_FIELDS = new Set([
+  'scan',
+  'invoiceScan',
+  'receiptScan',
+  'actScan',
+  'contractScan',
+  'contractDocument',
+]);
 
-/** A changed field of a document in the history: «Номер: 125/01 → 126/01», «Скан: додано». */
+/**
+ * A changed field of a document in the history: «Номер: 125/01 → 126/01», «Скан: додано».
+ * `departmentName`: a contract's department is stored by id.
+ */
 export function describeDocumentChange(
   kind: HistoryDocumentKind,
   { field, oldValue, newValue }: { field: string; oldValue: unknown; newValue: unknown },
+  departmentName?: (id: string) => string,
 ) {
-  const labels = kind === 'TU_PAYMENT' ? PAYMENT_FIELD_LABELS : DOCUMENT_FIELD_LABELS;
+  const labels = FIELD_LABELS[kind] ?? DOCUMENT_FIELD_LABELS;
   const name = labels[field] ?? field;
   const label = name.charAt(0).toUpperCase() + name.slice(1);
-  if (DOCUMENT_SCAN_FIELDS.has(field)) {
+  if (DOCUMENT_SCAN_FIELDS.has(field) || (kind === 'CONTRACT' && field === 'document')) {
     // Never a file name: only what happened to the scan.
     return {
       label,
@@ -212,6 +253,7 @@ export function describeDocumentChange(
   const show = (value: unknown) => {
     if (value === null || value === undefined || value === '') return '—';
     const text = String(value);
+    if (field === 'department') return departmentName?.(text) || text;
     if (/^\d{4}-\d{2}-\d{2}$/.test(text)) return formatCalendarDate(text);
     if (/^\d{4}-\d{2}$/.test(text)) return formatMonth(text);
     return TU_VALUE_LABELS[field]?.[text] ?? text;

@@ -1,7 +1,7 @@
 import type { CalendarDayDto } from '@tu-registry/shared';
 import { formatCalendarDate, formatDateTime } from '@/shared/lib/format';
 import { CALENDAR_DAY_KIND_LABELS } from '@/shared/lib/labels';
-import { Badge, Button, Table } from '@/shared/ui';
+import { Badge, IconButton, Table } from '@/shared/ui';
 import styles from './calendar.module.scss';
 import { weekdayOf } from './weekday';
 
@@ -48,12 +48,17 @@ export function CalendarTable({ days, onEdit, onDelete }: Props) {
               </td>
               <td>
                 <div className={styles.actions}>
-                  <Button size="sm" aria-label={`Редагувати: ${date}`} onClick={() => onEdit(day)}>
-                    Редагувати
-                  </Button>
-                  <Button size="sm" aria-label={`Видалити: ${date}`} onClick={() => onDelete(day)}>
-                    Видалити
-                  </Button>
+                  <IconButton
+                    icon="pencil"
+                    label={`Редагувати: ${date}`}
+                    onClick={() => onEdit(day)}
+                  />
+                  <IconButton
+                    icon="trash"
+                    tone="danger"
+                    label={`Видалити: ${date}`}
+                    onClick={() => onDelete(day)}
+                  />
                 </div>
               </td>
             </tr>

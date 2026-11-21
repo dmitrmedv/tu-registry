@@ -14,10 +14,13 @@ const scansDir = () => path.join(root(), 'scans');
 
 const FILE_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 
+/** Scans are PDF; a contract is also kept as a Word document (agreed 2026-11-20). */
+export type StoredFileType = 'pdf' | 'docx';
+
 /** The stored file of a scan. The id comes from our database; checked anyway (path safety). */
-export function scanPath(fileId: string) {
+export function scanPath(fileId: string, type: StoredFileType = 'pdf') {
   if (!FILE_ID.test(fileId)) throw new Error(`Invalid scan file id: ${fileId}`);
-  return path.join(scansDir(), `${fileId}.pdf`);
+  return path.join(scansDir(), `${fileId}.${type}`);
 }
 
 export async function ensureUploadDirs() {
@@ -25,23 +28,28 @@ export async function ensureUploadDirs() {
   await mkdir(scansDir(), { recursive: true });
 }
 
-/** A PDF starts with "%PDF-", whatever the browser claimed the type to be. */
-export async function looksLikePdf(file: string) {
+async function startsWith(file: string, signature: string) {
   const handle = await open(file, 'r');
   try {
-    const head = Buffer.alloc(5);
-    const { bytesRead } = await handle.read(head, 0, 5, 0);
-    return bytesRead === 5 && head.toString('latin1') === '%PDF-';
+    const head = Buffer.alloc(signature.length);
+    const { bytesRead } = await handle.read(head, 0, signature.length, 0);
+    return bytesRead === signature.length && head.toString('latin1') === signature;
   } finally {
     await handle.close();
   }
 }
 
+/** A PDF starts with "%PDF-", whatever the browser claimed the type to be. */
+export const looksLikePdf = (file: string) => startsWith(file, '%PDF-');
+
+/** A .docx is a ZIP archive: it starts with a local file header, "PK\x03\x04". */
+export const looksLikeDocx = (file: string) => startsWith(file, 'PK\x03\x04');
+
 /** Moves a checked upload into place; returns the new file id. */
-export async function storeScan(uploadedFile: string) {
+export async function storeScan(uploadedFile: string, type: StoredFileType = 'pdf') {
   await ensureUploadDirs();
   const fileId = randomUUID();
-  await rename(uploadedFile, scanPath(fileId));
+  await rename(uploadedFile, scanPath(fileId, type));
   return fileId;
 }
 
@@ -52,6 +60,10 @@ export async function removeFile(file: string) {
 
 export async function deleteScanFile(fileId: string) {
   await removeFile(scanPath(fileId));
+}
+
+export async function deleteStoredFile(fileId: string, type: StoredFileType) {
+  await removeFile(scanPath(fileId, type));
 }
 
 /** The user's file name, made safe to show: no path, no control characters, bounded. */

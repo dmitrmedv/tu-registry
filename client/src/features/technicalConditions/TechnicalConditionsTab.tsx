@@ -1,8 +1,4 @@
-import {
-  type ApplicationDto,
-  formatHryvnias,
-  type TechnicalConditionsDto,
-} from '@tu-registry/shared';
+import { type ApplicationDto, type TechnicalConditionsDto } from '@tu-registry/shared';
 import clsx from 'clsx';
 import { useState } from 'react';
 import { canDeleteDocument, canManageDocuments, canRestoreDocument } from '@/features/applications';
@@ -12,7 +8,6 @@ import {
   DocumentFrame,
   DocumentNotes,
   documentStyles as styles,
-  OtherDocuments,
   ScanButton,
 } from '@/features/documents';
 import { TuPaymentFrame } from '@/features/tuPayments';
@@ -28,7 +23,6 @@ import { notifyError, notifySuccess } from '@/shared/lib/notify';
 import {
   Badge,
   CardFooter,
-  CardItem,
   DataList,
   DataRow,
   ConfirmDialog,
@@ -86,6 +80,7 @@ export function TechnicalConditionsTab({ app }: { app: ApplicationDto }) {
   const restore = useRestoreTechnicalConditions(app.id);
   const remove = useDeleteTechnicalConditions(app.id);
   const [dialog, setDialog] = useState<DialogState>({ kind: 'none' });
+  const [shownId, setShownId] = useState<string | null>(null);
   const close = () => setDialog({ kind: 'none' });
   const manage = canManageDocuments(app, user);
   // For good, with the payment (agreed 2026-11-19): an admin only, valid or cancelled alike.
@@ -115,128 +110,103 @@ export function TechnicalConditionsTab({ app }: { app: ApplicationDto }) {
     return <LoadFailed error={list.error} onRetry={() => list.refetch()} />;
   }
 
-  const valid = list.data.find((tu) => !tu.cancellation);
-  const cancelled = list.data.filter((tu) => tu !== valid).reverse();
+  const tus = list.data;
+  const valid = tus.find((tu) => !tu.cancellation);
+  // The set paged to; the valid one (or the latest) until the user pages.
+  const shown = tus.find((tu) => tu.id === shownId) ?? valid ?? tus.at(-1);
+  const position = shown ? tus.indexOf(shown) : -1;
+  // One valid set per application (the server enforces it): another is added once it is cancelled.
+  const addButton = manage && !valid && (
+    <IconButton icon="plus" label="Додати ТУ" onClick={() => setDialog({ kind: 'create' })} />
+  );
 
   return (
     <>
-      {valid ? (
-        // The conditions and their payment side by side, each in a titled frame (2026-11-19).
-        <div className={styles.split}>
+      {shown ? (
+        // The conditions and their payment side by side, each in a titled frame (2026-11-19);
+        // with more than one set, ‹ › page through them in the order made (2026-11-20).
+        <div className={clsx(styles.split, styles.splitFill)}>
           <DocumentFrame
             title="Технічні умови"
-            label={`Технічні умови ${titleOf(valid)}`}
+            label={`Технічні умови ${titleOf(shown)}`}
+            cancelled={Boolean(shown.cancellation)}
             footer={
               <>
-                {valid.scan && (
-                  <ScanButton title={valid.scan.name} onClick={() => openScanOf(valid)} />
+                {shown.scan && (
+                  <ScanButton title={shown.scan.name} onClick={() => openScanOf(shown)} />
                 )}
-                {(manage || canDelete) && (
+                <div className={styles.frameFooterEnd}>
+                  {tus.length > 1 && (
+                    <div className={styles.frameActions}>
+                      <IconButton
+                        icon="chevronLeft"
+                        label="Попередні ТУ"
+                        disabled={position === 0}
+                        onClick={() => setShownId(tus[position - 1]!.id)}
+                      />
+                      <IconButton
+                        icon="chevronRight"
+                        label="Наступні ТУ"
+                        disabled={position === tus.length - 1}
+                        onClick={() => setShownId(tus[position + 1]!.id)}
+                      />
+                    </div>
+                  )}
                   <div className={styles.frameActions}>
-                    {manage && (
+                    {addButton}
+                    {manage && !shown.cancellation && (
                       <>
                         <IconLink
                           icon="pencil"
                           label="Редагувати"
-                          to={`/applications/${app.id}/technical-conditions/${valid.id}/edit`}
+                          to={`/applications/${app.id}/technical-conditions/${shown.id}/edit`}
                         />
                         <IconButton
                           icon="ban"
                           label="Скасувати"
                           tone="danger"
-                          onClick={() => setDialog({ kind: 'cancel', tu: valid })}
+                          onClick={() => setDialog({ kind: 'cancel', tu: shown })}
                         />
                       </>
                     )}
-                    {canDelete && deleteButton(valid)}
+                    {shown.cancellation && canRestoreDocument(app, user) && (
+                      <IconButton
+                        icon="restore"
+                        label="Відновити"
+                        loading={restore.isPending}
+                        onClick={() =>
+                          run(
+                            () => restore.mutateAsync({ id: shown.id, version: shown.version }),
+                            `Технічні умови № ${shown.tuNumber} відновлено`,
+                          )
+                        }
+                      />
+                    )}
+                    {canDelete && deleteButton(shown)}
                   </div>
-                )}
+                </div>
               </>
             }
           >
-            <TechnicalConditionsView tu={valid} />
+            {shown.cancellation && (
+              <span className={styles.frameBadge}>
+                <Badge tone="danger">Скасовано</Badge>
+              </span>
+            )}
+            <TechnicalConditionsView tu={shown} />
             <DocumentNotes
-              cancellation={null}
-              previousScans={valid.previousScans}
-              onOpenScan={(scan) => openScanOf(valid, scan.id, scan.name)}
+              cancellation={shown.cancellation}
+              previousScans={shown.previousScans}
+              onOpenScan={(scan) => openScanOf(shown, scan.id, scan.name)}
             />
           </DocumentFrame>
-          <TuPaymentFrame app={app} tu={valid} />
+          <TuPaymentFrame app={app} tu={shown} />
         </div>
       ) : (
-        <p className={styles.muted}>
-          {list.data.length === 0
-            ? 'Технічні умови ще не підготовлено.'
-            : 'Чинних технічних умов немає: усі скасовано.'}
-        </p>
-      )}
-
-      <OtherDocuments title="Скасовані технічні умови" count={cancelled.length}>
-        {cancelled.map((tu) => (
-          <CardItem
-            key={tu.id}
-            label={`Технічні умови ${titleOf(tu)}`}
-            cancelled
-            actions={
-              <>
-                {tu.scan && (
-                  <IconButton
-                    icon="eye"
-                    label="Переглянути скан"
-                    title={tu.scan.name}
-                    onClick={() => openScanOf(tu)}
-                  />
-                )}
-                {canRestoreDocument(app, user) && (
-                  <IconButton
-                    icon="restore"
-                    label="Відновити"
-                    loading={restore.isPending}
-                    onClick={() =>
-                      run(
-                        () => restore.mutateAsync({ id: tu.id, version: tu.version }),
-                        `Технічні умови № ${tu.tuNumber} відновлено`,
-                      )
-                    }
-                  />
-                )}
-                {canDelete && deleteButton(tu)}
-              </>
-            }
-          >
-            <p className={clsx(styles.title, styles.struck)}>
-              <span>Технічні умови {titleOf(tu)}</span>
-              <Badge tone="danger">Скасовано</Badge>
-            </p>
-            <TechnicalConditionsView tu={tu} />
-            {tu.payment && (
-              <p className={styles.muted}>
-                Оплата: рахунок № {tu.payment.invoiceNumber} від{' '}
-                {formatCalendarDate(tu.payment.invoiceDate)}, {formatHryvnias(tu.payment.amount)}
-                {tu.payment.paidDate && `, сплачено ${formatCalendarDate(tu.payment.paidDate)}`}
-              </p>
-            )}
-            <DocumentNotes
-              cancellation={tu.cancellation}
-              previousScans={tu.previousScans}
-              onOpenScan={(scan) => openScanOf(tu, scan.id, scan.name)}
-            />
-          </CardItem>
-        ))}
-      </OtherDocuments>
-
-      {!valid && (
-        <CardFooter
-          actions={
-            manage && (
-              <IconButton
-                icon="plus"
-                label="Додати ТУ"
-                onClick={() => setDialog({ kind: 'create' })}
-              />
-            )
-          }
-        />
+        <>
+          <p className={styles.muted}>Технічні умови ще не підготовлено.</p>
+          <CardFooter actions={addButton} />
+        </>
       )}
 
       {dialog.kind === 'create' && (

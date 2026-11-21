@@ -11,6 +11,9 @@ export const TIMELINE_EVENT_TYPES = [
   'TU_INVOICE',
   'TU_PAID',
   'TU_ACT_TRANSFERRED',
+  // The contract made up, then signed (2026-11-20); an annulled one is struck through.
+  'CONTRACT',
+  'CONTRACT_SIGNED',
 ] as const;
 export type TimelineEventType = (typeof TIMELINE_EVENT_TYPES)[number];
 

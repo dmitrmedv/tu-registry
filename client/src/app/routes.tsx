@@ -31,6 +31,12 @@ const editTechnicalConditionsPage = lazyPage(() =>
     default: m.EditTechnicalConditionsPage,
   })),
 );
+const newContractPage = lazyPage(() =>
+  import('@/pages/ContractPage').then((m) => ({ default: m.NewContractPage })),
+);
+const editContractPage = lazyPage(() =>
+  import('@/pages/ContractPage').then((m) => ({ default: m.EditContractPage })),
+);
 const usersPage = lazyPage(() =>
   import('@/pages/UsersPage').then((m) => ({ default: m.UsersPage })),
 );
@@ -64,6 +70,8 @@ export const routes: RouteObject[] = [
             path: '/applications/:id/technical-conditions/:tid/edit',
             element: editTechnicalConditionsPage,
           },
+          { path: '/applications/:id/contracts/new', element: newContractPage },
+          { path: '/applications/:id/contracts/:cid/edit', element: editContractPage },
           { path: CHANGE_PASSWORD_PATH, element: <ChangePasswordPage /> },
           {
             element: <RequireRole role="ADMIN" />,

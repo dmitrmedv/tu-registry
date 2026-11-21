@@ -9,10 +9,23 @@ type Props = {
   /** Sends the reason; a rejection is shown in the dialog. */
   onConfirm: (reason: string) => Promise<unknown>;
   onClose: () => void;
+  /** A contract is annulled, and only a new one replaces it (agreed 2026-11-20). */
+  confirmLabel?: string;
+  note?: string;
 };
 
+const NOTE =
+  'Документ не видаляється: він лишиться в історії опрацювання закресленим, з причиною. ' +
+  'Повернути його може адміністратор.';
+
 /** Cancelling a response or technical conditions: they stay in history, struck through. */
-export function CancelDocumentDialog({ title, onConfirm, onClose }: Props) {
+export function CancelDocumentDialog({
+  title,
+  onConfirm,
+  onClose,
+  confirmLabel = 'Скасувати документ',
+  note = NOTE,
+}: Props) {
   const [reason, setReason] = useState('');
   const [fieldError, setFieldError] = useState<string>();
   const [pending, setPending] = useState(false);
@@ -43,14 +56,11 @@ export function CancelDocumentDialog({ title, onConfirm, onClose }: Props) {
       onClose={onClose}
       footer={
         <Button variant="danger" onClick={submit} loading={pending}>
-          Скасувати документ
+          {confirmLabel}
         </Button>
       }
     >
-      <p>
-        Документ не видаляється: він лишиться в історії опрацювання закресленим, з причиною.
-        Повернути його може адміністратор.
-      </p>
+      <p>{note}</p>
       <TextAreaField
         label="Причина скасування"
         value={reason}

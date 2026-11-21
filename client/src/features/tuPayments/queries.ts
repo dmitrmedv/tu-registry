@@ -1,5 +1,5 @@
 import type { SaveTuPaymentInput, TuPaymentScanKind } from '@tu-registry/shared';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { tuPaymentApi as api } from './api';
 
 function usePaymentMutation<TVariables, TResult>(fn: (v: TVariables) => Promise<TResult>) {
@@ -32,3 +32,13 @@ export const useUploadTuPaymentScan = (applicationId: string, tuId: string) =>
 
 export const useRemoveTuPaymentScan = (applicationId: string, tuId: string) =>
   usePaymentMutation((kind: TuPaymentScanKind) => api.removeScan(applicationId, tuId, kind));
+
+/** The contract number offered in the dialog; asked only while the payment has none. */
+export const useNextContractNumber = (applicationId: string, tuId: string, enabled: boolean) =>
+  useQuery({
+    queryKey: ['applications', applicationId, 'technical-conditions', tuId, 'contract-number'],
+    queryFn: () => api.nextContractNumber(applicationId, tuId),
+    enabled,
+    // Asked afresh each time the dialog opens: another payment may have taken it.
+    gcTime: 0,
+  });

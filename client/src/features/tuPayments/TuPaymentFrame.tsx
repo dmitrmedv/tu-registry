@@ -5,16 +5,18 @@ import {
   type TechnicalConditionsDto,
   type TuPaymentScanKind,
 } from '@tu-registry/shared';
-import { useState } from 'react';
+import { Fragment, type ReactNode, useState } from 'react';
 import { canDeleteDocument, canManageDocuments } from '@/features/applications';
 import { useCurrentUser } from '@/features/auth';
 import { DocumentFrame, documentStyles as styles } from '@/features/documents';
 import { toApiError } from '@/shared/api/apiError';
 import { formatCalendarDate } from '@/shared/lib/format';
 import { notifyError, notifySuccess } from '@/shared/lib/notify';
-import { openPdf } from '@/shared/lib/pdf';
-import { Button, ConfirmDialog, DataList, DataRow, Icon, IconButton } from '@/shared/ui';
+import { downloadFile, openPdf } from '@/shared/lib/pdf';
+import { Button, ConfirmDialog, DataList, DataRow, IconButton } from '@/shared/ui';
+import frameStyles from './TuPaymentFrame.module.scss';
 import { tuPaymentApi } from './api';
+import { SCAN_FIELDS } from './scanFields';
 import { useDeleteTuPayment } from './queries';
 import { TuPaymentDialog } from './TuPaymentDialog';
 
@@ -39,7 +41,9 @@ export function TuPaymentFrame({ app, tu }: Props) {
 
   const openScan = async (kind: TuPaymentScanKind, name: string) => {
     try {
-      await openPdf(() => tuPaymentApi.scanFile(app.id, tu.id, kind), name);
+      const load = () => tuPaymentApi.scanFile(app.id, tu.id, kind);
+      // The Word document is downloaded; the scans open in a tab.
+      await (kind === 'contractDocument' ? downloadFile(load, name) : openPdf(load, name));
     } catch (error) {
       notifyError(toApiError(error).message);
     }
@@ -55,34 +59,34 @@ export function TuPaymentFrame({ app, tu }: Props) {
     }
   };
 
+  /** A file's icon beside the row it belongs to (icons only, agreed 2026-11-20). */
+  const fileButton = (kind: TuPaymentScanKind, label: string) => {
+    const file = payment?.[SCAN_FIELDS[kind]];
+    return (
+      file && (
+        <IconButton
+          icon={kind === 'contractDocument' ? 'download' : 'eye'}
+          label={label}
+          title={`${label}: ${file.name}`}
+          onClick={() => openScan(kind, file.name)}
+        />
+      )
+    );
+  };
+  const withFiles = (text: ReactNode, ...files: ReactNode[]) => (
+    <span className={frameStyles.withFiles}>
+      {text || '—'}
+      {files.map((file, index) => (
+        <Fragment key={index}>{file}</Fragment>
+      ))}
+    </span>
+  );
+  const hasContract =
+    payment &&
+    (payment.contractNumber !== null || payment.contractDocument || payment.contractScan);
+
   const footer = payment && (
     <>
-      <div className={styles.frameScans}>
-        {payment.invoiceScan && (
-          <Button
-            title={payment.invoiceScan.name}
-            onClick={() => openScan('invoice', payment.invoiceScan!.name)}
-          >
-            Рахунок <Icon name="eye" />
-          </Button>
-        )}
-        {payment.receiptScan && (
-          <Button
-            title={payment.receiptScan.name}
-            onClick={() => openScan('receipt', payment.receiptScan!.name)}
-          >
-            Квитанція <Icon name="eye" />
-          </Button>
-        )}
-        {payment.actScan && (
-          <Button
-            title={payment.actScan.name}
-            onClick={() => openScan('act', payment.actScan!.name)}
-          >
-            Акт <Icon name="eye" />
-          </Button>
-        )}
-      </div>
       <div className={styles.frameActions}>
         {manage && (
           <IconButton icon="pencil" label="Редагувати оплату" onClick={() => setDialog('edit')} />
@@ -106,12 +110,34 @@ export function TuPaymentFrame({ app, tu }: Props) {
       {payment ? (
         <DataList labels="fixed">
           <DataRow label="Рахунок">
-            № {payment.invoiceNumber} від {formatCalendarDate(payment.invoiceDate)}
+            {withFiles(
+              `№ ${payment.invoiceNumber} від ${formatCalendarDate(payment.invoiceDate)}`,
+              fileButton('invoice', 'Переглянути скан рахунку'),
+            )}
           </DataRow>
+          {hasContract && (
+            <DataRow label="Договір">
+              {withFiles(
+                payment.contractNumber !== null &&
+                  payment.contractDate &&
+                  `№ ${payment.contractNumber} від ${formatCalendarDate(payment.contractDate)}`,
+                fileButton('contractDocument', 'Завантажити договір (DOCX)'),
+                fileButton('contract', 'Переглянути скан договору'),
+              )}
+            </DataRow>
+          )}
           <DataRow label="Сума">{formatHryvnias(payment.amount)}</DataRow>
-          <DataRow label="Дата оплати">{date(payment.paidDate)}</DataRow>
-          <DataRow label="Місяць передачі акта">
-            {payment.actTransferMonth && formatMonth(payment.actTransferMonth)}
+          <DataRow label="Фактична оплата">
+            {payment.paidAmount !== null ? formatHryvnias(payment.paidAmount) : null}
+          </DataRow>
+          <DataRow label="Дата оплати">
+            {withFiles(date(payment.paidDate), fileButton('receipt', 'Переглянути скан квитанції'))}
+          </DataRow>
+          <DataRow label="Здача акта">
+            {withFiles(
+              payment.actTransferMonth && formatMonth(payment.actTransferMonth),
+              fileButton('act', 'Переглянути скан акта'),
+            )}
           </DataRow>
         </DataList>
       ) : (
@@ -146,8 +172,8 @@ export function TuPaymentFrame({ app, tu }: Props) {
           onConfirm={confirmDelete}
         >
           <p>
-            Рахунок № {payment.invoiceNumber}, дату оплати, місяць передачі акта та скани квитанції
-            й акта буде видалено назавжди. Запис про видалення лишиться в журналі аудиту.
+            Рахунок № {payment.invoiceNumber}, договір, дату оплати, місяць здачі акта та всі файли
+            оплати буде видалено назавжди. Запис про видалення лишиться в журналі аудиту.
           </p>
         </ConfirmDialog>
       )}

@@ -6,6 +6,7 @@ import {
 } from '../../middlewares/authenticate';
 import { uploadScan } from '../../middlewares/upload';
 import * as processingController from '../processing/processing.controller';
+import { contractRouter } from '../contracts/contract.routes';
 import { responseRouter } from '../responses/response.routes';
 import { technicalConditionsRouter } from '../technicalConditions/technicalConditions.routes';
 import * as controller from './application.controller';
@@ -34,3 +35,4 @@ applicationRouter.post('/:id/annul', controller.annul);
 applicationRouter.post('/:id/restore', requireRole('ADMIN'), controller.restore);
 applicationRouter.use('/:id/responses', responseRouter);
 applicationRouter.use('/:id/technical-conditions', technicalConditionsRouter);
+applicationRouter.use('/:id/contracts', contractRouter);

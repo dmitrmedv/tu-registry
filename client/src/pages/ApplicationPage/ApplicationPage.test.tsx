@@ -49,6 +49,7 @@ function openCard(
     mock.get(`*/api/v1/applications/${app.id}/technical-conditions`, () =>
       HttpResponse.json(withDocuments ? [makeTechnicalConditions()] : []),
     ),
+    mock.get(`*/api/v1/applications/${app.id}/contracts`, () => HttpResponse.json([])),
     mock.get('*/api/v1/engineers', () => HttpResponse.json([])),
     mock.get(`*/api/v1/applications/${app.id}/processing`, () =>
       HttpResponse.json(makeProcessing()),
@@ -171,7 +172,7 @@ describe('ApplicationPage', () => {
       'Зареєстровано',
     ]);
     expect(entries[0]).toHaveTextContent(/Сума: 2\s750,00 → 3\s000,00/);
-    expect(entries[0]).toHaveTextContent('Місяць передачі акта: листопад 2026');
+    expect(entries[0]).toHaveTextContent('Здача акта: листопад 2026');
     expect(entries[0]).toHaveTextContent('Скан квитанції: додано');
     expect(entries[2]).toHaveTextContent('Номер: 0032/ТУ → 0033/ТУ');
     expect(entries[2]).toHaveTextContent('Тиск: Низький → Середній');
@@ -211,7 +212,7 @@ describe('ApplicationPage', () => {
     const tab = screen.getByRole('tabpanel', { name: 'Заява' });
     expect(within(tab).getByRole('button', { name: 'Відкрити скан' })).toHaveAttribute(
       'title',
-      'Скан.pdf',
+      'Відкрити скан: Скан.pdf',
     );
     const annul = within(tab).getByRole('button', { name: 'Анулювати' });
     // Icon only: the name is read out and shown on hover.
@@ -247,7 +248,7 @@ describe('ApplicationPage', () => {
     await user.keyboard('{ArrowLeft}');
     expect(screen.getByRole('tab', { name: 'ТУ' })).toHaveFocus();
 
-    // Every module is there: the dialog lists them all, none can be added again.
+    // Every module with documents is there and cannot be added again; no contract yet.
     await user.click(screen.getByRole('button', { name: 'Додати модуль' }));
     const modules = within(screen.getByRole('dialog', { name: 'Додати модуль' })).getByRole(
       'list',
@@ -259,8 +260,10 @@ describe('ApplicationPage', () => {
     expect(choices.map((choice) => choice.textContent)).toEqual([
       'Відповідьуже додано',
       'Технічні умовиуже додано',
+      'Договір',
     ]);
-    for (const choice of choices) {
+    expect(choices[2]).toBeEnabled();
+    for (const choice of choices.slice(0, 2)) {
       expect(choice).toBeDisabled();
       expect(choice).toHaveAccessibleDescription('уже додано');
     }
@@ -389,8 +392,17 @@ describe('ApplicationPage', () => {
     expect(await screen.findByText('Інше: Котельня')).toBeInTheDocument();
     // The title has it too, as a line starting in lower case.
     expect(screen.getByText('інше: Котельня')).toBeInTheDocument();
-    const comment = screen.getByText('Коментар').parentElement!;
-    expect(comment).toHaveTextContent('Перший рядок Другий рядок');
+    // Its own titled block beside the object (mock-up of 2026-11-20).
+    expect(screen.getByRole('region', { name: 'Коментар' })).toHaveTextContent(
+      'Перший рядок Другий рядок',
+    );
+  });
+
+  it('shows no comment block when there is no comment', async () => {
+    openCard(owner, makeApplication({ comment: null }));
+    await screen.findByRole('heading', { name: 'Заява 14т/26-8' });
+    expect(screen.queryByRole('region', { name: 'Коментар' })).toBeNull();
+    expect(screen.queryByText('Коментар')).toBeNull();
   });
 
   it('offers deleting to administrators only', async () => {

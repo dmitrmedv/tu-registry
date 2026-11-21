@@ -1,6 +1,6 @@
 import type { UserWithTemporaryPassword } from '@tu-registry/shared';
 import { notifySuccess, notifyWarning } from '@/shared/lib/notify';
-import { Alert, Button, Dialog } from '@/shared/ui';
+import { Alert, Button, Dialog, IconButton } from '@/shared/ui';
 import styles from './users.module.scss';
 
 type Props = {
@@ -38,9 +38,7 @@ export function TemporaryPasswordDialog({ result, reason, onClose }: Props) {
         <code className={styles.password} aria-label="Тимчасовий пароль">
           {result.temporaryPassword}
         </code>
-        <Button size="sm" onClick={copyPassword}>
-          Копіювати
-        </Button>
+        <IconButton icon="copy" label="Копіювати пароль" onClick={copyPassword} />
       </div>
       <Alert variant="warning">
         Пароль показується лише один раз. Передайте його користувачу — при першому вході система

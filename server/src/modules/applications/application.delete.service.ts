@@ -2,13 +2,15 @@ import { formatRegNumber } from '@tu-registry/shared';
 import { inTransaction } from '../../utils/db';
 import { toIsoDate } from '../../utils/kyivDate';
 import { type RequestContext, recordAudit } from '../audit/audit.service';
+import { contractFiles } from '../contracts/contract.dto';
+import { Contract } from '../contracts/contract.model';
 import { departmentCode } from '../departments/department.service';
 import { documentFileIds } from '../documents/document.dto';
-import { paymentFileIds } from '../tuPayments/tuPayment.dto';
+import { PAYMENT_FILE_FIELDS, paymentFiles } from '../tuPayments/tuPayment.dto';
 import { TuPayment } from '../tuPayments/tuPayment.model';
 import { ApplicationResponse } from '../responses/response.model';
 import { TechnicalConditions } from '../technicalConditions/technicalConditions.model';
-import { deleteScanFile } from '../scans/scan.storage';
+import { deleteScanFile, deleteStoredFile } from '../scans/scan.storage';
 import type { Actor } from './application.access';
 import { loadApplication, versionConflict } from './application.edit.service';
 import { Application } from './application.model';
@@ -16,7 +18,7 @@ import { ApplicationChange } from './applicationChange.model';
 
 /**
  * Admin only (enforced by the route). Removes the application with its change history and
- * its responses and technical conditions (with every scan they ever had); the
+ * its responses, technical conditions, payments and contracts (with every file they ever had); the
  * number becomes free for manual entry (the automatic counter never goes back). The audit
  * entry keeps the number and date only — customer data does not belong in the audit log.
  */
@@ -35,14 +37,9 @@ export async function deleteApplication(
     ...(await ApplicationResponse.find(byApplication).select('scan previousScans').lean()),
     ...(await TechnicalConditions.find(byApplication).select('scan previousScans').lean()),
   ];
-  const payments = await TuPayment.find(byApplication)
-    .select('invoiceScan receiptScan actScan')
-    .lean();
-  const files = [
-    ...(current.scan ? [current.scan.fileId] : []),
-    ...documentFileIds(documents),
-    ...paymentFileIds(payments),
-  ];
+  const payments = await TuPayment.find(byApplication).select(PAYMENT_FILE_FIELDS).lean();
+  const contracts = await Contract.find(byApplication).select('document scan').lean();
+  const files = [...(current.scan ? [current.scan.fileId] : []), ...documentFileIds(documents)];
 
   await inTransaction(async (session) => {
     const { deletedCount } = await Application.deleteOne(
@@ -54,6 +51,7 @@ export async function deleteApplication(
     await ApplicationResponse.deleteMany({ applicationId: current._id }, { session });
     await TechnicalConditions.deleteMany({ applicationId: current._id }, { session });
     await TuPayment.deleteMany({ applicationId: current._id }, { session });
+    await Contract.deleteMany({ applicationId: current._id }, { session });
     await recordAudit(
       {
         action: 'APPLICATION_DELETED',
@@ -70,5 +68,10 @@ export async function deleteApplication(
     );
   });
   // After the commit: a failed deletion must not lose the files of a still existing application.
-  await Promise.all(files.map(deleteScanFile));
+  await Promise.all([
+    ...files.map(deleteScanFile),
+    ...[...paymentFiles(payments), ...contractFiles(contracts)].map(({ fileId, type }) =>
+      deleteStoredFile(fileId, type),
+    ),
+  ]);
 }

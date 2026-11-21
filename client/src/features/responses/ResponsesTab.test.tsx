@@ -34,6 +34,7 @@ function openCard(rows: ResponseDto[], user: UserDto = owner, app: ApplicationDt
     mock.get(`*/api/v1/applications/${app.id}/history`, () => HttpResponse.json([])),
     mock.get(RESPONSES, () => HttpResponse.json(current.rows)),
     mock.get(`*/api/v1/applications/${app.id}/technical-conditions`, () => HttpResponse.json([])),
+    mock.get(`*/api/v1/applications/${app.id}/contracts`, () => HttpResponse.json([])),
     mock.get('*/api/v1/engineers', () => HttpResponse.json(engineers)),
   );
   return { ...renderApp(`/applications/${app.id}?tab=response`), current };
@@ -117,6 +118,7 @@ describe('responses in the application card', () => {
     expect(await moduleChoices(user)).toEqual([
       ['Відповідь', false],
       ['Технічні умови', false],
+      ['Договір', false],
     ]);
   });
 
@@ -167,6 +169,7 @@ describe('responses in the application card', () => {
     expect(await moduleChoices(user)).toEqual([
       ['Відповідьуже додано', true],
       ['Технічні умови', false],
+      ['Договір', false],
     ]);
   });
 

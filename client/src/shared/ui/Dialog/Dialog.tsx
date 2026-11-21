@@ -20,8 +20,8 @@ type Props = {
   onClose: () => void;
   children: ReactNode;
   footer?: ReactNode;
-  /** `lg` for content laid out in a grid (tiles); the default suits forms. */
-  size?: 'md' | 'lg';
+  /** `lg` for content laid out in a grid (tiles), `xl` for a form with files beside it. */
+  size?: 'md' | 'lg' | 'xl';
   /** Saving: the cross is disabled until it is done. */
   busy?: boolean;
 };
@@ -86,7 +86,11 @@ export function Dialog({
   return (
     <dialog
       ref={ref}
-      className={clsx(styles.dialog, size === 'lg' && styles.large)}
+      className={clsx(
+        styles.dialog,
+        size === 'lg' && styles.large,
+        size === 'xl' && styles.extraLarge,
+      )}
       aria-labelledby={titleId}
       onCancel={(event) => {
         event.preventDefault();

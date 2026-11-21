@@ -1,5 +1,5 @@
 import type { DepartmentAdminDto } from '@tu-registry/shared';
-import { Badge, Button, Table } from '@/shared/ui';
+import { Badge, IconButton, Table } from '@/shared/ui';
 import styles from './departments.module.scss';
 
 type Props = {
@@ -39,39 +39,32 @@ export function DepartmentsTable({ departments, onEdit, onArchive, onRestore, on
             <td>{department.archived ? <Badge>В архіві</Badge> : 'Активне'}</td>
             <td>
               <div className={styles.actions}>
-                <Button
-                  size="sm"
-                  aria-label={`Редагувати: ${department.name}`}
+                <IconButton
+                  icon="pencil"
+                  label={`Редагувати: ${department.name}`}
                   onClick={() => onEdit(department)}
-                >
-                  Редагувати
-                </Button>
+                />
                 {department.archived ? (
-                  <Button
-                    size="sm"
-                    aria-label={`Відновити: ${department.name}`}
+                  <IconButton
+                    icon="restore"
+                    label={`Відновити: ${department.name}`}
                     onClick={() => onRestore(department)}
-                  >
-                    Відновити
-                  </Button>
+                  />
                 ) : (
-                  <Button
-                    size="sm"
-                    aria-label={`Архівувати: ${department.name}`}
+                  <IconButton
+                    icon="archive"
+                    label={`Архівувати: ${department.name}`}
                     onClick={() => onArchive(department)}
-                  >
-                    Архівувати
-                  </Button>
+                  />
                 )}
                 {isEmpty(department) && (
                   // Plain here (one per empty row adds up); the confirmation is the red one.
-                  <Button
-                    size="sm"
-                    aria-label={`Видалити: ${department.name}`}
+                  <IconButton
+                    icon="trash"
+                    tone="danger"
+                    label={`Видалити: ${department.name}`}
                     onClick={() => onDelete(department)}
-                  >
-                    Видалити
-                  </Button>
+                  />
                 )}
               </div>
             </td>

@@ -14,14 +14,20 @@ export const formSchema = saveTuPaymentSchema;
 export type FormInput = z.input<typeof formSchema>;
 export type FormData = z.output<typeof formSchema>;
 
-/** The saved payment as the fields show it, or a new invoice dated today. */
-export function formDefaults(payment: TuPaymentDto | null): FormInput {
+/**
+ * The saved payment as the fields show it, or a new invoice dated today. `contractNumber`: the
+ * number offered when the payment has no contract yet.
+ */
+export function formDefaults(payment: TuPaymentDto | null, contractNumber?: number): FormInput {
   return {
     invoiceNumber: payment?.invoiceNumber ?? '',
     invoiceDate: payment?.invoiceDate ?? kyivCalendarDate(),
     amount: payment ? formatAmountInput(payment.amount) : '',
     paidDate: payment?.paidDate ?? '',
+    paidAmount: payment?.paidAmount ? formatAmountInput(payment.paidAmount) : '',
     actTransferMonth: payment?.actTransferMonth ?? '',
+    contractNumber: String(payment?.contractNumber ?? contractNumber ?? ''),
+    contractDate: payment?.contractDate ?? '',
   };
 }
 

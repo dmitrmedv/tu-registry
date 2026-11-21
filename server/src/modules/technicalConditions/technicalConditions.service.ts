@@ -30,8 +30,8 @@ import {
   updateSeen,
   versionConflict,
 } from '../documents/document.service';
-import { deleteScanFile } from '../scans/scan.storage';
-import { paymentDtos, paymentFileIds } from '../tuPayments/tuPayment.dto';
+import { deleteScanFile, deleteStoredFile } from '../scans/scan.storage';
+import { paymentDtos, paymentFiles } from '../tuPayments/tuPayment.dto';
 import { TuPayment } from '../tuPayments/tuPayment.model';
 import { TechnicalConditions } from './technicalConditions.model';
 
@@ -267,6 +267,10 @@ export async function deleteTechnicalConditions(
     );
   });
   // After the commit: a failed deletion must not lose the files of conditions still in place.
-  const files = [...documentFileIds([current]), ...(payment ? paymentFileIds([payment]) : [])];
-  await Promise.all(files.map(deleteScanFile));
+  await Promise.all([
+    ...documentFileIds([current]).map(deleteScanFile),
+    ...paymentFiles(payment ? [payment] : []).map(({ fileId, type }) =>
+      deleteStoredFile(fileId, type),
+    ),
+  ]);
 }

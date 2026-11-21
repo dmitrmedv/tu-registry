@@ -7,12 +7,14 @@ import { loadApplication } from '../applications/application.edit.service';
 import type { RequestContext } from '../audit/audit.service';
 import { loadDocument } from '../documents/document.service';
 import {
-  deleteScanFile,
+  deleteStoredFile,
+  looksLikeDocx,
   looksLikePdf,
   removeFile,
   scanDisplayName,
   scanPath,
   storeScan,
+  type StoredFileType,
 } from '../scans/scan.storage';
 import {
   TECHNICAL_CONDITIONS,
@@ -29,7 +31,28 @@ import { TuPayment } from './tuPayment.model';
 
 type UploadedFile = { path: string; originalname: string; size: number };
 
-const FIELD = { invoice: 'invoiceScan', receipt: 'receiptScan', act: 'actScan' } as const;
+const FIELD = {
+  invoice: 'invoiceScan',
+  receipt: 'receiptScan',
+  act: 'actScan',
+  contract: 'contractScan',
+  contractDocument: 'contractDocument',
+} as const;
+
+/** Every file is a PDF scan but the contract's Word document (2026-11-20). */
+const typeOf = (kind: TuPaymentScanKind): StoredFileType =>
+  kind === 'contractDocument' ? 'docx' : 'pdf';
+
+/** Checks the content, whatever the browser claimed the type to be. */
+async function assertFileType(kind: TuPaymentScanKind, file: string) {
+  if (typeOf(kind) === 'docx') {
+    if (!(await looksLikeDocx(file))) {
+      throw new ApiError(400, 'NOT_DOCX', 'Файл не є документом Word (.docx)');
+    }
+  } else if (!(await looksLikePdf(file))) {
+    throw new ApiError(400, 'SCAN_NOT_PDF', 'Файл не є PDF-документом');
+  }
+}
 
 /** A payment open to changes: of valid technical conditions of an editable application. */
 async function loadScanEditable(applicationId: string, tuId: string, actor: Actor) {
@@ -46,7 +69,7 @@ export async function assertScanEditable(applicationId: string, tuId: string, ac
 }
 
 /**
- * Adds or replaces the invoice, the receipt or the act. A replaced file is deleted: the payment keeps one
+ * Adds or replaces a file of the payment. A replaced file is deleted: the payment keeps one
  * of each, and the audit records the change. Scans do not bump the version, like documents'.
  */
 export async function attachPaymentScan(
@@ -59,12 +82,10 @@ export async function attachPaymentScan(
 ) {
   try {
     const { app, tu, payment } = await loadScanEditable(applicationId, tuId, actor);
-    if (!(await looksLikePdf(file.path))) {
-      throw new ApiError(400, 'SCAN_NOT_PDF', 'Файл не є PDF-документом');
-    }
+    await assertFileType(kind, file.path);
     const field = FIELD[kind];
     const previous = payment[field];
-    const fileId = await storeScan(file.path);
+    const fileId = await storeScan(file.path, typeOf(kind));
     const scan = {
       fileId,
       name: scanDisplayName(file.originalname),
@@ -81,14 +102,14 @@ export async function attachPaymentScan(
       { $set: { [field]: scan, updatedBy: actor.id } },
     );
     if (matchedCount === 0) {
-      await deleteScanFile(fileId);
+      await deleteStoredFile(fileId, typeOf(kind));
       throw paymentConflict();
     }
     // Not the file name: it may well name the customer.
     await auditPayment('TU_PAYMENT_UPDATED', actor, app, tu, payment, context, {
       changes: [{ field, from: previous ? 'файл' : null, to: 'новий файл' }],
     });
-    if (previous) await deleteScanFile(previous.fileId);
+    if (previous) await deleteStoredFile(previous.fileId, typeOf(kind));
     return technicalConditionsDto(app, tuId);
   } finally {
     // Whatever happened, nothing stays in the upload folder (a moved file is already gone).
@@ -116,11 +137,11 @@ export async function removePaymentScan(
     changes: [{ field, from: 'файл', to: null }],
   });
   // After the change: a refused removal must not lose the file of a scan still in place.
-  await deleteScanFile(current.fileId);
+  await deleteStoredFile(current.fileId, typeOf(kind));
   return technicalConditionsDto(app, tuId);
 }
 
-/** The invoice, the receipt or the act of a visible application's payment, cancelled TU included. */
+/** A file of a visible application's payment, cancelled TU included. */
 export async function paymentScanFile(
   applicationId: string,
   tuId: string,
@@ -131,5 +152,6 @@ export async function paymentScanFile(
   const payment = await findPayment(await loadDocument(TECHNICAL_CONDITIONS, app, tuId));
   const scan = payment?.[FIELD[kind]];
   if (!scan) throw ApiError.notFound('Скан не знайдено');
-  return { path: scanPath(scan.fileId), name: scan.name };
+  const type = typeOf(kind);
+  return { path: scanPath(scan.fileId, type), name: scan.name, type };
 }

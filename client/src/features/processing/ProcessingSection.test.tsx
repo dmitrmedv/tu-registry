@@ -38,6 +38,7 @@ function openCard(processing: ProcessingDto, app: ApplicationDto = APP) {
     mock.get(`*/api/v1/applications/${app.id}/history`, () => HttpResponse.json([])),
     mock.get(`*/api/v1/applications/${app.id}/responses`, () => HttpResponse.json([])),
     mock.get(`*/api/v1/applications/${app.id}/technical-conditions`, () => HttpResponse.json([])),
+    mock.get(`*/api/v1/applications/${app.id}/contracts`, () => HttpResponse.json([])),
     mock.get('*/api/v1/engineers', () => HttpResponse.json([])),
   );
   return { ...renderApp(`/applications/${app.id}`), asked };
@@ -91,6 +92,8 @@ describe('processing in the application card', () => {
             overdueBy: 1,
             sinceDocumentsReceived: 7,
           }),
+          event({ type: 'CONTRACT', number: '125-8', date: '2026-03-30', workingDays: 12 }),
+          event({ type: 'CONTRACT_SIGNED', number: '125-8', date: '2026-04-02', workingDays: 15 }),
         ],
       }),
     );
@@ -104,6 +107,8 @@ describe('processing in the application card', () => {
       'Відповідь № помилкова, 16.03.2026',
       'Документи надійшли, 18.03.2026',
       'Технічні умови № 0032/ТУ, 27.03.2026',
+      'Договір № 125-8, 30.03.2026',
+      'Договір укладено № 125-8, 02.04.2026',
     ]);
     // A document and its date per line, nothing else.
     expect(items[0]).toHaveTextContent(/^Заява № 14т\/26-8 від 12\.03\.2026$/);

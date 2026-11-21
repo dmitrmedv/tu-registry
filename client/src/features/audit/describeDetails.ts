@@ -6,6 +6,7 @@ import {
   CONTRACT_FIELD_LABELS,
   INVOICE_FIELD_LABELS,
   PAYMENT_FIELD_LABELS,
+  ESTIMATE_FIELD_LABELS,
   PROJECT_FIELD_LABELS,
   TU_VALUE_LABELS,
 } from '@/shared/lib/labels';
@@ -188,6 +189,34 @@ export function describeDetails(entry: AuditLogDto): string {
         .map((c) => {
           const label = PROJECT_FIELD_LABELS[c.field] ?? c.field;
           if (files.includes(c.field)) {
+            return `${label}: ${!c.from ? 'додано' : c.to ? 'замінено' : 'видалено'}`;
+          }
+          return `${label}: ${show(c.from)} → ${show(c.to)}`;
+        })
+        .join(', ');
+    }
+    case 'ESTIMATE_CREATED':
+      return [
+        d.recalculated ? 'перерахунок' : '',
+        d.checkDate ? `перевірено ${formatCalendarDate(text(d.checkDate))}` : '',
+        d.amount ? text(d.amount) : '',
+      ]
+        .filter(Boolean)
+        .join(', ');
+    case 'ESTIMATE_UPDATED': {
+      const changes = Array.isArray(d.changes)
+        ? (d.changes as { field: string; from: unknown; to: unknown }[])
+        : [];
+      const show = (value: unknown) =>
+        value === null || value === undefined
+          ? '—'
+          : /^\d{4}-\d{2}-\d{2}$/.test(text(value))
+            ? formatCalendarDate(text(value))
+            : text(value);
+      return changes
+        .map((c) => {
+          const label = ESTIMATE_FIELD_LABELS[c.field] ?? c.field;
+          if (c.field === 'scan' || c.field === 'imd') {
             return `${label}: ${!c.from ? 'додано' : c.to ? 'замінено' : 'видалено'}`;
           }
           return `${label}: ${show(c.from)} → ${show(c.to)}`;

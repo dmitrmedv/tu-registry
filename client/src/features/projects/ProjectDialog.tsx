@@ -1,17 +1,12 @@
 import { zodResolver } from '@hookform/resolvers/zod';
-import {
-  type ApplicationDto,
-  kyivCalendarDate,
-  type ProjectDto,
-  type ProjectFileKind,
-} from '@tu-registry/shared';
+import { type ApplicationDto, kyivCalendarDate, type ProjectDto } from '@tu-registry/shared';
 import { useRef, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { ScanPanel, useScanChange } from '@/features/applications';
 import { documentStyles } from '@/features/documents';
 import { useEngineerOptions } from '@/features/engineers';
 import { useTechnicalConditions } from '@/features/technicalConditions';
-import { downloadFile, openPdf } from '@/shared/lib/pdf';
+import { openPdf } from '@/shared/lib/pdf';
 import { notifySuccess } from '@/shared/lib/notify';
 import { Button, Dialog, LoadFailed, SelectField, Spinner, TextField } from '@/shared/ui';
 import { projectsApi } from './api';
@@ -25,10 +20,8 @@ import {
 } from './projectForm';
 import {
   useCreateProject,
-  useRemoveProjectFile,
   useRemoveProjectScan,
   useUpdateProject,
-  useUploadProjectFile,
   useUploadProjectScan,
 } from './queries';
 import styles from './ProjectDialog.module.scss';
@@ -45,9 +38,9 @@ type Props = {
 
 /**
  * «Проєкт» (2026-11-21): the approval's number, date and engineer (the TU's by default) with the
- * project's scan; below, «Кошторис» — the date it was checked, its scan and the IMD check file.
- * Files change only on «Зберегти», after the fields; if a file fails, the project is already
- * saved and the dialog stays open on it.
+ * project's scan; the estimate has its own dialog (`EstimateDialog`). The scan changes only on
+ * «Зберегти», after the fields; if it fails, the project is already saved and the dialog stays
+ * open on it.
  */
 export function ProjectDialog(props: Props) {
   const tus = useTechnicalConditions(props.app.id);
@@ -76,19 +69,10 @@ function ProjectForm({
   const update = useUpdateProject(app.id);
   const uploadScan = useUploadProjectScan(app.id);
   const removeScan = useRemoveProjectScan(app.id);
-  const uploadFile = useUploadProjectFile(app.id);
-  const removeFile = useRemoveProjectFile(app.id);
   const scan = useScanChange({
     upload: (file, onProgress) => uploadScan.mutateAsync({ id: idRef.current!, file, onProgress }),
     remove: () => removeScan.mutateAsync(idRef.current!),
   });
-  const fileChange = (kind: ProjectFileKind) => ({
-    upload: (file: File, onProgress?: (percent: number) => void) =>
-      uploadFile.mutateAsync({ id: idRef.current!, kind, file, onProgress }),
-    remove: () => removeFile.mutateAsync({ id: idRef.current!, kind }),
-  });
-  const estimateScan = useScanChange(fileChange('estimateScan'));
-  const estimateImd = useScanChange(fileChange('estimateImd'));
   const engineerId = initial?.engineer.id ?? tuEngineerId;
   const { query: engineers, options: engineerOptions } = useEngineerOptions(
     app.department,
@@ -122,8 +106,6 @@ function ProjectForm({
     setProject(saved);
     try {
       await scan.apply();
-      await estimateScan.apply();
-      await estimateImd.apply();
     } catch {
       // The project stands, a file does not: the reason is in a notification already.
       if (!project) notifySuccess(`Проєкт № ${saved.approvalNumber} збережено`);
@@ -135,18 +117,12 @@ function ProjectForm({
   const today = kyivCalendarDate();
   const viewScan = () =>
     openPdf(() => projectsApi.scanFile(app.id, project!.id), project?.scan?.name ?? 'проєкт.pdf');
-  const viewFile = (kind: ProjectFileKind) => () => {
-    const load = () => projectsApi.file(app.id, project!.id, kind);
-    return kind === 'estimateImd'
-      ? downloadFile(load, project?.estimateImd?.name ?? 'кошторис.imd')
-      : openPdf(load, project?.estimateScan?.name ?? 'кошторис.pdf');
-  };
 
   return (
     <Dialog
       busy={isSubmitting}
       open
-      size="xl"
+      size="lg"
       title={project ? `Проєкт № ${project.approvalNumber}` : 'Новий проєкт'}
       onClose={onClose}
       footer={
@@ -156,75 +132,43 @@ function ProjectForm({
       }
     >
       <form id={FORM_ID} onSubmit={onSubmit} noValidate className={documentStyles.formContents}>
-        <div className={styles.layout}>
-          <div className={styles.row}>
-            <div className={styles.fields}>
-              <TextField
-                label="№ узгодження"
-                autoComplete="off"
-                error={errors.approvalNumber?.message}
-                {...register('approvalNumber')}
-              />
-              <TextField
-                label="Дата узгодження"
-                type="date"
-                max={today}
-                error={errors.approvalDate?.message}
-                {...register('approvalDate')}
-              />
-              {engineers.isPending ? (
-                // An uncontrolled select would otherwise settle on whichever option comes first.
-                <Spinner label="Завантаження інженерів…" />
-              ) : engineers.isError ? (
-                <LoadFailed error={engineers.error} onRetry={() => engineers.refetch()} />
-              ) : (
-                <SelectField
-                  label="Виконавець"
-                  options={engineerOptions}
-                  hint={initial ? undefined : 'За замовчуванням — виконавець ТУ'}
-                  error={errors.engineer?.message}
-                  {...register('engineer')}
-                />
-              )}
-            </div>
-            <ScanPanel
-              title="Скан проєкту"
-              scan={project?.scan ?? null}
-              scanChange={scan}
-              onView={viewScan}
-              disabled={isSubmitting}
+        <div className={styles.row}>
+          <div className={styles.fields}>
+            <TextField
+              label="№ узгодження"
+              autoComplete="off"
+              error={errors.approvalNumber?.message}
+              {...register('approvalNumber')}
             />
+            <TextField
+              label="Дата узгодження"
+              type="date"
+              max={today}
+              error={errors.approvalDate?.message}
+              {...register('approvalDate')}
+            />
+            {engineers.isPending ? (
+              // An uncontrolled select would otherwise settle on whichever option comes first.
+              <Spinner label="Завантаження інженерів…" />
+            ) : engineers.isError ? (
+              <LoadFailed error={engineers.error} onRetry={() => engineers.refetch()} />
+            ) : (
+              <SelectField
+                label="Виконавець"
+                options={engineerOptions}
+                hint={initial ? undefined : 'За замовчуванням — виконавець ТУ'}
+                error={errors.engineer?.message}
+                {...register('engineer')}
+              />
+            )}
           </div>
-
-          <h3 className={styles.sectionTitle}>Кошторис</h3>
-          <div className={styles.row}>
-            <div className={styles.fields}>
-              <TextField
-                label="Дата перевірки кошторису"
-                type="date"
-                max={today}
-                error={errors.estimateCheckDate?.message}
-                {...register('estimateCheckDate')}
-              />
-            </div>
-            <div className={styles.files}>
-              <ScanPanel
-                title="Скан кошторису"
-                scan={project?.estimateScan ?? null}
-                scanChange={estimateScan}
-                onView={viewFile('estimateScan')}
-                disabled={isSubmitting}
-              />
-              <ScanPanel
-                title="Файл перевірки (IMD)"
-                fileType="imd"
-                scan={project?.estimateImd ?? null}
-                scanChange={estimateImd}
-                onView={viewFile('estimateImd')}
-                disabled={isSubmitting}
-              />
-            </div>
-          </div>
+          <ScanPanel
+            title="Скан проєкту"
+            scan={project?.scan ?? null}
+            scanChange={scan}
+            onView={viewScan}
+            disabled={isSubmitting}
+          />
         </div>
       </form>
     </Dialog>

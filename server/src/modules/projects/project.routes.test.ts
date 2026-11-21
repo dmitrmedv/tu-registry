@@ -13,6 +13,7 @@ import { clock } from '../../utils/clock';
 import { ApplicationChange } from '../applications/applicationChange.model';
 import { AuditLog } from '../audit/auditLog.model';
 import { Engineer } from '../engineers/engineer.model';
+import { Estimate } from '../estimates/estimate.model';
 import { scanPath } from '../scans/scan.storage';
 import { Project } from './project.model';
 
@@ -71,21 +72,30 @@ describe('projects', () => {
       .set(who.auth)
       .send({ approvalNumber: '125/П', approvalDate: '2026-11-18', ...body });
 
+  /** An estimate of the valid project with its IMD file: the file's id. */
+  const addEstimateWithImd = async () => {
+    const { id } = (
+      await request(app).post(`${APPLICATIONS}/${applicationId}/estimates`).set(owner.auth).send({})
+    ).body;
+    await request(app)
+      .put(`${APPLICATIONS}/${applicationId}/estimates/${id}/files/imd`)
+      .set(owner.auth)
+      .attach('imd', imd('x'), { filename: 'x.imd', contentType: 'application/octet-stream' });
+    return (await Estimate.findById(id).lean())!.imd!.fileId;
+  };
+
   it('needs valid technical conditions and takes their engineer by default', async () => {
     expect((await create()).body.error.code).toBe('NO_TECHNICAL_CONDITIONS');
     await addTu();
 
-    const res = await create({ estimateCheckDate: '2026-11-19' });
+    const res = await create();
 
     expect(res.status).toBe(201);
     expect(res.body).toMatchObject({
       approvalNumber: '125/П',
       approvalDate: '2026-11-18',
-      estimateCheckDate: '2026-11-19',
       engineer: { id: tuEngineerId, fullName: 'Бойко Андрій' },
       scan: null,
-      estimateScan: null,
-      estimateImd: null,
     });
     expect((await request(app).get(url()).set(elsewhere.auth)).status).toBe(404);
     expect(await ApplicationChange.exists({ 'document.kind': 'PROJECT' })).toBeTruthy();
@@ -101,25 +111,20 @@ describe('projects', () => {
   it('keeps one valid project and checks the dates', async () => {
     await addTu();
     expect((await create({ approvalDate: '2026-10-01' })).status).toBe(400);
-    expect((await create({ estimateCheckDate: '2026-11-25' })).status).toBe(400);
+    // The estimate is a document of its own now: its fields are refused here.
+    expect((await create({ estimateCheckDate: '2026-11-19' })).status).toBe(400);
     const { id } = (await create({ engineer: otherEngineerId })).body;
     expect((await create()).body.error.code).toBe('DOCUMENT_TAKEN');
 
     const edit = await request(app)
       .patch(url(`/${id}`))
       .set(owner.auth)
-      .send({ version: 1, approvalNumber: '126/П', estimateCheckDate: '2026-11-20' });
+      .send({ version: 1, approvalNumber: '126/П' });
     expect(edit.body).toMatchObject({
       approvalNumber: '126/П',
-      estimateCheckDate: '2026-11-20',
       engineer: { fullName: 'Коваль Олена' },
       version: 2,
     });
-    const cleared = await request(app)
-      .patch(url(`/${id}`))
-      .set(owner.auth)
-      .send({ version: 2, estimateCheckDate: null });
-    expect(cleared.body.estimateCheckDate).toBeNull();
     const stale = await request(app)
       .patch(url(`/${id}`))
       .set(owner.auth)
@@ -127,7 +132,7 @@ describe('projects', () => {
     expect(stale.body.error.code).toBe('VERSION_CONFLICT');
   });
 
-  it('keeps the project scan, the estimate scan and the IMD check file', async () => {
+  it('keeps the project scan with the replaced ones', async () => {
     await addTu();
     const { id } = (await create()).body;
     const put = (path: string, field: string, file: Buffer, name: string, type: string) =>
@@ -142,73 +147,12 @@ describe('projects', () => {
     const second = await put('/scan', 'scan', pdf('2'), 'Проєкт 2.pdf', 'application/pdf');
     expect(second.body.scan).toMatchObject({ name: 'Проєкт 2.pdf' });
     expect(second.body.previousScans).toHaveLength(1);
-
-    const estimate = await put(
-      '/files/estimateScan',
-      'scan',
-      pdf('к'),
-      'Кошторис.pdf',
-      'application/pdf',
-    );
-    expect(estimate.body.estimateScan).toMatchObject({ name: 'Кошторис.pdf' });
-    const check = await put(
-      '/files/estimateImd',
-      'imd',
-      imd('перевірка'),
-      'Перевірка.imd',
-      'application/octet-stream',
-    );
-    expect(check.status).toBe(200);
-    expect(check.body.estimateImd).toMatchObject({ name: 'Перевірка.imd' });
-    expect(
-      (await put('/files/estimateImd', 'imd', imd('x'), 'a.pdf', 'application/pdf')).body.error
-        .code,
-    ).toBe('NOT_IMD');
-    expect(
-      (await put('/files/estimateImd', 'imd', Buffer.alloc(0), 'a.imd', 'application/octet-stream'))
-        .body.error.code,
-    ).toBe('NOT_IMD');
-    expect(
-      (await put('/files/estimateScan', 'scan', imd('x'), 'a.pdf', 'application/pdf')).body.error
-        .code,
-    ).toBe('SCAN_NOT_PDF');
-
-    const file = await request(app)
-      .get(url(`/${id}/files/estimateImd`))
-      .set(owner.auth);
-    expect(file.headers['content-disposition']).toMatch(/^attachment;/);
-    expect(
-      (
-        await request(app)
-          .get(url(`/${id}/files/estimateImd`))
-          .set(elsewhere.auth)
-      ).status,
-    ).toBe(404);
-
-    const stored = (await Project.findById(id).lean())!;
-    const replaced = await put(
-      '/files/estimateImd',
-      'imd',
-      imd('нова'),
-      'Нова.imd',
-      'application/octet-stream',
-    );
-    expect(replaced.body.estimateImd).toMatchObject({ name: 'Нова.imd' });
-    expect(existsSync(scanPath(stored.estimateImd!.fileId, 'imd'))).toBe(false);
-    const removed = await request(app)
-      .delete(url(`/${id}/files/estimateScan`))
-      .set(owner.auth);
-    expect(removed.body.estimateScan).toBeNull();
-    expect(existsSync(scanPath(stored.estimateScan!.fileId))).toBe(false);
   });
 
   it('is cancelled, restored and deleted with its files by an admin only', async () => {
     await addTu();
     const { id } = (await create()).body;
-    await request(app)
-      .put(url(`/${id}/files/estimateImd`))
-      .set(owner.auth)
-      .attach('imd', imd('x'), { filename: 'x.imd', contentType: 'application/octet-stream' });
+    const file = await addEstimateWithImd();
 
     const cancelled = await request(app)
       .post(url(`/${id}/cancel`))
@@ -225,7 +169,6 @@ describe('projects', () => {
       ).status,
     ).toBe(409);
 
-    const file = (await Project.findById(id).lean())!.estimateImd!.fileId;
     expect(
       (
         await request(app)
@@ -243,18 +186,15 @@ describe('projects', () => {
       ).status,
     ).toBe(204);
     expect(await Project.countDocuments()).toBe(1);
+    expect(await Estimate.countDocuments()).toBe(0);
     expect(existsSync(scanPath(file, 'imd'))).toBe(false);
     expect(await AuditLog.exists({ action: 'PROJECT_DELETED' })).toBeTruthy();
   });
 
   it('goes with its application', async () => {
     await addTu();
-    const { id } = (await create()).body;
-    await request(app)
-      .put(url(`/${id}/files/estimateImd`))
-      .set(owner.auth)
-      .attach('imd', imd('x'), { filename: 'x.imd', contentType: 'application/octet-stream' });
-    const file = (await Project.findById(id).lean())!.estimateImd!.fileId;
+    await create();
+    const file = await addEstimateWithImd();
 
     const res = await request(app)
       .delete(`${APPLICATIONS}/${applicationId}`)
@@ -263,6 +203,7 @@ describe('projects', () => {
 
     expect(res.status).toBe(204);
     expect(await Project.countDocuments()).toBe(0);
+    expect(await Estimate.countDocuments()).toBe(0);
     expect(existsSync(scanPath(file, 'imd'))).toBe(false);
   });
 });

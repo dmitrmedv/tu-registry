@@ -7,6 +7,7 @@ import {
 import { uploadScan } from '../../middlewares/upload';
 import * as processingController from '../processing/processing.controller';
 import { contractRouter } from '../contracts/contract.routes';
+import { estimateRouter } from '../estimates/estimate.routes';
 import { invoiceRouter } from '../invoices/invoice.routes';
 import { projectRouter } from '../projects/project.routes';
 import { responseRouter } from '../responses/response.routes';
@@ -39,4 +40,5 @@ applicationRouter.use('/:id/responses', responseRouter);
 applicationRouter.use('/:id/technical-conditions', technicalConditionsRouter);
 applicationRouter.use('/:id/contracts', contractRouter);
 applicationRouter.use('/:id/projects', projectRouter);
+applicationRouter.use('/:id/estimates', estimateRouter);
 applicationRouter.use('/:id/invoices', invoiceRouter);

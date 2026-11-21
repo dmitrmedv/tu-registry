@@ -1,7 +1,9 @@
-import type { ApplicationDto, ProjectDto, ProjectFileKind } from '@tu-registry/shared';
+import type { ApplicationDto, ProjectDto } from '@tu-registry/shared';
+import clsx from 'clsx';
 import { useState } from 'react';
 import { canDeleteDocument, canManageDocuments, canRestoreDocument } from '@/features/applications';
 import { useCurrentUser } from '@/features/auth';
+import { EstimateFrame } from '@/features/estimates';
 import {
   CancelDocumentDialog,
   DocumentFrame,
@@ -12,7 +14,7 @@ import {
 import { toApiError } from '@/shared/api/apiError';
 import { formatCalendarDate, formatDateTime, shortName } from '@/shared/lib/format';
 import { notifyError, notifySuccess } from '@/shared/lib/notify';
-import { downloadFile, openPdf } from '@/shared/lib/pdf';
+import { openPdf } from '@/shared/lib/pdf';
 import {
   Badge,
   CardFooter,
@@ -38,8 +40,10 @@ const titleOf = (project: ProjectDto) =>
   `№ ${project.approvalNumber} від ${formatCalendarDate(project.approvalDate)}`;
 
 /**
- * The «Проєкт» tab of the card: the valid project, cancelled ones paged with ‹ ›. ＋ adds a new
- * one only while there is no valid one (the server enforces it too).
+ * The «Проєкт» tab of the card: the project and the «Кошторис» of the project shown side by side,
+ * each in its frame (2026-11-21). The estimate is a document of its own (`EstimateFrame`): it is
+ * recalculated without the project. The valid project first, cancelled ones paged with ‹ ›. ＋ adds
+ * a new one only while there is no valid one (the server enforces it too).
  */
 export function ProjectTab({ app }: { app: ApplicationDto }) {
   const user = useCurrentUser();
@@ -62,14 +66,6 @@ export function ProjectTab({ app }: { app: ApplicationDto }) {
   };
   const openScanOf = (project: ProjectDto, fileId?: string, name = project.scan?.name ?? '') =>
     run(() => openPdf(() => projectsApi.scanFile(app.id, project.id, fileId), name));
-  const openFile = (project: ProjectDto, kind: ProjectFileKind) => {
-    const load = () => projectsApi.file(app.id, project.id, kind);
-    return run(() =>
-      kind === 'estimateImd'
-        ? downloadFile(load, project.estimateImd?.name ?? 'кошторис.imd')
-        : openPdf(load, project.estimateScan?.name ?? 'кошторис.pdf'),
-    );
-  };
 
   if (list.isPending) return <Spinner label="Завантаження проєктів…" />;
   if (list.isError) return <LoadFailed error={list.error} onRetry={() => list.refetch()} />;
@@ -86,120 +82,96 @@ export function ProjectTab({ app }: { app: ApplicationDto }) {
   return (
     <>
       {shown ? (
-        <DocumentFrame
-          title="Проєкт"
-          label={`Проєкт ${titleOf(shown)}`}
-          cancelled={Boolean(shown.cancellation)}
-          footer={
-            <>
-              {shown.scan && (
-                <ScanButton title={shown.scan.name} onClick={() => openScanOf(shown)} />
-              )}
-              <div className={styles.frameFooterEnd}>
-                {projects.length > 1 && (
-                  <div className={styles.frameActions}>
-                    <IconButton
-                      icon="chevronLeft"
-                      label="Попередній проєкт"
-                      disabled={position === 0}
-                      onClick={() => setShownId(projects[position - 1]!.id)}
-                    />
-                    <IconButton
-                      icon="chevronRight"
-                      label="Наступний проєкт"
-                      disabled={position === projects.length - 1}
-                      onClick={() => setShownId(projects[position + 1]!.id)}
-                    />
-                  </div>
+        <div className={clsx(styles.split, styles.splitFill)}>
+          <DocumentFrame
+            title="Проєкт"
+            label={`Проєкт ${titleOf(shown)}`}
+            cancelled={Boolean(shown.cancellation)}
+            footer={
+              <>
+                {shown.scan && (
+                  <ScanButton title={shown.scan.name} onClick={() => openScanOf(shown)} />
                 )}
-                <div className={styles.frameActions}>
-                  {addButton}
-                  {manage && !shown.cancellation && (
-                    <>
+                <div className={styles.frameFooterEnd}>
+                  {projects.length > 1 && (
+                    <div className={styles.frameActions}>
                       <IconButton
-                        icon="pencil"
-                        label="Редагувати"
-                        onClick={() => setDialog({ kind: 'edit', project: shown })}
+                        icon="chevronLeft"
+                        label="Попередній проєкт"
+                        disabled={position === 0}
+                        onClick={() => setShownId(projects[position - 1]!.id)}
                       />
                       <IconButton
-                        icon="ban"
-                        label="Скасувати"
+                        icon="chevronRight"
+                        label="Наступний проєкт"
+                        disabled={position === projects.length - 1}
+                        onClick={() => setShownId(projects[position + 1]!.id)}
+                      />
+                    </div>
+                  )}
+                  <div className={styles.frameActions}>
+                    {addButton}
+                    {manage && !shown.cancellation && (
+                      <>
+                        <IconButton
+                          icon="pencil"
+                          label="Редагувати"
+                          onClick={() => setDialog({ kind: 'edit', project: shown })}
+                        />
+                        <IconButton
+                          icon="ban"
+                          label="Скасувати"
+                          tone="danger"
+                          onClick={() => setDialog({ kind: 'cancel', project: shown })}
+                        />
+                      </>
+                    )}
+                    {shown.cancellation && canRestoreDocument(app, user) && (
+                      <IconButton
+                        icon="restore"
+                        label="Відновити"
+                        loading={restore.isPending}
+                        onClick={() =>
+                          run(
+                            () => restore.mutateAsync({ id: shown.id, version: shown.version }),
+                            `Проєкт № ${shown.approvalNumber} відновлено`,
+                          )
+                        }
+                      />
+                    )}
+                    {canDeleteDocument(app, user) && (
+                      <IconButton
+                        icon="trash"
+                        label="Видалити"
                         tone="danger"
-                        onClick={() => setDialog({ kind: 'cancel', project: shown })}
+                        onClick={() => setDialog({ kind: 'delete', project: shown })}
                       />
-                    </>
-                  )}
-                  {shown.cancellation && canRestoreDocument(app, user) && (
-                    <IconButton
-                      icon="restore"
-                      label="Відновити"
-                      loading={restore.isPending}
-                      onClick={() =>
-                        run(
-                          () => restore.mutateAsync({ id: shown.id, version: shown.version }),
-                          `Проєкт № ${shown.approvalNumber} відновлено`,
-                        )
-                      }
-                    />
-                  )}
-                  {canDeleteDocument(app, user) && (
-                    <IconButton
-                      icon="trash"
-                      label="Видалити"
-                      tone="danger"
-                      onClick={() => setDialog({ kind: 'delete', project: shown })}
-                    />
-                  )}
+                    )}
+                  </div>
                 </div>
-              </div>
-            </>
-          }
-        >
-          {shown.cancellation && (
-            <span className={styles.frameBadge}>
-              <Badge tone="danger">Скасовано</Badge>
-            </span>
-          )}
-          <DataList labels="fixed">
-            <DataRow label="Узгодження">{titleOf(shown)}</DataRow>
-            <DataRow label="Виконавець">
-              <span title={shown.engineer.fullName}>{shortName(shown.engineer.fullName)}</span>
-            </DataRow>
-            <DataRow label="Дата перевірки кошторису">
-              {shown.estimateCheckDate ? formatCalendarDate(shown.estimateCheckDate) : '—'}
-            </DataRow>
-            <DataRow label="Скан кошторису">
-              {shown.estimateScan ? (
-                <IconButton
-                  icon="eye"
-                  label="Відкрити скан кошторису"
-                  title={shown.estimateScan.name}
-                  onClick={() => openFile(shown, 'estimateScan')}
-                />
-              ) : (
-                '—'
-              )}
-            </DataRow>
-            <DataRow label="Файл перевірки (IMD)">
-              {shown.estimateImd ? (
-                <IconButton
-                  icon="download"
-                  label="Завантажити файл перевірки"
-                  title={shown.estimateImd.name}
-                  onClick={() => openFile(shown, 'estimateImd')}
-                />
-              ) : (
-                '—'
-              )}
-            </DataRow>
-            <DataRow label="Внесено">{formatDateTime(shown.createdAt)}</DataRow>
-          </DataList>
-          <DocumentNotes
-            cancellation={shown.cancellation}
-            previousScans={shown.previousScans}
-            onOpenScan={(scan) => openScanOf(shown, scan.id, scan.name)}
-          />
-        </DocumentFrame>
+              </>
+            }
+          >
+            {shown.cancellation && (
+              <span className={styles.frameBadge}>
+                <Badge tone="danger">Скасовано</Badge>
+              </span>
+            )}
+            <DataList labels="fixed">
+              <DataRow label="Узгодження">{titleOf(shown)}</DataRow>
+              <DataRow label="Виконавець">
+                <span title={shown.engineer.fullName}>{shortName(shown.engineer.fullName)}</span>
+              </DataRow>
+              <DataRow label="Внесено">{formatDateTime(shown.createdAt)}</DataRow>
+            </DataList>
+            <DocumentNotes
+              cancellation={shown.cancellation}
+              previousScans={shown.previousScans}
+              onOpenScan={(scan) => openScanOf(shown, scan.id, scan.name)}
+            />
+          </DocumentFrame>
+          <EstimateFrame key={shown.id} app={app} project={shown} />
+        </div>
       ) : (
         <>
           <p className={styles.muted}>Проєкт ще не внесено.</p>

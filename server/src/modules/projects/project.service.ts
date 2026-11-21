@@ -12,12 +12,7 @@ import type { Actor } from '../applications/application.access';
 import type { ApplicationDocument } from '../applications/application.dto';
 import { loadApplication, loadEditableApplication } from '../applications/application.edit.service';
 import type { RequestContext } from '../audit/audit.service';
-import {
-  type DocumentRecord,
-  documentDtoParts,
-  documentFileIds,
-  type ScanRecord,
-} from '../documents/document.dto';
+import { type DocumentRecord, documentDtoParts, documentFileIds } from '../documents/document.dto';
 import { assertDocumentDate, resolveEngineer } from '../documents/document.rules';
 import {
   auditDocument,
@@ -30,18 +25,16 @@ import {
   updateSeen,
   versionConflict,
 } from '../documents/document.service';
+import { Estimate } from '../estimates/estimate.model';
+import { estimateFiles } from '../estimates/estimate.service';
 import { deleteStoredFile } from '../scans/scan.storage';
 import { TechnicalConditions } from '../technicalConditions/technicalConditions.model';
-import { findUserSummaries } from '../users/user.service';
 import { Project } from './project.model';
 
 export type ProjectRecord = DocumentRecord & {
   technicalConditionsId: Types.ObjectId;
   approvalNumber: string;
   approvalDate: Date;
-  estimateCheckDate: Date | null;
-  estimateScan?: ScanRecord | null;
-  estimateImd?: ScanRecord | null;
 };
 
 export const PROJECT: DocumentKind<ProjectRecord> = {
@@ -73,49 +66,19 @@ const alreadyValid = () =>
   );
 
 /** The stored files of `rows`, every version: for deleting them for good. */
-export const projectFiles = (
-  rows: Pick<ProjectRecord, 'scan' | 'previousScans' | 'estimateScan' | 'estimateImd'>[],
-) => [
-  ...documentFileIds(rows).map((fileId) => ({ fileId, type: 'pdf' as const })),
-  ...rows.flatMap((row) => [
-    ...(row.estimateScan ? [{ fileId: row.estimateScan.fileId, type: 'pdf' as const }] : []),
-    ...(row.estimateImd ? [{ fileId: row.estimateImd.fileId, type: 'imd' as const }] : []),
-  ]),
-];
+export const projectFiles = (rows: Pick<ProjectRecord, 'scan' | 'previousScans'>[]) =>
+  documentFileIds(rows).map((fileId) => ({ fileId, type: 'pdf' as const }));
 
 /** The fields that hold a project's files: for loading only them. */
-export const PROJECT_FILE_FIELDS = 'scan previousScans estimateScan estimateImd';
+export const PROJECT_FILE_FIELDS = 'scan previousScans';
 
 async function toDtos(rows: ProjectRecord[]): Promise<ProjectDto[]> {
-  const [common, names] = await Promise.all([
-    documentDtoParts(rows),
-    findUserSummaries(
-      rows.flatMap((row) => [
-        row.estimateScan ? String(row.estimateScan.uploadedBy) : null,
-        row.estimateImd ? String(row.estimateImd.uploadedBy) : null,
-      ]),
-    ),
-  ]);
-  const fileDto = (file?: ScanRecord | null) =>
-    file
-      ? {
-          name: file.name,
-          size: file.size,
-          uploadedAt: file.uploadedAt.toISOString(),
-          uploadedBy: {
-            id: String(file.uploadedBy),
-            fullName: names.get(String(file.uploadedBy))?.fullName ?? '—',
-          },
-        }
-      : null;
+  const common = await documentDtoParts(rows);
   return rows.map((row) => ({
     ...common(row),
     technicalConditionsId: String(row.technicalConditionsId),
     approvalNumber: row.approvalNumber,
     approvalDate: toIsoDate(row.approvalDate),
-    estimateCheckDate: row.estimateCheckDate ? toIsoDate(row.estimateCheckDate) : null,
-    estimateScan: fileDto(row.estimateScan),
-    estimateImd: fileDto(row.estimateImd),
   }));
 }
 
@@ -150,14 +113,6 @@ export async function createProject(
   }
   if (await Project.exists({ applicationId: app._id, active: true })) throw alreadyValid();
   assertDocumentDate(app, 'approvalDate', input.approvalDate, 'Дата узгодження');
-  if (input.estimateCheckDate) {
-    assertDocumentDate(
-      app,
-      'estimateCheckDate',
-      input.estimateCheckDate,
-      'Дата перевірки кошторису',
-    );
-  }
   // By default, the engineer of the technical conditions, even if deactivated since.
   const engineer = await resolveEngineer(
     app,
@@ -176,9 +131,6 @@ export async function createProject(
             approvalDate: fromIsoDate(input.approvalDate),
             engineer: engineer._id,
             engineerName: engineer.fullName,
-            estimateCheckDate: input.estimateCheckDate
-              ? fromIsoDate(input.estimateCheckDate)
-              : null,
             createdBy: actor.id,
           },
         ],
@@ -222,19 +174,6 @@ export async function updateProject(
     assertDocumentDate(app, 'approvalDate', input.approvalDate, 'Дата узгодження');
     changes.push({ field: 'approvalDate', from: approvalDate, to: input.approvalDate });
     $set.approvalDate = fromIsoDate(input.approvalDate);
-  }
-  const checkDate = current.estimateCheckDate ? toIsoDate(current.estimateCheckDate) : null;
-  if (input.estimateCheckDate !== undefined && input.estimateCheckDate !== checkDate) {
-    if (input.estimateCheckDate) {
-      assertDocumentDate(
-        app,
-        'estimateCheckDate',
-        input.estimateCheckDate,
-        'Дата перевірки кошторису',
-      );
-    }
-    changes.push({ field: 'estimateCheckDate', from: checkDate, to: input.estimateCheckDate });
-    $set.estimateCheckDate = input.estimateCheckDate ? fromIsoDate(input.estimateCheckDate) : null;
   }
   if (input.engineer && input.engineer !== String(current.engineer)) {
     const engineer = await resolveEngineer(app, input.engineer, String(current.engineer));
@@ -283,7 +222,7 @@ export async function restoreProject(
   return projectDto(app, id);
 }
 
-/** For good, by an admin only, like technical conditions: the project and all its files. */
+/** For good, by an admin only, like technical conditions: the project, its estimates, all files. */
 export async function deleteProject(
   applicationId: string,
   id: string,
@@ -294,13 +233,17 @@ export async function deleteProject(
   const app = await loadEditableApplication(applicationId, actor);
   const current = await loadDocument(PROJECT, app, id);
   if (version !== current.version) throw versionConflict(PROJECT);
+  const estimates = await Estimate.find({ projectId: current._id }).select('scan imd').lean();
   await changeDocuments(app, async (session) => {
     const { deletedCount } = await Project.deleteOne({ _id: current._id, version }, { session });
     if (deletedCount === 0) throw versionConflict(PROJECT);
+    await Estimate.deleteMany({ projectId: current._id }, { session });
     await auditDocument(PROJECT, 'PROJECT_DELETED', actor, app, current, context, {}, session);
   });
   // After the commit: a failed deletion must not lose the files of a project still in place.
   await Promise.all(
-    projectFiles([current]).map(({ fileId, type }) => deleteStoredFile(fileId, type)),
+    [...projectFiles([current]), ...estimateFiles(estimates)].map(({ fileId, type }) =>
+      deleteStoredFile(fileId, type),
+    ),
   );
 }

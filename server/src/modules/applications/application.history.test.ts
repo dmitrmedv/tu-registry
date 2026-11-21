@@ -200,6 +200,53 @@ describe('history of an application: its documents too', () => {
       expect.objectContaining({ action: 'DELETED', document: 'TU_PAYMENT 126/Б' }),
     ]);
   });
+  it('records an estimate: added, changed, its scan, recalculated, deleted', async () => {
+    await request(app).post(`${base()}/technical-conditions`).set(owner.auth).send({
+      tuNumber: '0032/ТУ',
+      preparedDate: '2026-11-16',
+      engineer: engineerId,
+      gasFlow: '2,5',
+      connectionType: 'STANDARD',
+      gasPressure: 'LOW',
+      connectionPoint: 'UNDERGROUND',
+    });
+    await request(app)
+      .post(`${base()}/projects`)
+      .set(owner.auth)
+      .send({ approvalNumber: '125/П', approvalDate: '2026-11-18' });
+    const created = await request(app).post(`${base()}/estimates`).set(owner.auth).send({});
+    const url = `/estimates/${created.body.id}`;
+    await request(app)
+      .patch(`${base()}${url}`)
+      .set(owner.auth)
+      .send({ version: 1, checkDate: '2026-11-19', amount: null });
+    await attach(`${url}/files/scan`);
+    const second = await request(app).post(`${base()}/estimates`).set(owner.auth).send({});
+    await request(app)
+      .delete(`${base()}/estimates/${second.body.id}`)
+      .query({ version: 1 })
+      .set(admin.auth);
+
+    const estimates = (await documentHistory()).filter((entry) =>
+      entry.document.startsWith('ESTIMATE'),
+    );
+    expect(estimates).toEqual([
+      expect.objectContaining({ action: 'CREATED', document: 'ESTIMATE 125/П' }),
+      expect.objectContaining({
+        action: 'UPDATED',
+        changes: [{ field: 'checkDate', oldValue: null, newValue: '2026-11-19' }],
+      }),
+      expect.objectContaining({
+        changes: [{ field: 'scan', oldValue: null, newValue: 'новий файл' }],
+      }),
+      expect.objectContaining({
+        changes: [{ field: 'superseded', oldValue: null, newValue: 'перераховано' }],
+      }),
+      expect.objectContaining({ action: 'CREATED' }),
+      expect.objectContaining({ action: 'DELETED', document: 'ESTIMATE 125/П' }),
+    ]);
+  });
+
   it('records a contract: added, changed, its scan, cancelled, deleted', async () => {
     await request(app).post(`${base()}/technical-conditions`).set(owner.auth).send({
       tuNumber: '0032/ТУ',

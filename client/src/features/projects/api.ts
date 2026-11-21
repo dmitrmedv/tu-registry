@@ -2,7 +2,6 @@ import type {
   CancelDocumentInput,
   CreateProjectInput,
   ProjectDto,
-  ProjectFileKind,
   UpdateProjectInput,
 } from '@tu-registry/shared';
 import { http } from '@/shared/api/http';
@@ -49,24 +48,4 @@ export const projectsApi = {
   /** The current scan, or an earlier one by its id. */
   scanFile: (applicationId: string, id: string, fileId?: string) =>
     fetchPdf(`${base(applicationId)}/${id}/scan`, fileId ? { file: fileId } : undefined),
-  /** The estimate's scan goes in the "scan" field, the IMD check file in "imd". */
-  uploadFile: (
-    applicationId: string,
-    id: string,
-    kind: ProjectFileKind,
-    file: File,
-    onProgress?: (percent: number) => void,
-  ) => {
-    const form = new FormData();
-    form.append(kind === 'estimateImd' ? 'imd' : 'scan', file);
-    return http
-      .put<ProjectDto>(`${base(applicationId)}/${id}/files/${kind}`, form, {
-        onUploadProgress: progressOf(onProgress),
-      })
-      .then((r) => r.data);
-  },
-  removeFile: (applicationId: string, id: string, kind: ProjectFileKind) =>
-    http.delete<ProjectDto>(`${base(applicationId)}/${id}/files/${kind}`).then((r) => r.data),
-  file: (applicationId: string, id: string, kind: ProjectFileKind) =>
-    fetchPdf(`${base(applicationId)}/${id}/files/${kind}`),
 };

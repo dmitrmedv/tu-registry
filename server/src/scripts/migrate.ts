@@ -13,6 +13,7 @@ import {
   moveCadastralNumberIntoAddress,
   moveCountersToDefaultDepartment,
 } from '../modules/applications/application.migration';
+import { moveProjectEstimates } from '../modules/estimates/estimate.migration';
 import { moveActTransferDateToMonth } from '../modules/tuPayments/tuPayment.migration';
 
 /** Data changes required by new schema rules. Safe to run repeatedly (and on every deploy). */
@@ -44,6 +45,8 @@ async function main() {
     logger.info({ tuCustomers }, 'Technical conditions given the application customer and address');
     const actMonths = await moveActTransferDateToMonth();
     logger.info({ actMonths }, 'Act transfer dates of TU payments turned into months');
+    const estimates = await moveProjectEstimates();
+    logger.info({ estimates }, 'Estimates moved out of projects into their own collection');
   } finally {
     await disconnectDb();
   }

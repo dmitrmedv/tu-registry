@@ -21,7 +21,7 @@ description: Архітектура full-stack застосунку (React + Vit
    - перелік ендпоінтів (метод, шлях, доступ);
    - сторінки й маршрути;
    - ключові рішення з альтернативами й рекомендацією.
-3. **Погодження** — чекай підтвердження на рішення зі списку в CLAUDE.md §7.
+3. **Погодження** — чекай підтвердження на значущі архітектурні рішення (нові залежності, колекції, індекси, API-контракти — див. CLAUDE.md).
 4. **План етапів** — кожен етап ≤ 1 логічної фічі, закінчується перевіреним робочим станом.
 5. **Реалізація етапами → перевірки → звіт.**
 
@@ -35,7 +35,7 @@ description: Архітектура full-stack застосунку (React + Vit
 | React Hook Form + Zod | мало ре-рендерів, одна схема для типів і валідації | Formik — якщо вже є в проєкті |
 | CSS Modules + SCSS | ізоляція стилів без runtime, токени через CSS-змінні | — |
 | Zod на backend | одна мова схем, автоматичні TS-типи | — |
-| JWT access + refresh у httpOnly cookie | stateless API, захист від XSS-крадіжки refresh | сесії — для SSR/монолітів |
+| JWT access у пам'яті + випадковий refresh у httpOnly cookie (хеш у `refreshSessions`) | короткий access, миттєве відкликання сесій, захист від XSS-крадіжки refresh | — |
 | npm workspaces | один репозиторій, окремі залежності client/server | — |
 
 **Не додавай** за замовчуванням: GraphQL, мікросервіси, Redis, черги, SSR, монорепо-інструменти (Nx/Turbo). Лише коли вимоги цього справді потребують.
@@ -68,9 +68,8 @@ project/
 │   │       ├── post.controller.ts  # HTTP ↔ service
 │   │       ├── post.routes.ts
 │   │       └── post.test.ts
-│   ├── middlewares/    # authenticate, authorize, validate, upload, errorHandler
-│   ├── utils/          # ApiError, asyncHandler
-│   ├── docs/           # openapi
+│   ├── middlewares/    # authenticate (requireAuth, requireRole), rateLimit, upload, errorHandler
+│   ├── utils/          # ApiError, parseRequest, clock, kyivDate
 │   ├── app.ts
 │   └── server.ts
 └── e2e/
@@ -92,26 +91,9 @@ project/
 
 ## Конфігурація середовища
 
-- `server/.env.example`: `NODE_ENV, PORT, MONGO_URI, JWT_ACCESS_SECRET, JWT_REFRESH_SECRET, JWT_ACCESS_TTL, JWT_REFRESH_TTL, CLIENT_URL, UPLOAD_DIR, MAX_UPLOAD_MB`.
+- Перелік змінних — `server/.env.example` і `client/.env.example`; нова змінна додається туди й у `server/src/config/env.ts`.
 - `client/.env.example`: `VITE_API_URL`.
 - Env валідується Zod при старті сервера — застосунок падає одразу, якщо змінної немає.
-
-## Скрипти кореневого package.json
-
-```json
-{
-  "workspaces": ["client", "server"],
-  "scripts": {
-    "dev": "concurrently -n server,client \"npm:dev -w server\" \"npm:dev -w client\"",
-    "lint": "npm run lint --workspaces",
-    "typecheck": "npm run typecheck --workspaces",
-    "test": "npm run test --workspaces",
-    "test:e2e": "playwright test",
-    "build": "npm run build --workspaces",
-    "format": "prettier --write ."
-  }
-}
-```
 
 ## Типові помилки
 

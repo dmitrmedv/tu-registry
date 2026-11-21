@@ -18,6 +18,12 @@
   &.large {
     width: min(760px, calc(100vw - 2 * var(--space-4)));
   }
+
+  // size="xl": a form with two columns of files beside its fields (the TU payment).
+  &.extraLarge {
+    // Fields of ~380 px beside 530 px of files, with the body's padding.
+    width: min(980px, calc(100vw - 2 * var(--space-4)));
+  }
 }
 
 // The title on the left, the cross that closes the dialog in the top right corner.

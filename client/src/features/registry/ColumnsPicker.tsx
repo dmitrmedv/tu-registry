@@ -55,9 +55,12 @@ export function ColumnsPicker({ columns, isVisible, onChange, onMove, onReset, i
       {/* Rendered only while open: its checkboxes repeat the names of filter fields. */}
       {open && (
         <div id={panelId} className={styles.columnsPanel}>
-          <Button size="sm" variant="ghost" disabled={isDefault} onClick={onReset}>
-            Як за замовчуванням
-          </Button>
+          <IconButton
+            icon="restore"
+            label="Колонки як за замовчуванням"
+            disabled={isDefault}
+            onClick={onReset}
+          />
           <fieldset>
             <legend>Показувати колонки</legend>
             {columns.map((column, index) => {

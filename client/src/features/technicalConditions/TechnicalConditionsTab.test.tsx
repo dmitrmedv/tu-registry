@@ -4,7 +4,7 @@ import type {
   TechnicalConditionsDto,
   UserDto,
 } from '@tu-registry/shared';
-import { screen, within } from '@testing-library/react';
+import { screen, waitFor, within } from '@testing-library/react';
 import { http as mock, HttpResponse } from 'msw';
 import { describe, expect, it } from 'vitest';
 import { makeApplication, makePdf, makeProcessing, makeTechnicalConditions } from '@/test/fixtures';
@@ -58,7 +58,7 @@ const section = () => screen.findByRole('tabpanel', { name: 'ТУ' });
 const validSet = () => screen.findByRole('region', { name: /^Технічні умови №/ });
 
 describe('technical conditions in the application card', () => {
-  it('shows the valid set in full, cancelled ones folded below; no second «Додати»', async () => {
+  it('shows the valid set first, pages to a cancelled one; no second «Додати»', async () => {
     const { user } = openCard([cancelled(), makeTechnicalConditions({ workingDays: 12 })]);
 
     const valid = await validSet();
@@ -78,21 +78,26 @@ describe('technical conditions in the application card', () => {
       expect(valid).toHaveTextContent(row);
     }
     expect(valid).not.toHaveTextContent('робоч');
-    await user.click(screen.getByText('Скасовані технічні умови (1)'));
-    const old = within(await section()).getByRole('listitem', {
-      name: 'Технічні умови № 0031/ТУ від 20.03.2026',
-    });
+    expect(within(valid).getByRole('button', { name: 'Наступні ТУ' })).toBeDisabled();
+    expect(screen.queryByRole('button', { name: 'Додати ТУ' })).toBeNull();
+
+    // The same frame, paged back to the cancelled set (2026-11-20).
+    await user.click(within(valid).getByRole('button', { name: 'Попередні ТУ' }));
+    const old = await validSet();
+    expect(old).toHaveAccessibleName('Технічні умови № 0031/ТУ від 20.03.2026');
     expect(old).toHaveTextContent('Скасовано');
     expect(old).toHaveTextContent('Помилка в розрахунку');
+    expect(within(old).getByRole('button', { name: 'Попередні ТУ' })).toBeDisabled();
+    expect(within(old).queryByRole('link', { name: 'Редагувати' })).toBeNull();
     expect(screen.queryByRole('button', { name: 'Додати ТУ' })).toBeNull();
   });
 
   it('offers a new set in the tab once the valid one is cancelled', async () => {
     openCard([cancelled()]);
-    expect(
-      await within(await section()).findByText('Чинних технічних умов немає: усі скасовано.'),
-    ).toBeVisible();
-    expect(screen.getByRole('button', { name: 'Додати ТУ' })).toBeVisible();
+    const shown = await validSet();
+    expect(shown).toHaveTextContent('Скасовано');
+    expect(within(shown).queryByRole('button', { name: 'Попередні ТУ' })).toBeNull();
+    expect(within(shown).getByRole('button', { name: 'Додати ТУ' })).toBeVisible();
   });
 
   it('adds technical conditions with a scan, the gas flow written with a comma', async () => {
@@ -254,18 +259,68 @@ describe('technical conditions in the application card', () => {
       ),
     );
 
-    await user.click(await screen.findByText('Скасовані технічні умови (1)'));
+    await user.click(await screen.findByRole('button', { name: 'Попередні ТУ' }));
     await user.click(within(await section()).getByRole('button', { name: 'Відновити' }));
     expect(
       await screen.findByText('У заяви вже є інші чинні технічні умови: спершу скасуйте їх.'),
     ).toBeVisible();
   });
 
+  it('lets an admin delete a set for good, with its payment; a user may not', async () => {
+    const valid = makeTechnicalConditions({
+      payment: {
+        id: 'pay00000000000000000001',
+        invoiceNumber: '125/Б',
+        invoiceDate: '2026-03-23',
+        amount: 2750,
+        paidDate: null,
+        paidAmount: null,
+        actTransferMonth: null,
+        invoiceScan: null,
+        receiptScan: null,
+        actScan: null,
+        contractNumber: null,
+        contractDate: null,
+        contractScan: null,
+        contractDocument: null,
+        createdBy: { id: owner.id, fullName: 'Олена Коваль' },
+        createdAt: '2026-03-23T09:00:00.000Z',
+        version: 1,
+      },
+    });
+    const sent: string[] = [];
+    const { user, current } = openCard([valid], admin);
+    server.use(
+      mock.delete(`${TU}/${TU_ID}`, ({ request }) => {
+        sent.push(new URL(request.url).searchParams.get('version') ?? '');
+        current.rows = [];
+        return new HttpResponse(null, { status: 204 });
+      }),
+    );
+
+    await user.click(within(await validSet()).getByRole('button', { name: 'Видалити' }));
+    const dialog = screen.getByRole('dialog', { name: 'Видалити технічні умови № 0032/ТУ?' });
+    expect(dialog).toHaveTextContent('оплату за рахунком № 125/Б');
+    await user.click(within(dialog).getByRole('button', { name: 'Видалити' }));
+
+    expect(await screen.findByText('Технічні умови № 0032/ТУ видалено')).toBeVisible();
+    // Nothing of the module is left, so its tab goes too.
+    await waitFor(() => expect(screen.queryByRole('tab', { name: 'ТУ' })).toBeNull());
+    expect(sent).toEqual(['1']);
+  });
+
+  it('gives a user no way to delete technical conditions', async () => {
+    const { user } = openCard([cancelled(), makeTechnicalConditions()]);
+    await validSet();
+    expect(within(await section()).queryByRole('button', { name: 'Видалити' })).toBeNull();
+    await user.click(screen.getByRole('button', { name: 'Попередні ТУ' }));
+    expect(await validSet()).toHaveTextContent('Скасовано');
+    expect(within(await section()).queryByRole('button', { name: 'Видалити' })).toBeNull();
+  });
+
   it('offers nothing to change on an annulled application', async () => {
     openCard([cancelled()], owner, makeApplication({ status: 'ANNULLED' }));
-    expect(
-      await within(await section()).findByText('Чинних технічних умов немає: усі скасовано.'),
-    ).toBeVisible();
+    expect(await validSet()).toHaveTextContent('Скасовано');
     expect(screen.queryByRole('button', { name: 'Додати ТУ' })).toBeNull();
     expect(screen.queryByRole('button', { name: 'Додати модуль' })).toBeNull();
   });

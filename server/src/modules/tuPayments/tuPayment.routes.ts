@@ -1,6 +1,5 @@
 import { Router } from 'express';
 import { requireRole } from '../../middlewares/authenticate';
-import { uploadScan } from '../../middlewares/upload';
 import * as controller from './tuPayment.controller';
 
 /**
@@ -11,11 +10,12 @@ export const tuPaymentRouter = Router({ mergeParams: true });
 
 tuPaymentRouter.put('/', controller.save);
 tuPaymentRouter.delete('/', requireRole('ADMIN'), controller.remove);
+tuPaymentRouter.get('/next-contract-number', controller.nextContractNumber);
 // Access is checked before the file is read, so a refusal costs no upload.
 tuPaymentRouter.put(
   '/scans/:kind',
   controller.checkScanEditable,
-  uploadScan,
+  controller.receiveFile,
   controller.uploadScan,
 );
 tuPaymentRouter.get('/scans/:kind', controller.downloadScan);

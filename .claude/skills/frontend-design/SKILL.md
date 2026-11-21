@@ -145,7 +145,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(({ label, error, i
 
 ## Базовий UI-кіт (створювати за потреби, не наперед)
 
-Button, Input, Textarea, Select, Checkbox, Modal, Spinner, ErrorState, EmptyState, Pagination, Toast. Кожен — папка з `Component.tsx`, `Component.module.scss`, `index.ts`.
+Button, Input, Textarea, Select, Checkbox, Modal, Spinner, ErrorState, EmptyState, Pagination. Сповіщення — не компонент кіту, а `notifySuccess()` / `notifyError()` з `shared/lib/notify.ts` (Notiflix). Кожен — папка з `Component.tsx`, `Component.module.scss`, `index.ts`.
 
 ## Типові помилки
 

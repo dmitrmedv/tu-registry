@@ -25,7 +25,8 @@ export const tuPaymentApi = {
     onProgress?: (percent: number) => void,
   ) => {
     const form = new FormData();
-    form.append('scan', file);
+    // The contract's Word document has a field of its own; every scan comes as "scan".
+    form.append(kind === 'contractDocument' ? 'document' : 'scan', file);
     return http
       .put<TechnicalConditionsDto>(`${base(applicationId, tuId)}/scans/${kind}`, form, {
         onUploadProgress: (event) =>
@@ -37,6 +38,11 @@ export const tuPaymentApi = {
     http
       .delete<TechnicalConditionsDto>(`${base(applicationId, tuId)}/scans/${kind}`)
       .then((r) => r.data),
+  /** The department's next contract number, or the payment's own. */
+  nextContractNumber: (applicationId: string, tuId: string) =>
+    http
+      .get<{ contractNumber: number }>(`${base(applicationId, tuId)}/next-contract-number`)
+      .then((r) => r.data.contractNumber),
   scanFile: (applicationId: string, tuId: string, kind: TuPaymentScanKind) =>
     fetchPdf(`${base(applicationId, tuId)}/scans/${kind}`),
 };

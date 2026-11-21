@@ -56,6 +56,14 @@ export const CONNECTION_TYPE_LABELS: Record<ConnectionType, string> = {
   RECONSTRUCTION: 'Реконструкція',
 };
 
+/** The connection as the card's header names it (mock-up of 2026-11-20). */
+export const CONNECTION_TYPE_TITLES: Record<ConnectionType, string> = {
+  STANDARD: 'Стандартне приєднання',
+  NON_STANDARD: 'Нестандартне приєднання',
+  NON_STANDARD_CAPACITY: 'Нестандартне приєднання (збільшення потужності)',
+  RECONSTRUCTION: 'Реконструкція',
+};
+
 export const GAS_PRESSURE_LABELS: Record<GasPressure, string> = {
   LOW: 'Низький',
   MEDIUM: 'Середній',

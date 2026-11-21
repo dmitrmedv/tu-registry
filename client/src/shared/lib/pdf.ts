@@ -1,7 +1,10 @@
 import { isAxiosError } from 'axios';
 import { http } from '@/shared/api/http';
 
-/** A stored PDF, fetched with the access token (it lives in memory: a plain link has none). */
+/**
+ * A stored file (a PDF, or a contract's Word document), fetched with the access token (it lives
+ * in memory: a plain link has none).
+ */
 export async function fetchPdf(url: string, params?: Record<string, string>) {
   try {
     return (await http.get<Blob>(url, { params, responseType: 'blob' })).data;
@@ -42,4 +45,14 @@ export async function openPdf(load: () => Promise<Blob>, fileName: string) {
     tab?.close();
     throw error;
   }
+}
+
+/** Downloads a stored file (a Word document: the browser does not open it in a tab). */
+export async function downloadFile(load: () => Promise<Blob>, fileName: string) {
+  const url = URL.createObjectURL(await load());
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = fileName;
+  link.click();
+  setTimeout(() => URL.revokeObjectURL(url), 60_000);
 }

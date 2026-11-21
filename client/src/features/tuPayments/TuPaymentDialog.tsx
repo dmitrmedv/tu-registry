@@ -5,14 +5,20 @@ import {
   type TuPaymentDto,
   type TuPaymentScanKind,
 } from '@tu-registry/shared';
-import { type FocusEvent, useState } from 'react';
+import { type FocusEvent, useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { ScanPanel, useScanChange } from '@/features/applications';
 import { documentStyles } from '@/features/documents';
-import { openPdf } from '@/shared/lib/pdf';
+import { downloadFile, openPdf } from '@/shared/lib/pdf';
 import { Button, Dialog, TextField } from '@/shared/ui';
 import { tuPaymentApi } from './api';
-import { useRemoveTuPaymentScan, useSaveTuPayment, useUploadTuPaymentScan } from './queries';
+import { SCAN_FIELDS } from './scanFields';
+import {
+  useNextContractNumber,
+  useRemoveTuPaymentScan,
+  useSaveTuPayment,
+  useUploadTuPaymentScan,
+} from './queries';
 import {
   type FormData,
   formDefaults,
@@ -51,16 +57,28 @@ export function TuPaymentDialog({ applicationId, tu, onClose, onSaved }: Props) 
   const invoice = useScanChange(scanChange('invoice'));
   const receipt = useScanChange(scanChange('receipt'));
   const act = useScanChange(scanChange('act'));
+  const contract = useScanChange(scanChange('contract'));
+  const contractDocument = useScanChange(scanChange('contractDocument'));
+  // Offered as soon as the dialog opens (2026-11-20); kept only with the contract's date.
+  const offered = useNextContractNumber(applicationId, tu.id, !tu.payment?.contractNumber);
   const {
     register,
     handleSubmit,
     setValue,
+    getValues,
     setError,
     formState: { errors, isSubmitting },
   } = useForm<FormInput, unknown, FormData>({
     resolver: zodResolver(formSchema),
     defaultValues: formDefaults(tu.payment),
   });
+  const offeredNumber = offered.data;
+  useEffect(() => {
+    // Into the empty field only: what the user typed meanwhile stays.
+    if (offeredNumber && !getValues('contractNumber')) {
+      setValue('contractNumber', String(offeredNumber));
+    }
+  }, [offeredNumber, getValues, setValue]);
 
   const onSubmit = handleSubmit(async (values) => {
     let saved: TechnicalConditionsDto;
@@ -72,24 +90,57 @@ export function TuPaymentDialog({ applicationId, tu, onClose, onSaved }: Props) 
     // From here on the dialog changes this payment, whatever happens to the scans.
     setPayment(saved.payment);
     try {
+      await contractDocument.apply();
       await invoice.apply();
       await receipt.apply();
+      await contract.apply();
       await act.apply();
     } catch {
-      return; // The reason is shown in the scan's panel.
+      return; // The reason is in a notification.
     }
     onSaved(saved.payment!);
   });
 
-  const view = (kind: TuPaymentScanKind, name: string) => () =>
-    openPdf(() => tuPaymentApi.scanFile(applicationId, tu.id, kind), name);
+  const files = { invoice, receipt, act, contract, contractDocument };
+  const zone = (kind: TuPaymentScanKind, title: string) => {
+    const field = SCAN_FIELDS[kind];
+    const name = payment?.[field]?.name ?? '';
+    return (
+      <ScanPanel
+        title={title}
+        fileType={kind === 'contractDocument' ? 'docx' : 'pdf'}
+        scan={payment?.[field] ?? null}
+        scanChange={files[kind]}
+        onView={() =>
+          kind === 'contractDocument'
+            ? downloadFile(() => tuPaymentApi.scanFile(applicationId, tu.id, kind), name)
+            : openPdf(() => tuPaymentApi.scanFile(applicationId, tu.id, kind), name)
+        }
+        disabled={isSubmitting}
+      />
+    );
+  };
   const today = kyivCalendarDate();
+  /** A sum in hryvnias, tidied to «2 750,00» once the field is left. */
+  const amountField = (name: 'amount' | 'paidAmount', label: string) => (
+    <TextField
+      label={label}
+      inputMode="decimal"
+      autoComplete="off"
+      placeholder="1 234,56"
+      error={errors[name]?.message}
+      {...register(name, {
+        onBlur: (event: FocusEvent<HTMLInputElement>) =>
+          setValue(name, tidyAmount(event.target.value)),
+      })}
+    />
+  );
 
   return (
     <Dialog
       busy={isSubmitting}
       open
-      size="lg"
+      size="xl"
       title={payment ? `Рахунок № ${payment.invoiceNumber}` : 'Інформація про рахунок'}
       onClose={onClose}
       footer={
@@ -99,72 +150,76 @@ export function TuPaymentDialog({ applicationId, tu, onClose, onSaved }: Props) 
       }
     >
       <form id={FORM_ID} onSubmit={onSubmit} noValidate className={documentStyles.formContents}>
-        {/* The mock-up of 2026-11-19: each step's fields on the left, its scan beside them. */}
+        {/*
+          The mock-ups of 2026-11-19 and 2026-11-20: each step's fields on the left, its files
+          beside them — the invoice and the contract's Word document, the receipt and the signed
+          contract, the act.
+        */}
         <div className={styles.layout}>
-          <div className={styles.fields}>
-            <TextField
-              label="№ рахунку"
-              autoComplete="off"
-              error={errors.invoiceNumber?.message}
-              {...register('invoiceNumber')}
-            />
-            <TextField
-              label="Дата рахунку"
-              type="date"
-              max={today}
-              error={errors.invoiceDate?.message}
-              {...register('invoiceDate')}
-            />
+          <div className={styles.row}>
+            <div className={styles.fields}>
+              <div className={styles.pair}>
+                <TextField
+                  label="№ рахунку"
+                  autoComplete="off"
+                  error={errors.invoiceNumber?.message}
+                  {...register('invoiceNumber')}
+                />
+                {amountField('amount', 'Сума, грн')}
+              </div>
+              <TextField
+                label="Дата рахунку"
+                type="date"
+                max={today}
+                error={errors.invoiceDate?.message}
+                {...register('invoiceDate')}
+              />
+              <div className={styles.pair}>
+                <TextField
+                  label="№ договору"
+                  inputMode="numeric"
+                  autoComplete="off"
+                  hint="Зберігається лише з датою договору"
+                  error={errors.contractNumber?.message}
+                  {...register('contractNumber')}
+                />
+                <TextField
+                  label="Дата договору"
+                  type="date"
+                  max={today}
+                  error={errors.contractDate?.message}
+                  {...register('contractDate')}
+                />
+              </div>
+            </div>
+            {zone('invoice', 'Скан рахунку')}
+            {zone('contractDocument', 'Договір (DOCX)')}
           </div>
-          <ScanPanel
-            title="Скан рахунку"
-            scan={payment?.invoiceScan ?? null}
-            scanChange={invoice}
-            onView={view('invoice', payment?.invoiceScan?.name ?? '')}
-            disabled={isSubmitting}
-          />
-          <div className={styles.fields}>
-            <TextField
-              label="Сума, грн"
-              inputMode="decimal"
-              autoComplete="off"
-              placeholder="1 234,56"
-              error={errors.amount?.message}
-              {...register('amount', {
-                onBlur: (event: FocusEvent<HTMLInputElement>) =>
-                  setValue('amount', tidyAmount(event.target.value)),
-              })}
-            />
-            <TextField
-              label="Дата оплати"
-              type="date"
-              max={today}
-              error={errors.paidDate?.message}
-              {...register('paidDate')}
-            />
+          <div className={styles.row}>
+            <div className={styles.fields}>
+              {amountField('paidAmount', 'Фактична оплата, грн')}
+              <TextField
+                label="Дата оплати"
+                type="date"
+                max={today}
+                error={errors.paidDate?.message}
+                {...register('paidDate')}
+              />
+            </div>
+            {zone('receipt', 'Скан квитанції')}
+            {zone('contract', 'Скан договору')}
           </div>
-          <ScanPanel
-            title="Скан квитанції"
-            scan={payment?.receiptScan ?? null}
-            scanChange={receipt}
-            onView={view('receipt', payment?.receiptScan?.name ?? '')}
-            disabled={isSubmitting}
-          />
-          <div className={styles.fields}>
-            <TextField
-              label="Місяць здачі акта"
-              type="month"
-              error={errors.actTransferMonth?.message}
-              {...register('actTransferMonth')}
-            />
+          <div className={styles.row}>
+            <div className={styles.fields}>
+              <TextField
+                label="Місяць здачі акта"
+                type="month"
+                error={errors.actTransferMonth?.message}
+                {...register('actTransferMonth')}
+              />
+            </div>
+            {zone('act', 'Скан акта')}
           </div>
-          <ScanPanel
-            title="Скан акта"
-            scan={payment?.actScan ?? null}
-            scanChange={act}
-            onView={view('act', payment?.actScan?.name ?? '')}
-            disabled={isSubmitting}
-          />
         </div>
       </form>
     </Dialog>

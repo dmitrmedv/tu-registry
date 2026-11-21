@@ -84,5 +84,5 @@ test('the registry shows, sorts, filters and searches by responses and technical
   await expect(table.getByRole('row').nth(1)).toContainText('2,5');
   // Back to the defaults, for the other tests in this shared browser profile.
   await page.getByRole('button', { name: /^Колонки/ }).click();
-  await page.getByRole('button', { name: 'Як за замовчуванням' }).click();
+  await page.getByRole('button', { name: 'Колонки як за замовчуванням' }).click();
 });

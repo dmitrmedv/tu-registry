@@ -12,6 +12,10 @@ const TITLES: Record<TimelineEventDto['type'], string> = {
   TU_INVOICE: 'Рахунок за ТУ',
   TU_PAID: 'Оплата за ТУ',
   TU_ACT_TRANSFERRED: 'Акт передано в бухгалтерію',
+  CONTRACT: 'Договір',
+  CONTRACT_SIGNED: 'Договір укладено',
+  PROJECT: 'Проєкт',
+  INVOICE: 'Рахунок',
 };
 
 type Props = {

@@ -76,11 +76,15 @@ test('technical conditions after a response: one valid set, replaced only after 
   await expect(first).toContainText('Адреса за ТУм. Київ, вул. Тестова, 1');
   // One valid set: no second «Додати ТУ» until this one is cancelled; no module left to add.
   await expect(section.getByRole('button', { name: 'Додати ТУ' })).toHaveCount(0);
-  // Both modules are there: the dialog lists them, neither can be added again.
+  // Both modules with documents are there and cannot be added again; «Договір», «Проєкт» and «Рахунок» are still empty.
   await page.getByRole('button', { name: 'Додати модуль' }).click();
   const modules = page.getByRole('dialog', { name: 'Додати модуль' }).getByRole('list');
-  await expect(modules.getByRole('button')).toHaveCount(2);
-  for (const choice of await modules.getByRole('button').all()) await expect(choice).toBeDisabled();
+  await expect(modules.getByRole('button')).toHaveCount(5);
+  await expect(modules.getByRole('button', { name: 'Відповідь' })).toBeDisabled();
+  await expect(modules.getByRole('button', { name: 'Технічні умови' })).toBeDisabled();
+  await expect(modules.getByRole('button', { name: 'Договір' })).toBeEnabled();
+  await expect(modules.getByRole('button', { name: 'Проєкт' })).toBeEnabled();
+  await expect(modules.getByRole('button', { name: 'Рахунок' })).toBeEnabled();
   await page.keyboard.press('Escape');
   await expect(page.getByRole('dialog')).toHaveCount(0);
   // The response stays in its tab, with its documents.
@@ -94,13 +98,19 @@ test('technical conditions after a response: one valid set, replaced only after 
   const cancel = page.getByRole('dialog', { name: 'Скасувати технічні умови № 0032/ТУ?' });
   await cancel.getByLabel('Причина скасування').fill('Помилка в розрахунку');
   await cancel.getByRole('button', { name: 'Скасувати документ' }).click();
-  await expect(section).toContainText('Чинних технічних умов немає: усі скасовано.');
+  await expect(section.getByRole('region', { name: /^Технічні умови № 0032\/ТУ/ })).toContainText(
+    'Скасовано',
+  );
   await expect.poll(stage).toBe('IN_PROGRESS');
 
   await addTu('0033/ТУ', '13', () => section.getByRole('button', { name: 'Додати ТУ' }).click());
   await expect(section.getByRole('region', { name: /^Технічні умови № 0033\/ТУ/ })).toBeVisible();
-  await section.getByText('Скасовані технічні умови (1)').click();
-  await expect(section.getByRole('listitem', { name: /0032\/ТУ/ })).toContainText('Скасовано');
+  // The cancelled set is a page back in the same frame.
+  await section.getByRole('button', { name: 'Попередні ТУ' }).click();
+  await expect(section.getByRole('region', { name: /^Технічні умови № 0032\/ТУ/ })).toContainText(
+    'Скасовано',
+  );
+  await section.getByRole('button', { name: 'Наступні ТУ' }).click();
 
   // Saved conditions are edited on their own page; the scan is sent only with «Зберегти».
   await section.getByRole('link', { name: 'Редагувати' }).click();

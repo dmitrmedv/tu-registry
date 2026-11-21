@@ -47,7 +47,14 @@ export type ApplicationChangeAction = (typeof APPLICATION_CHANGE_ACTIONS)[number
  * The documents whose changes the application's «Історія змін» shows besides its own fields
  * (agreed 2026-11-19). A new module of the card adds its kind here.
  */
-export const HISTORY_DOCUMENT_KINDS = ['RESPONSE', 'TECHNICAL_CONDITIONS', 'TU_PAYMENT'] as const;
+export const HISTORY_DOCUMENT_KINDS = [
+  'RESPONSE',
+  'TECHNICAL_CONDITIONS',
+  'TU_PAYMENT',
+  'CONTRACT',
+  'PROJECT',
+  'INVOICE',
+] as const;
 export type HistoryDocumentKind = (typeof HISTORY_DOCUMENT_KINDS)[number];
 
 /**
@@ -113,9 +120,24 @@ export const AUDIT_ACTIONS = [
   'TU_UPDATED',
   'TU_CANCELLED',
   'TU_RESTORED',
+  'TU_DELETED',
   'TU_PAYMENT_CREATED',
   'TU_PAYMENT_UPDATED',
   'TU_PAYMENT_DELETED',
+  'CONTRACT_CREATED',
+  'CONTRACT_UPDATED',
+  'CONTRACT_CANCELLED',
+  'CONTRACT_DELETED',
+  'PROJECT_CREATED',
+  'PROJECT_UPDATED',
+  'PROJECT_CANCELLED',
+  'PROJECT_RESTORED',
+  'PROJECT_DELETED',
+  'INVOICE_CREATED',
+  'INVOICE_UPDATED',
+  'INVOICE_CANCELLED',
+  'INVOICE_RESTORED',
+  'INVOICE_DELETED',
   'ACCESS_DENIED',
 ] as const;
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];

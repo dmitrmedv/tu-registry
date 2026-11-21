@@ -1,4 +1,5 @@
 import { existsSync } from 'node:fs';
+import type { TuPaymentScanKind } from '@tu-registry/shared';
 import request from 'supertest';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createApp } from '../../app';
@@ -68,7 +69,7 @@ describe('payment for technical conditions', () => {
       .put(url())
       .set(who.auth)
       .send({ ...invoice, ...body });
-  const upload = (kind: 'invoice' | 'receipt' | 'act', text: string, who = owner) =>
+  const upload = (kind: TuPaymentScanKind, text: string, who = owner) =>
     request(app)
       .put(url(`/scans/${kind}`))
       .set(who.auth)
@@ -138,14 +139,20 @@ describe('payment for technical conditions', () => {
     expect((await save({ version: 1, paidDate: '2026-11-19' })).body.error.code).toBe(
       'VERSION_CONFLICT',
     );
+    // The bank rounded: the sum actually paid is its own field, only with the payment date.
+    expect(
+      (await save({ version: 2, paidAmount: '1499,99' })).body.error.details.fieldErrors,
+    ).toEqual({ paidAmount: ['Вкажіть і дату оплати'] });
     const done = await save({
       version: 2,
       amount: 1500,
       paidDate: '2026-11-18',
+      paidAmount: '1499,99',
       actTransferMonth: '2026-11',
     });
     expect(done.body.payment).toMatchObject({
       amount: 1500,
+      paidAmount: 1499.99,
       actTransferMonth: '2026-11',
       version: 3,
     });
@@ -156,6 +163,7 @@ describe('payment for technical conditions', () => {
           version: 3,
           amount: '1500,00',
           paidDate: '2026-11-18',
+          paidAmount: 1499.99,
           actTransferMonth: '2026-11',
         })
       ).body.payment.version,
@@ -170,6 +178,7 @@ describe('payment for technical conditions', () => {
       [{ field: 'paidDate', from: null, to: '2026-11-18' }],
       [
         { field: 'amount', from: '1 234,56 грн', to: '1 500,00 грн' },
+        { field: 'paidAmount', from: null, to: '1 499,99 грн' },
         { field: 'actTransferMonth', from: null, to: '2026-11' },
       ],
     ]);
@@ -191,7 +200,7 @@ describe('payment for technical conditions', () => {
     expect(download.headers['content-type']).toBe('application/pdf');
     expect((await request(app).get(url('/scans/act')).set(elsewhere.auth)).status).toBe(404);
     expect((await upload('act', 'чуже', elsewhere)).status).toBe(404);
-    expect((await request(app).get(url('/scans/contract')).set(owner.auth)).status).toBe(400);
+    expect((await request(app).get(url('/scans/other')).set(owner.auth)).status).toBe(400);
 
     // The invoice's own scan (2026-11-19), and the files go with the payment.
     const invoiceScan = await upload('invoice', 'рахунок');
@@ -305,5 +314,74 @@ describe('payment for technical conditions', () => {
     const stored = await TuPayment.collection.findOne({});
     expect(stored).toMatchObject({ actTransferMonth: '2026-11' });
     expect(stored).not.toHaveProperty('actTransferredDate');
+  });
+  it('offers the department’s next contract number and keeps it only with its date', async () => {
+    const docx = Buffer.concat([Buffer.from('PK\x03\x04', 'latin1'), Buffer.from('договір')]);
+    const nextNumber = async (who = owner, path = url('/next-contract-number')) =>
+      (await request(app).get(path).set(who.auth)).body.contractNumber;
+    expect(await nextNumber()).toBe(1);
+
+    // A number without its date is not kept: no contract takes no number.
+    expect((await save({ contractNumber: '1' })).body.payment.contractNumber).toBeNull();
+    const saved = await save({ version: 1, contractNumber: '1', contractDate: '2026-11-18' });
+    expect(saved.body.payment).toMatchObject({ contractNumber: 1, contractDate: '2026-11-18' });
+    // The payment's own number stays offered to it.
+    expect(await nextNumber()).toBe(1);
+
+    // Another application of the department gets the next one; the same number is refused.
+    const other = (await registerApplication(app, owner)).id;
+    const engineer = (await Engineer.findOne().lean())!;
+    const otherTu = await request(app)
+      .post(`${APPLICATIONS}/${other}/technical-conditions`)
+      .set(owner.auth)
+      .send({
+        tuNumber: '0033/ТУ',
+        // Registered today (20.11): its TU are dated today too.
+        preparedDate: '2026-11-20',
+        engineer: String(engineer._id),
+        gasFlow: '2,5',
+        connectionType: 'STANDARD',
+        gasPressure: 'LOW',
+        connectionPoint: 'UNDERGROUND',
+      });
+    const otherUrl = `${APPLICATIONS}/${other}/technical-conditions/${otherTu.body.id}/payment`;
+    expect(await nextNumber(owner, `${otherUrl}/next-contract-number`)).toBe(2);
+    const taken = await request(app)
+      .put(otherUrl)
+      .set(owner.auth)
+      .send({
+        ...invoice,
+        invoiceDate: '2026-11-20',
+        contractNumber: 1,
+        contractDate: '2026-11-20',
+      });
+    expect(taken.status).toBe(409);
+    expect(taken.body.error.details.fieldErrors.contractNumber).toEqual([
+      'Договір № 1 уже є в цьому управлінні',
+    ]);
+
+    // The contract as a Word document and the signed one's scan.
+    const word = await request(app)
+      .put(url('/scans/contractDocument'))
+      .set(owner.auth)
+      .attach('document', docx, {
+        filename: 'Договір 1.docx',
+        contentType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      });
+    expect(word.body.payment.contractDocument).toMatchObject({ name: 'Договір 1.docx' });
+    expect((await upload('contract', 'підписаний')).body.payment.contractScan).toMatchObject({
+      name: 'підписаний.pdf',
+    });
+    const download = await request(app).get(url('/scans/contractDocument')).set(owner.auth);
+    expect(download.headers['content-disposition']).toMatch(/^attachment;/);
+    const stored = (await TuPayment.findOne({ contractNumber: 1 }).lean())!;
+    expect(existsSync(scanPath(stored.contractDocument!.fileId, 'docx'))).toBe(true);
+
+    // Deleted with its files, the Word document included.
+    expect((await request(app).delete(url()).query({ version: 2 }).set(admin.auth)).status).toBe(
+      200,
+    );
+    expect(existsSync(scanPath(stored.contractDocument!.fileId, 'docx'))).toBe(false);
+    expect(existsSync(scanPath(stored.contractScan!.fileId))).toBe(false);
   });
 });

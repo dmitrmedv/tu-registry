@@ -15,12 +15,46 @@ describe('saveTuPaymentSchema', () => {
       invoiceDate: '2026-11-02',
       amount: 1234.56,
       paidDate: null,
+      paidAmount: null,
       actTransferMonth: null,
+      contractNumber: null,
+      contractDate: null,
     });
-    expect(saveTuPaymentSchema.parse({ ...invoice, paidDate: '', version: 2 })).toMatchObject({
-      paidDate: null,
-      version: 2,
-    });
+    expect(
+      saveTuPaymentSchema.parse({ ...invoice, paidDate: '', paidAmount: '', version: 2 }),
+    ).toMatchObject({ paidDate: null, paidAmount: null, version: 2 });
+  });
+
+  it('takes the sum actually paid, after the bank’s rounding, only with the payment date', () => {
+    expect(
+      saveTuPaymentSchema.parse({ ...invoice, paidDate: '2026-11-03', paidAmount: '1 234,5' })
+        .paidAmount,
+    ).toBe(1234.5);
+    expect(errorsOf({ ...invoice, paidAmount: '1234,50' }).paidAmount).toEqual([
+      'Вкажіть і дату оплати',
+    ]);
+    expect(errorsOf({ ...invoice, paidDate: '2026-11-03', paidAmount: '0' }).paidAmount).toEqual([
+      'Сума має бути більшою за нуль',
+    ]);
+  });
+
+  it('takes the contract for the payment: the number only with its date', () => {
+    expect(
+      saveTuPaymentSchema.parse({ ...invoice, contractNumber: ' 7 ', contractDate: '2026-11-02' }),
+    ).toMatchObject({ contractNumber: 7, contractDate: '2026-11-02' });
+    // The number offered by the form, without a date: no contract, no number taken.
+    expect(saveTuPaymentSchema.parse({ ...invoice, contractNumber: '7' }).contractNumber).toBe(
+      null,
+    );
+    expect(errorsOf({ ...invoice, contractDate: '2026-11-02' }).contractNumber).toEqual([
+      'Вкажіть номер договору',
+    ]);
+    expect(
+      errorsOf({ ...invoice, contractNumber: '0', contractDate: '2026-11-02' }).contractNumber,
+    ).toEqual(['Номер договору — від 1']);
+    expect(
+      errorsOf({ ...invoice, contractNumber: '7,5', contractDate: '2026-11-02' }).contractNumber,
+    ).toHaveLength(1);
   });
 
   it('reads the amount as people type it: spaces, a comma, at most kopecks', () => {

@@ -4,6 +4,8 @@ import { CALENDAR_DAY_KINDS, type CalendarDayKind } from '../enums';
 /** Deadlines in working days, counted from the registration date (stage 17.2). */
 export const RESPONSE_DEADLINE_DAYS = 5;
 export const TU_DEADLINE_DAYS = 10;
+/** The invoice for the connection: from the project's approval date (agreed 2026-11-21). */
+export const INVOICE_DEADLINE_DAYS = 10;
 
 export const CALENDAR_DESCRIPTION_MAX = 200;
 

@@ -21,6 +21,7 @@ function DocumentEntry({
   entry: ApplicationChangeDto;
   document: NonNullable<ApplicationChangeDto['document']>;
 }) {
+  const { nameOf } = useDepartments();
   return (
     <li className={styles.entry}>
       <div className={styles.entryHeader}>
@@ -34,7 +35,7 @@ function DocumentEntry({
       {entry.changes.length > 0 && (
         <ul>
           {entry.changes.map((change) => {
-            const shown = describeDocumentChange(document.kind, change);
+            const shown = describeDocumentChange(document.kind, change, nameOf);
             return (
               <li key={change.field}>
                 {shown.label}:{' '}

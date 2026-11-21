@@ -17,3 +17,6 @@ export * from './schemas/technicalConditions';
 export * from './schemas/processing';
 export * from './schemas/tuPayment';
 export * from './schemas/preferences';
+export * from './schemas/contract';
+export * from './schemas/project';
+export * from './schemas/invoice';

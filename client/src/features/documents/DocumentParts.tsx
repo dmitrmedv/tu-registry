@@ -1,18 +1,20 @@
 import type { PreviousScanDto } from '@tu-registry/shared';
-import type { ReactNode } from 'react';
 import { formatDateTime } from '@/shared/lib/format';
-import { Button, CardItems, Icon } from '@/shared/ui';
+import { IconButton } from '@/shared/ui';
 import styles from './documents.module.scss';
 import { PreviousScans } from './PreviousScans';
 
 type Person = { fullName: string };
 
-/** «Відкрити скан»: the labelled main action of a tab, in its bottom left corner. */
+/** «Відкрити скан»: an eye in a tab's bottom left corner (icons only, agreed 2026-11-20). */
 export function ScanButton({ title, onClick }: { title: string; onClick: () => void }) {
   return (
-    <Button onClick={onClick} title={title}>
-      Відкрити скан <Icon name="eye" />
-    </Button>
+    <IconButton
+      icon="eye"
+      label="Відкрити скан"
+      title={`Відкрити скан: ${title}`}
+      onClick={onClick}
+    />
   );
 }
 
@@ -59,26 +61,5 @@ export function DocumentNotes({
       )}
       <PreviousScans scans={previousScans} onOpen={onOpenScan} />
     </>
-  );
-}
-
-/** The module's documents other than the current one (earlier and cancelled), folded away. */
-export function OtherDocuments({
-  title,
-  count,
-  children,
-}: {
-  title: string;
-  count: number;
-  children: ReactNode;
-}) {
-  if (count === 0) return null;
-  return (
-    <details className={styles.others}>
-      <summary>
-        {title} ({count})
-      </summary>
-      <CardItems>{children}</CardItems>
-    </details>
   );
 }

@@ -6,7 +6,7 @@ import {
   type SaveTuPaymentData,
   toKopecks,
 } from '@tu-registry/shared';
-import type { ClientSession } from 'mongoose';
+import mongoose, { type ClientSession } from 'mongoose';
 import { ApiError } from '../../utils/ApiError';
 import { inTransaction, isDuplicateKey } from '../../utils/db';
 import { fromIsoDate, toIsoDate } from '../../utils/kyivDate';
@@ -17,13 +17,13 @@ import { type FieldChange, recordDocumentChange } from '../applications/applicat
 import { type RequestContext, recordAudit } from '../audit/audit.service';
 import { assertDocumentDate, fieldError, regNumberOf } from '../documents/document.rules';
 import { loadChangeable, loadDocument } from '../documents/document.service';
-import { deleteScanFile } from '../scans/scan.storage';
+import { deleteStoredFile } from '../scans/scan.storage';
 import {
   TECHNICAL_CONDITIONS,
   type TechnicalConditionsRecord,
   technicalConditionsDto,
 } from '../technicalConditions/technicalConditions.service';
-import { paymentFileIds, type TuPaymentRecord } from './tuPayment.dto';
+import { paymentFiles, type TuPaymentRecord } from './tuPayment.dto';
 import { TuPayment } from './tuPayment.model';
 
 const ALREADY_ENTERED = 'Рахунок до цих технічних умов уже внесено. Оновіть сторінку.';
@@ -34,6 +34,16 @@ export const paymentConflict = () =>
     'Оплату щойно змінив інший користувач. Завантажте актуальні дані й повторіть зміни.',
   );
 export const paymentNotFound = () => ApiError.notFound('Рахунок не знайдено');
+const contractNumberTaken = (contractNumber: number | null) => {
+  const message = `Договір № ${contractNumber} уже є в цьому управлінні`;
+  return new ApiError(409, 'CONFLICT', message, {
+    formErrors: [],
+    fieldErrors: { contractNumber: [message] },
+  });
+};
+/** E11000 on the contract number, or on the payment of these TU (two users at once). */
+const isContractNumberTaken = (error: unknown) =>
+  isDuplicateKey(error) && 'contractNumber' in (error.keyPattern ?? {});
 
 /** The application and its valid technical conditions, both open to changes by `actor`. */
 export async function loadPaymentTarget(applicationId: string, tuId: string, actor: Actor) {
@@ -91,7 +101,27 @@ export async function auditPayment(
 const DATE_FIELDS = [
   ['invoiceDate', 'Дата рахунку'],
   ['paidDate', 'Дата оплати'],
+  ['contractDate', 'Дата договору'],
 ] as const;
+
+/**
+ * The number the form offers for the payment's contract: the department's largest + 1
+ * (agreed 2026-11-20). The payment's own number when it has one.
+ */
+export async function nextContractNumber(applicationId: string, tuId: string, actor: Actor) {
+  const { app, tu } = await loadPaymentTarget(applicationId, tuId, actor);
+  const own = (await findPayment(tu))?.contractNumber;
+  if (own) return { contractNumber: own };
+  const last = await TuPayment.findOne({
+    department: app.department,
+    // The index's own condition, so the query can use it.
+    contractNumber: mongoose.trusted({ $gte: 1 }),
+  })
+    .sort({ contractNumber: -1 })
+    .select('contractNumber')
+    .lean<{ contractNumber: number }>();
+  return { contractNumber: (last?.contractNumber ?? 0) + 1 };
+}
 
 /**
  * Not before the month of the registration. A coming month is allowed: the act may be planned
@@ -129,7 +159,10 @@ export async function saveTuPayment(
     invoiceDate: fromIsoDate(input.invoiceDate),
     amountKopecks: toKopecks(input.amount),
     paidDate: input.paidDate ? fromIsoDate(input.paidDate) : null,
+    paidAmountKopecks: input.paidAmount === null ? null : toKopecks(input.paidAmount),
     actTransferMonth: input.actTransferMonth,
+    contractNumber: input.contractNumber,
+    contractDate: input.contractDate ? fromIsoDate(input.contractDate) : null,
   };
   const current = await findPayment(tu);
 
@@ -145,6 +178,7 @@ export async function saveTuPayment(
         createdBy: actor.id,
       });
     } catch (error) {
+      if (isContractNumberTaken(error)) throw contractNumberTaken(input.contractNumber);
       // Two users entering at once: the unique index lets one through.
       if (isDuplicateKey(error)) throw new ApiError(409, 'PAYMENT_EXISTS', ALREADY_ENTERED);
       throw error;
@@ -152,6 +186,7 @@ export async function saveTuPayment(
     await auditPayment('TU_PAYMENT_CREATED', actor, app, tu, created, context, {
       invoiceDate: input.invoiceDate,
       amount: formatHryvnias(input.amount),
+      ...(input.contractNumber !== null && { contractNumber: input.contractNumber }),
     });
     return technicalConditionsDto(app, tuId);
   }
@@ -163,19 +198,33 @@ export async function saveTuPayment(
     invoiceDate: toIsoDate(current.invoiceDate),
     amount: formatHryvnias(fromKopecks(current.amountKopecks)),
     paidDate: current.paidDate ? toIsoDate(current.paidDate) : null,
+    paidAmount: current.paidAmountKopecks
+      ? formatHryvnias(fromKopecks(current.paidAmountKopecks))
+      : null,
     actTransferMonth: current.actTransferMonth,
+    contractNumber: current.contractNumber ?? null,
+    contractDate: current.contractDate ? toIsoDate(current.contractDate) : null,
   };
-  const wanted = { ...input, amount: formatHryvnias(input.amount) };
+  const wanted = {
+    ...input,
+    amount: formatHryvnias(input.amount),
+    paidAmount: input.paidAmount === null ? null : formatHryvnias(input.paidAmount),
+  };
   const changes = (Object.keys(shown) as (keyof typeof shown)[])
     .filter((field) => shown[field] !== wanted[field])
     .map((field) => ({ field, from: shown[field], to: wanted[field] }));
   if (changes.length === 0) return technicalConditionsDto(app, tuId);
 
-  const { matchedCount } = await TuPayment.updateOne(
-    { _id: current._id, version: current.version },
-    { $set: { ...values, updatedBy: actor.id }, $inc: { version: 1 } },
-  );
-  if (matchedCount === 0) throw paymentConflict();
+  try {
+    const { matchedCount } = await TuPayment.updateOne(
+      { _id: current._id, version: current.version },
+      { $set: { ...values, updatedBy: actor.id }, $inc: { version: 1 } },
+    );
+    if (matchedCount === 0) throw paymentConflict();
+  } catch (error) {
+    if (isContractNumberTaken(error)) throw contractNumberTaken(input.contractNumber);
+    throw error;
+  }
   await auditPayment(
     'TU_PAYMENT_UPDATED',
     actor,
@@ -210,6 +259,8 @@ export async function deleteTuPayment(
     await auditPayment('TU_PAYMENT_DELETED', actor, app, tu, current, context, {}, session);
   });
   // After the commit: a failed deletion must not lose the files of a payment still in place.
-  await Promise.all(paymentFileIds([current]).map(deleteScanFile));
+  await Promise.all(
+    paymentFiles([current]).map(({ fileId, type }) => deleteStoredFile(fileId, type)),
+  );
   return technicalConditionsDto(app, tuId);
 }

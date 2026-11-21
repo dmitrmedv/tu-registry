@@ -23,7 +23,7 @@ import {
   OBJECT_TYPE_LABELS,
   REGISTRY_STAGE_LABELS,
 } from '@/shared/lib/labels';
-import { Button, ChoiceField, SelectField } from '@/shared/ui';
+import { Button, ChoiceField, IconButton, SelectField } from '@/shared/ui';
 import { PeriodField } from './PeriodField';
 import styles from './registry.module.scss';
 import { countMoreFilters, isPeriodValid, type RegistryParams } from './registryParams';
@@ -252,9 +252,7 @@ export function RegistryFilters({
           </ul>
         )}
         {activeFilterCount > 0 && (
-          <Button size="sm" variant="ghost" onClick={reset}>
-            Скинути все
-          </Button>
+          <IconButton icon="filterOff" label="Скинути всі фільтри" onClick={reset} />
         )}
       </div>
     </section>

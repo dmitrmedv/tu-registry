@@ -1,0 +1,86 @@
+@use '@/styles/mixins' as *;
+
+// Number and date side by side; one under the other on phones.
+.pair {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-3);
+
+  @include up(sm) {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--color-border);
+}
+
+.groupHeader {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.groupTitle {
+  margin: 0;
+  font-size: var(--text-md);
+  font-weight: 600;
+}
+
+.sum {
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+// A work: its name, its sum, the remove button; stacked on phones.
+.work {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: var(--space-3);
+  align-items: end;
+
+  > :first-child {
+    grid-column: 1 / -1;
+  }
+
+  @include up(md) {
+    grid-template-columns: minmax(0, 1fr) 12rem auto;
+
+    > :first-child {
+      grid-column: auto;
+    }
+  }
+}
+
+.total {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: var(--space-2);
+  margin: 0;
+  padding-top: var(--space-3);
+  border-top: 2px solid var(--color-border);
+  font-size: var(--text-md);
+  font-weight: 700;
+}
+
+.error {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--color-danger);
+}
+
+.files {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-4);
+
+  @include up(sm) {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}

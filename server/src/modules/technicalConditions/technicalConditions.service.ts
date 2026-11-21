@@ -17,7 +17,7 @@ import { loadApplication, loadEditableApplication } from '../applications/applic
 import type { RequestContext } from '../audit/audit.service';
 import { loadExceptions } from '../calendar/calendar.service';
 import { countWorkingDays } from '../calendar/workingDays';
-import { type DocumentRecord, documentDtoParts } from '../documents/document.dto';
+import { type DocumentRecord, documentDtoParts, documentFileIds } from '../documents/document.dto';
 import { assertDocumentDate, resolveEngineer } from '../documents/document.rules';
 import {
   auditDocument,
@@ -28,8 +28,11 @@ import {
   changeDocuments,
   restoreDocument,
   updateSeen,
+  versionConflict,
 } from '../documents/document.service';
-import { paymentDtos } from '../tuPayments/tuPayment.dto';
+import { deleteScanFile, deleteStoredFile } from '../scans/scan.storage';
+import { paymentDtos, paymentFiles } from '../tuPayments/tuPayment.dto';
+import { TuPayment } from '../tuPayments/tuPayment.model';
 import { TechnicalConditions } from './technicalConditions.model';
 
 export type TechnicalConditionsRecord = DocumentRecord & {
@@ -227,4 +230,47 @@ export async function restoreTechnicalConditions(
   const app = await loadEditableApplication(applicationId, actor);
   await restoreDocument(TECHNICAL_CONDITIONS, app, id, version, actor, context);
   return technicalConditionsDto(app, id);
+}
+
+/**
+ * For good, by an admin only (agreed 2026-11-19), like a response: the conditions, their
+ * payment and every scan of both. The payment goes with them — it cannot stand without them;
+ * its invoice number stays in the audit entry.
+ */
+export async function deleteTechnicalConditions(
+  applicationId: string,
+  id: string,
+  version: number,
+  actor: Actor,
+  context: RequestContext,
+) {
+  const app = await loadEditableApplication(applicationId, actor);
+  const current = await loadDocument(TECHNICAL_CONDITIONS, app, id);
+  if (version !== current.version) throw versionConflict(TECHNICAL_CONDITIONS);
+  const payment = await TuPayment.findOne({ technicalConditionsId: current._id }).lean();
+  await changeDocuments(app, async (session) => {
+    const { deletedCount } = await TechnicalConditions.deleteOne(
+      { _id: current._id, version },
+      { session },
+    );
+    if (deletedCount === 0) throw versionConflict(TECHNICAL_CONDITIONS);
+    if (payment) await TuPayment.deleteOne({ _id: payment._id }, { session });
+    await auditDocument(
+      TECHNICAL_CONDITIONS,
+      'TU_DELETED',
+      actor,
+      app,
+      current,
+      context,
+      payment ? { paymentInvoiceNumber: payment.invoiceNumber } : {},
+      session,
+    );
+  });
+  // After the commit: a failed deletion must not lose the files of conditions still in place.
+  await Promise.all([
+    ...documentFileIds([current]).map(deleteScanFile),
+    ...paymentFiles(payment ? [payment] : []).map(({ fileId, type }) =>
+      deleteStoredFile(fileId, type),
+    ),
+  ]);
 }

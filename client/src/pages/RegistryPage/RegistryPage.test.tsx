@@ -233,8 +233,8 @@ describe('RegistryPage', () => {
     const { user } = renderApp('/');
     await screen.findByText('Сторінка 1 з 3');
 
-    expect(screen.getByRole('button', { name: '‹ Попередня' })).toBeDisabled();
-    await user.click(screen.getByRole('button', { name: 'Наступна ›' }));
+    expect(screen.getByRole('button', { name: 'Попередня сторінка' })).toBeDisabled();
+    await user.click(screen.getByRole('button', { name: 'Наступна сторінка' }));
     await waitFor(() => expect(last().get('page')).toBe('2'));
 
     await user.selectOptions(screen.getByLabelText('Рядків на сторінці'), 'по 50');
@@ -575,7 +575,7 @@ describe('RegistryPage — card links and status', () => {
 
     await first.user.click(picker);
     expect(picker).toHaveAttribute('aria-expanded', 'true');
-    expect(screen.getByRole('button', { name: 'Як за замовчуванням' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Колонки як за замовчуванням' })).toBeDisabled();
     await first.user.click(screen.getByRole('checkbox', { name: 'Витрати газу, м³/год' }));
     await first.user.click(screen.getByRole('checkbox', { name: 'Номер ТУ' }));
     expect(within(table).getByRole('columnheader', { name: /^Витрати газу/ })).toBeInTheDocument();
@@ -596,7 +596,7 @@ describe('RegistryPage — card links and status', () => {
     );
 
     await first.user.click(picker);
-    await first.user.click(screen.getByRole('button', { name: 'Як за замовчуванням' }));
+    await first.user.click(screen.getByRole('button', { name: 'Колонки як за замовчуванням' }));
     expect(within(table).queryByRole('columnheader', { name: /^Витрати газу/ })).toBeNull();
     expect(window.localStorage.getItem(`tu-registry:registry-columns:${me.id}`)).toBe('{}');
     await waitFor(() => expect(saved.at(-1)).toEqual({ visible: {}, widths: {}, order: [] }));
@@ -681,7 +681,7 @@ describe('RegistryPage — card links and status', () => {
 
     await user.keyboard('{ArrowLeft}');
     await user.click(screen.getByRole('button', { name: /^Колонки/ }));
-    await user.click(screen.getByRole('button', { name: 'Як за замовчуванням' }));
+    await user.click(screen.getByRole('button', { name: 'Колонки як за замовчуванням' }));
     expect(handle).toHaveAttribute('aria-valuenow', '370');
     expect(window.localStorage.getItem(widthsKey)).toBe('{}');
   });
@@ -710,7 +710,7 @@ describe('RegistryPage — card links and status', () => {
     await user.click(screen.getByRole('button', { name: 'Нижче: Управління' }));
     expect(titles().slice(0, 4)).toEqual(['№', 'Дата реєстрації', 'Замовник', 'Управління']);
 
-    await user.click(screen.getByRole('button', { name: 'Як за замовчуванням' }));
+    await user.click(screen.getByRole('button', { name: 'Колонки як за замовчуванням' }));
     expect(titles().slice(0, 3)).toEqual(['№', 'Дата реєстрації', 'Управління']);
     expect(window.localStorage.getItem(orderKey)).toBe('[]');
   });

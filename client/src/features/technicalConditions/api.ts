@@ -24,6 +24,10 @@ export const technicalConditionsApi = {
     http
       .post<TechnicalConditionsDto>(`${base(applicationId)}/${id}/restore`, { version })
       .then((r) => r.data),
+  /** For good, with the payment and every scan; an admin only. */
+  remove: async (applicationId: string, id: string, version: number) => {
+    await http.delete(`${base(applicationId)}/${id}`, { params: { version } });
+  },
   uploadScan: (applicationId: string, id: string, file: File) => {
     const form = new FormData();
     form.append('scan', file);

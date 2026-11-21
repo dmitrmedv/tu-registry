@@ -254,6 +254,41 @@ describe('processing of an application: stage, deadlines, timeline', () => {
     expect(events[4]).toMatchObject({ norm: 10, sinceDocumentsReceived: 5 });
   });
 
+  it('shows the contract made up and signed; an annulled one struck through', async () => {
+    now.mockReturnValue(new Date('2026-11-20T09:00:00Z'));
+    await prepareTu({ customer: 'Франко Іван', address: 'м. Одеса, вул. Лесі Українки, 34' });
+    const contract = (
+      await request(app).post(at('/contracts')).set(owner.auth).send({
+        contractNumber: '1-8',
+        contractDate: '2026-11-13',
+        department: 'ODESA',
+        customer: 'Франко Іван',
+        address: 'м. Одеса, вул. Лесі Українки, 34',
+        signedDate: '2026-11-18',
+      })
+    ).body as { id: string };
+    await request(app).post(at('/contracts')).set(owner.auth).send({
+      contractNumber: '2-8',
+      contractDate: '2026-11-19',
+      department: 'ODESA',
+      customer: 'Франко Іван',
+      address: 'м. Одеса, вул. Лесі Українки, 34',
+    });
+    await request(app)
+      .post(at(`/contracts/${contract.id}/cancel`))
+      .set(owner.auth)
+      .send({ version: 1, reason: 'Помилка' });
+
+    const { events } = (await processing()).body as {
+      events: { type: string; date: string; number: string | null; cancelled: boolean }[];
+    };
+    expect(events.slice(2).map((e) => [e.type, e.date, e.number, e.cancelled])).toEqual([
+      ['CONTRACT', '2026-11-13', '1-8', true],
+      ['CONTRACT_SIGNED', '2026-11-18', '1-8', true],
+      ['CONTRACT', '2026-11-19', '2-8', false],
+    ]);
+  });
+
   it('is hidden from another department', async () => {
     expect((await processing(elsewhere)).status).toBe(404);
     expect((await processing(admin)).status).toBe(200);

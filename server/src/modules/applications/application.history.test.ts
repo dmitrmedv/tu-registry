@@ -114,7 +114,7 @@ describe('history of an application: its documents too', () => {
     ]);
   });
 
-  it('records technical conditions with the customer’s values, which the audit never gets', async () => {
+  it('records technical conditions, deleted too, with the customer’s values the audit never gets', async () => {
     const created = await request(app).post(`${base()}/technical-conditions`).set(owner.auth).send({
       tuNumber: '0032/ТУ',
       preparedDate: '2026-11-16',
@@ -134,6 +134,7 @@ describe('history of an application: its documents too', () => {
       .post(`${base()}${url}/cancel`)
       .set(owner.auth)
       .send({ version: 2, reason: 'Замінено' });
+    await request(app).delete(`${base()}${url}`).query({ version: 3 }).set(admin.auth);
 
     expect(await documentHistory()).toEqual([
       expect.objectContaining({ action: 'CREATED', document: 'TECHNICAL_CONDITIONS 0032/ТУ' }),
@@ -150,6 +151,7 @@ describe('history of an application: its documents too', () => {
         changes: [{ field: 'scan', oldValue: null, newValue: 'новий файл' }],
       }),
       expect.objectContaining({ action: 'CANCELLED', document: 'TECHNICAL_CONDITIONS 0033/ТУ' }),
+      expect.objectContaining({ action: 'DELETED', document: 'TECHNICAL_CONDITIONS 0033/ТУ' }),
     ]);
     const audited = await AuditLog.findOne({ action: 'TU_UPDATED' }).lean();
     expect(audited!.details.changes).toEqual([
@@ -196,6 +198,52 @@ describe('history of an application: its documents too', () => {
         changes: [{ field: 'receiptScan', oldValue: null, newValue: 'новий файл' }],
       }),
       expect.objectContaining({ action: 'DELETED', document: 'TU_PAYMENT 126/Б' }),
+    ]);
+  });
+  it('records a contract: added, changed, its scan, cancelled, deleted', async () => {
+    await request(app).post(`${base()}/technical-conditions`).set(owner.auth).send({
+      tuNumber: '0032/ТУ',
+      preparedDate: '2026-11-16',
+      engineer: engineerId,
+      gasFlow: '2,5',
+      connectionType: 'STANDARD',
+      gasPressure: 'LOW',
+      connectionPoint: 'UNDERGROUND',
+    });
+    const contract = {
+      contractNumber: '1-8',
+      contractDate: '2026-11-16',
+      department: 'ODESA',
+      customer: 'Франко Іван Якович',
+      address: 'м. Одеса, вул. Лесі Українки, 34',
+    };
+    const created = await request(app).post(`${base()}/contracts`).set(owner.auth).send(contract);
+    const url = `/contracts/${created.body.id}`;
+    await request(app)
+      .patch(`${base()}${url}`)
+      .set(owner.auth)
+      .send({ ...contract, version: 1, signedDate: '2026-11-19' });
+    await attach(`${url}/files/scan`);
+    await request(app)
+      .post(`${base()}${url}/cancel`)
+      .set(owner.auth)
+      .send({ version: 2, reason: 'Замінено' });
+    await request(app).delete(`${base()}${url}`).query({ version: 3 }).set(admin.auth);
+
+    const contracts = (await documentHistory()).filter((entry) =>
+      entry.document.startsWith('CONTRACT'),
+    );
+    expect(contracts).toEqual([
+      expect.objectContaining({ action: 'CREATED', document: 'CONTRACT 1-8' }),
+      expect.objectContaining({
+        action: 'UPDATED',
+        changes: [{ field: 'signedDate', oldValue: null, newValue: '2026-11-19' }],
+      }),
+      expect.objectContaining({
+        changes: [{ field: 'scan', oldValue: null, newValue: 'новий файл' }],
+      }),
+      expect.objectContaining({ action: 'CANCELLED', document: 'CONTRACT 1-8' }),
+      expect.objectContaining({ action: 'DELETED', document: 'CONTRACT 1-8' }),
     ]);
   });
 });

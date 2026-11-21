@@ -13,7 +13,7 @@ import {
 import { useUserOptions } from '@/features/registry';
 import { useListParams } from '@/shared/hooks/useListParams';
 import { AUDIT_ACTION_LABELS } from '@/shared/lib/labels';
-import { Button, LoadFailed, Pagination, SelectField, Spinner, TextField } from '@/shared/ui';
+import { IconButton, LoadFailed, Pagination, SelectField, Spinner, TextField } from '@/shared/ui';
 import pageStyles from '../page.module.scss';
 import styles from './AuditPage.module.scss';
 
@@ -78,9 +78,12 @@ export function AuditPage() {
           onChange={(e) => update({ to: e.target.value })}
         />
         <div className={styles.resetCell}>
-          <Button variant="ghost" onClick={reset} disabled={countAuditFilters(params) === 0}>
-            Скинути фільтри
-          </Button>
+          <IconButton
+            icon="filterOff"
+            label="Скинути фільтри"
+            disabled={countAuditFilters(params) === 0}
+            onClick={reset}
+          />
         </div>
       </div>
 

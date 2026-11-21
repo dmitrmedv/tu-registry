@@ -1,0 +1,40 @@
+@use '@/styles/mixins' as *;
+
+// The contract's page (mock-up 2026-11-20): the form as wide as the page's centred block.
+.form {
+  max-width: none;
+}
+
+// The fields on the left, the department and the file zone on the right.
+.block {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--space-6);
+
+  @include up(lg) {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+}
+
+.fields {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--space-4);
+  align-content: start;
+
+  @include up(md) {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.wide {
+  @include up(md) {
+    grid-column: 1 / -1;
+  }
+}
+
+.side {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}

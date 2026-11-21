@@ -62,8 +62,13 @@ test('adds a project with its estimate under the valid technical conditions', as
   const frame = tab.getByRole('region', { name: /^Проєкт № 125\/П від / });
   await expect(frame).toContainText(`Виконавець`);
   await expect(frame.getByRole('button', { name: 'Відкрити скан', exact: true })).toBeVisible();
-  await expect(frame.getByRole('button', { name: 'Відкрити скан кошторису' })).toBeVisible();
-  await expect(frame.getByRole('button', { name: 'Завантажити файл перевірки' })).toBeVisible();
+  const estimate = tab.getByRole('region', { name: /^Кошторис до проєкту № 125\/П/ });
+  await expect(estimate.getByRole('button', { name: 'Відкрити скан кошторису' })).toBeVisible();
+  const imd = estimate.getByRole('button', { name: 'Завантажити файл перевірки кошторису (.imd)' });
+  await expect(imd).toHaveText('.imd');
+  const download = page.waitForEvent('download');
+  await imd.click();
+  expect((await download).suggestedFilename()).toBe('Перевірка.imd');
   await expect(page.getByRole('button', { name: /^Проєкт № 125\/П/ })).toBeVisible();
   // One valid project: no second one until it is cancelled.
   await expect(frame.getByRole('button', { name: 'Додати проєкт' })).toHaveCount(0);

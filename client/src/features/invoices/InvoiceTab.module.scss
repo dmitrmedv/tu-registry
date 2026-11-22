@@ -1,3 +1,83 @@
+// The calculation straight on the tab, no frame (mock-up of 2026-11-22); the actions at the
+// bottom right of the tab.
+.document {
+  container-type: inline-size;
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: var(--space-3);
+  min-width: 0;
+  padding: var(--space-2) var(--space-4) 0;
+}
+
+// A cancelled one: «Скасовано» above the data, the reason in red under it.
+.cancelled .badge {
+  align-self: flex-start;
+}
+
+.footer {
+  margin-top: auto;
+
+  // The file buttons at the start, the other actions at the end (not shared halfway).
+  > :first-child {
+    margin-left: 0;
+  }
+
+  // Two columns: the buttons start under «Всього:», where the second column does (2026-11-23).
+  @container (min-width: 720px) {
+    padding-left: calc((100% - var(--space-6)) / 2.2 + var(--space-6));
+  }
+}
+
+// «1 з 2» before ‹ ›.
+.position {
+  align-self: center;
+  margin-right: var(--space-1);
+  color: var(--color-text-muted);
+  white-space: nowrap;
+}
+
+// Two columns where the card is wide (mock-up of 2026-11-22): the data, the works.
+.view {
+  container-type: inline-size;
+}
+
+.columns {
+  display: grid;
+  gap: var(--space-4);
+
+  @container (min-width: 720px) {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr);
+    gap: var(--space-6);
+  }
+}
+
+.comment {
+  margin-top: var(--space-3);
+}
+
+.commentTitle {
+  margin: 0 0 var(--space-2);
+  color: var(--color-text-muted);
+  font-size: inherit;
+  font-weight: 400;
+}
+
+.commentText {
+  min-height: 6rem;
+  margin: 0;
+  padding: var(--space-3);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-muted);
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
+.sections > section:first-child > .groupTitle {
+  margin-top: 0;
+}
+
 // A group's name and sum on one line, its works under it (2026-11-21).
 .groupTitle {
   display: flex;
@@ -26,7 +106,14 @@
     color: var(--color-text-muted);
   }
 
+  // The work's name: at most 390px, longer names wrap (2026-11-22).
+  > li > :first-child {
+    max-width: 390px;
+    overflow-wrap: anywhere;
+  }
+
   > li > :last-child {
+    font-variant-numeric: tabular-nums;
     white-space: nowrap;
   }
 }

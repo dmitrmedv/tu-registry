@@ -20,7 +20,7 @@ const workSchema = new Schema(
 );
 
 /**
- * «Рахунок» (2026-11-21): the bill for the connection under the valid project, several per
+ * «Розрахунок» (2026-11-21, renamed 2026-11-22): the bill for the connection under the valid project, several per
  * application (one per stage of construction). Dates are calendar dates (midnight UTC).
  */
 const invoiceSchema = new Schema(
@@ -38,8 +38,7 @@ const invoiceSchema = new Schema(
       required: true,
       validate: (works: unknown[]) => works.length >= 1 && works.length <= INVOICE_WORKS_MAX,
     },
-    // The invoice's scan and the document it was made from, both PDF.
-    scan: { type: scanRecordSchema, default: undefined },
+    // The document it was made from, PDF; the scan was dropped (2026-11-22).
     basis: { type: scanRecordSchema, default: undefined },
     cancellation: { type: cancellationSchema, default: undefined },
     createdBy: { type: Schema.Types.ObjectId, ref: 'User', required: true },

@@ -70,8 +70,8 @@ export const CARD_MODULES = [
   },
   {
     id: 'invoice',
-    tabLabel: 'Рахунок',
-    menuLabel: 'Рахунок',
+    tabLabel: 'Розрахунок',
+    menuLabel: 'Розрахунок',
     eventTypes: ['INVOICE'],
     Tab: InvoiceTab,
     AddDialog: AddInvoiceDialog,

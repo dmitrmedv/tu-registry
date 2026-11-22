@@ -196,6 +196,35 @@ describe('contracts', () => {
     });
   });
 
+  it('is found in the registry by its number until cancelled (2026-11-22)', async () => {
+    await addTu();
+    const found = async (q: string) =>
+      (await request(app).get(APPLICATIONS).query({ q }).set(owner.auth)).body.data.map(
+        (row: { id: string }) => row.id,
+      );
+    const { id } = (await create({ contractNumber: '777-8' })).body;
+    expect(await found('777-8')).toEqual([applicationId]);
+    // And in its column of the registry.
+    const listed = await request(app).get(APPLICATIONS).set(owner.auth);
+    expect(listed.body.data[0].contractNumber).toBe('777-8');
+
+    await request(app)
+      .patch(url(`/${id}`))
+      .set(owner.auth)
+      .send({ ...contract, contractNumber: '778-8', version: 1 });
+    expect(await found('777-8')).toEqual([]);
+    expect(await found('778')).toEqual([applicationId]);
+
+    await request(app)
+      .post(url(`/${id}/cancel`))
+      .set(owner.auth)
+      .send({ reason: 'Помилка в номері', version: 2 });
+    expect(await found('778-8')).toEqual([]);
+    expect((await request(app).get(APPLICATIONS).set(owner.auth)).body.data[0].contractNumber).toBe(
+      null,
+    );
+  });
+
   it('keeps the Word document and the signed scan, checking what they are', async () => {
     await addTu();
     const { id } = (await create()).body;

@@ -5,8 +5,11 @@ import type { ColumnWidths } from '@/shared/ui';
 import { REGISTRY_COLUMNS, type RegistryColumn } from './registryColumns';
 
 type ColumnId = RegistryColumn['id'];
-/** Only what the viewer changed: columns added later still follow their default. */
-type Choices = Partial<Record<ColumnId, boolean>>;
+/**
+ * Only what the viewer changed: columns added later still follow their default. «№» may be
+ * hidden too (2026-11-22); it is shown by default.
+ */
+type Choices = Partial<Record<ColumnId | 'regNumber', boolean>>;
 type Layout = { choices: Choices; widths: ColumnWidths; order: ColumnId[] };
 
 const KEY_PREFIX = 'tu-registry:registry-columns:';
@@ -114,6 +117,14 @@ export function useRegistryColumns(userId: string, isAdmin: boolean) {
       (a, b) => rank(a) - rank(b),
     );
   }, [isAdmin, order]);
+  // At least one column stays: with nothing else shown, «№» is.
+  const numberShown =
+    (choices.regNumber ?? true) ||
+    !available.some((column) => choices[column.id] ?? column.visibleByDefault);
+  const setNumberShown = useCallback(
+    (visible: boolean) => change({ ...layout, choices: { ...choices, regNumber: visible } }),
+    [change, layout, choices],
+  );
   const isVisible = useCallback(
     (column: RegistryColumn) => choices[column.id] ?? column.visibleByDefault,
     [choices],
@@ -146,6 +157,8 @@ export function useRegistryColumns(userId: string, isAdmin: boolean) {
     available,
     visible: available.filter(isVisible),
     isVisible,
+    numberShown,
+    setNumberShown,
     setVisible,
     resetColumns,
     widths,

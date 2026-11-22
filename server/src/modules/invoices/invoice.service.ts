@@ -41,7 +41,6 @@ export type InvoiceRecord = {
   invoiceDate: Date;
   comment?: string | null;
   works: { group: InvoiceWorkGroup; name: string; amountKopecks: number }[];
-  scan?: ScanRecord | null;
   basis?: ScanRecord | null;
   cancellation?: { reason: string; at: Date; by: Types.ObjectId } | null;
   createdBy: Types.ObjectId;
@@ -53,14 +52,14 @@ export const invoiceConflict = () =>
   new ApiError(
     409,
     'VERSION_CONFLICT',
-    'Рахунок щойно змінив інший користувач. Завантажте актуальні дані й повторіть зміни.',
+    'Розрахунок щойно змінив інший користувач. Завантажте актуальні дані й повторіть зміни.',
   );
-const invoiceNotFound = () => ApiError.notFound('Рахунок не знайдено');
+const invoiceNotFound = () => ApiError.notFound('Розрахунок не знайдено');
 
 /** The stored files of `rows`: for deleting them with the invoice or its application. */
-export const invoiceFiles = (rows: Pick<InvoiceRecord, 'scan' | 'basis'>[]) =>
+export const invoiceFiles = (rows: Pick<InvoiceRecord, 'basis'>[]) =>
   rows.flatMap((row) =>
-    [row.scan, row.basis]
+    [row.basis]
       .filter((file) => !!file)
       .map((file) => ({ fileId: file.fileId, type: 'pdf' as const })),
   );
@@ -132,7 +131,6 @@ async function toDtos(app: ApplicationDocument, rows: InvoiceRecord[]): Promise<
       rows.flatMap((row) => [
         String(row.createdBy),
         row.cancellation ? String(row.cancellation.by) : null,
-        row.scan ? String(row.scan.uploadedBy) : null,
         row.basis ? String(row.basis.uploadedBy) : null,
       ]),
     ),
@@ -169,7 +167,6 @@ async function toDtos(app: ApplicationDocument, rows: InvoiceRecord[]): Promise<
       totals: invoiceTotals(works),
       workingDays,
       overdueBy: Math.max(0, workingDays - INVOICE_DEADLINE_DAYS),
-      scan: fileDto(row.scan),
       basis: fileDto(row.basis),
       cancellation: row.cancellation
         ? {
@@ -197,7 +194,7 @@ export async function loadChangeableInvoice(applicationId: string, id: string, a
   const app = await loadEditableApplication(applicationId, actor);
   const invoice = await loadInvoice(app, id);
   if (invoice.cancellation) {
-    throw new ApiError(409, 'DOCUMENT_CANCELLED', 'Рахунок скасовано: його не можна змінювати');
+    throw new ApiError(409, 'DOCUMENT_CANCELLED', 'Розрахунок скасовано: його не можна змінювати');
   }
   return { app, invoice };
 }
@@ -221,12 +218,12 @@ async function assertInvoiceDate(
   invoiceDate: string,
   approvalDate: Date,
 ) {
-  await assertDocumentDate(app, 'invoiceDate', invoiceDate, 'Дата рахунку');
+  await assertDocumentDate(app, 'invoiceDate', invoiceDate, 'Дата розрахунку');
   const approval = toIsoDate(approvalDate);
   if (invoiceDate < approval) {
     throw fieldError(
       'invoiceDate',
-      `Дата рахунку не може бути раніше дати узгодження проєкту (${approval.split('-').reverse().join('.')})`,
+      `Дата розрахунку не може бути раніше дати узгодження проєкту (${approval.split('-').reverse().join('.')})`,
     );
   }
 }
@@ -270,7 +267,7 @@ export async function createInvoice(
     throw new ApiError(
       409,
       'NO_PROJECT',
-      'Рахунок складається за чинним проєктом: спершу внесіть проєкт.',
+      'Розрахунок складається за чинним проєктом: спершу внесіть проєкт.',
     );
   }
   await assertInvoiceDate(app, input.invoiceDate, project.approvalDate);
@@ -320,7 +317,7 @@ export async function updateInvoice(
   if (input.invoiceDate !== invoiceDate) {
     const project = await Project.findById(invoice.projectId).select('approvalDate').lean();
     if (project) await assertInvoiceDate(app, input.invoiceDate, project.approvalDate);
-    else await assertDocumentDate(app, 'invoiceDate', input.invoiceDate, 'Дата рахунку');
+    else await assertDocumentDate(app, 'invoiceDate', input.invoiceDate, 'Дата розрахунку');
     changes.push({ field: 'invoiceDate', from: invoiceDate, to: input.invoiceDate });
   }
   const works = storedWorks(input);
@@ -399,7 +396,7 @@ export async function restoreInvoice(
 ) {
   const app = await loadEditableApplication(applicationId, actor);
   const invoice = await loadInvoice(app, id);
-  if (!invoice.cancellation) throw new ApiError(409, 'NOT_CANCELLED', 'Рахунок не скасовано');
+  if (!invoice.cancellation) throw new ApiError(409, 'NOT_CANCELLED', 'Розрахунок не скасовано');
   if (version !== invoice.version) throw invoiceConflict();
   const { matchedCount } = await Invoice.updateOne(
     { _id: invoice._id, version },

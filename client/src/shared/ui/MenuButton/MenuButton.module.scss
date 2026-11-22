@@ -27,6 +27,7 @@
 .menu {
   position: absolute;
   top: calc(100% + var(--space-1));
+  // outline: 1px solid red;
   right: 0;
   z-index: 20;
   min-width: 200px;
@@ -37,6 +38,24 @@
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
   box-shadow: var(--shadow-lg);
+  // background: var(--color-surface-muted);
+}
+
+// No room under the button on the screen: the list opens up (2026-11-23).
+.menu[data-side='top'] {
+  top: auto;
+  bottom: calc(100% + var(--space-1));
+}
+
+// The list from the button's left edge.
+.start {
+  right: auto;
+  left: 0;
+}
+
+// A short list under an icon button: a small panel.
+.compact {
+  min-width: 8rem;
 }
 
 .item {

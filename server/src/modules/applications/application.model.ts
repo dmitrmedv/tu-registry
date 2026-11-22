@@ -41,6 +41,8 @@ const processingSchema = new Schema(
     tuNumber: String,
     gasFlow: Number,
     connectionType: { type: String, enum: CONNECTION_TYPES },
+    // Of the last contract not cancelled (2026-11-22).
+    contractNumber: String,
     // The engineer of the technical conditions, or of the last response without them.
     engineerName: String,
     engineerIds: { type: [Schema.Types.ObjectId], default: [] },

@@ -7,6 +7,9 @@ type Props = {
   columns: RegistryColumn[];
   isVisible: (column: RegistryColumn) => boolean;
   onChange: (id: RegistryColumn['id'], visible: boolean) => void;
+  /** «№ реєстрації»: always first, so it only turns on and off (2026-11-22). */
+  numberShown: boolean;
+  onNumberChange: (visible: boolean) => void;
   /** Puts a column where another one is (the keyboard way to reorder; the table also drags). */
   onMove: (id: RegistryColumn['id'], targetId: RegistryColumn['id']) => void;
   onReset: () => void;
@@ -17,7 +20,16 @@ type Props = {
  * «Колонки»: a disclosure with a checkbox per column (plain checkboxes: a list of independent
  * on/off choices, not a menu). Escape or a click outside closes it.
  */
-export function ColumnsPicker({ columns, isVisible, onChange, onMove, onReset, isDefault }: Props) {
+export function ColumnsPicker({
+  columns,
+  isVisible,
+  onChange,
+  numberShown,
+  onNumberChange,
+  onMove,
+  onReset,
+  isDefault,
+}: Props) {
   const [open, setOpen] = useState(false);
   const panelId = useId();
   const wrapperRef = useRef<HTMLDivElement>(null);
@@ -63,6 +75,16 @@ export function ColumnsPicker({ columns, isVisible, onChange, onMove, onReset, i
           />
           <fieldset>
             <legend>Показувати колонки</legend>
+            <div className={styles.columnRow}>
+              <label className={styles.columnOption}>
+                <input
+                  type="checkbox"
+                  checked={numberShown}
+                  onChange={(e) => onNumberChange(e.target.checked)}
+                />
+                № реєстрації
+              </label>
+            </div>
             {columns.map((column, index) => {
               const previous = columns[index - 1];
               const next = columns[index + 1];

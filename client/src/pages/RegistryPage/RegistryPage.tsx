@@ -65,6 +65,8 @@ export function RegistryPage() {
                 columns={columns.available}
                 isVisible={columns.isVisible}
                 onChange={columns.setVisible}
+                numberShown={columns.numberShown}
+                onNumberChange={columns.setNumberShown}
                 onMove={columns.moveColumn}
                 onReset={columns.resetColumns}
                 isDefault={columns.isDefault}
@@ -126,6 +128,7 @@ export function RegistryPage() {
           >
             <RegistryTable
               columns={columns.visible}
+              showNumber={columns.numberShown}
               rows={list.data.data}
               sort={params.sort}
               onSort={(sort) => update({ sort })}

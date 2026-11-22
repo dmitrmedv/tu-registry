@@ -126,11 +126,11 @@ export const AUDIT_ACTION_LABELS: Record<AuditAction, string> = {
   ESTIMATE_CREATED: 'Додано кошторис',
   ESTIMATE_UPDATED: 'Змінено кошторис',
   ESTIMATE_DELETED: 'Видалено кошторис',
-  INVOICE_CREATED: 'Додано рахунок',
-  INVOICE_UPDATED: 'Змінено рахунок',
-  INVOICE_CANCELLED: 'Скасовано рахунок',
-  INVOICE_RESTORED: 'Відновлено рахунок',
-  INVOICE_DELETED: 'Видалено рахунок',
+  INVOICE_CREATED: 'Додано розрахунок',
+  INVOICE_UPDATED: 'Змінено розрахунок',
+  INVOICE_CANCELLED: 'Скасовано розрахунок',
+  INVOICE_RESTORED: 'Відновлено розрахунок',
+  INVOICE_DELETED: 'Видалено розрахунок',
   ACCESS_DENIED: 'Відмовлено в доступі',
 };
 
@@ -216,13 +216,14 @@ export const ESTIMATE_FIELD_LABELS: Record<string, string> = {
 
 /** Fields of the invoice for the connection, in the journal and the history. */
 export const INVOICE_FIELD_LABELS: Record<string, string> = {
-  invoiceNumber: '№ рахунку',
+  invoiceNumber: '№ розрахунку',
   agreementNumber: '№ додаткової угоди',
-  invoiceDate: 'дата рахунку',
+  invoiceDate: 'дата розрахунку',
   comment: 'коментар',
   works: 'загальна вартість робіт',
+  // Dropped 2026-11-22: kept for the history.
   scan: 'скан рахунку',
-  basis: 'підстава рахунку',
+  basis: 'підстава розрахунку',
 };
 
 /** The invoice's groups of works (2026-11-21). */
@@ -265,7 +266,7 @@ export const HISTORY_DOCUMENT_LABELS: Record<HistoryDocumentKind, string> = {
   CONTRACT: 'Договір',
   PROJECT: 'Проєкт',
   ESTIMATE: 'Кошторис до проєкту',
-  INVOICE: 'Рахунок',
+  INVOICE: 'Розрахунок',
 };
 
 /** What was done to a document: added rather than registered. */

@@ -31,6 +31,8 @@ export const SORT_FIELDS = [
   'lastResponseNumber',
   'tuDate',
   'tuNumber',
+  // The last contract not cancelled (2026-11-22).
+  'contractNumber',
   'gasFlow',
   'connectionType',
   'engineer',
@@ -115,6 +117,7 @@ export type ApplicationListItemDto = Pick<
   lastResponseNumber: string | null;
   tuDate: string | null;
   tuNumber: string | null;
+  contractNumber: string | null;
   gasFlow: number | null;
   connectionType: ConnectionType | null;
   engineerName: string | null;

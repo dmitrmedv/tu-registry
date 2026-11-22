@@ -141,7 +141,7 @@ export function RegistryFilters({
         <SearchField
           className={styles.search}
           label="Пошук"
-          placeholder="Номер заяви, ТУ чи відповіді, замовник, адреса, представник"
+          placeholder="Номер заяви, ТУ, відповіді чи договору, замовник, адреса, представник"
           value={params.q}
           onCommit={(q) => update({ q }, { replace: true })}
         />

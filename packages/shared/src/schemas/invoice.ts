@@ -3,11 +3,11 @@ import type { ScanDto } from '../scan';
 import { amountField, fromKopecks, toKopecks } from './tuPayment';
 
 /**
- * «Рахунок» (agreed 2026-11-21): the bill for the connection, made under the valid project. Its
+ * «Розрахунок» (agreed 2026-11-21): the bill for the connection, made under the valid project. Its
  * works come in three groups — construction and assembly, the tie-in, and the work plan (ПВР) —
  * each a list of named sums; the total is what the customer pays. An application may have
  * several invoices, one per stage of construction: each becomes its own additional agreement.
- * Files: the invoice's scan and the document it was made from (both PDF).
+ * File: the document it was made from (PDF); the invoice's scan was dropped (2026-11-22).
  */
 export const INVOICE_NUMBER_MAX = 50;
 export const INVOICE_WORK_NAME_MAX = 300;
@@ -29,8 +29,8 @@ export type InvoiceWorkGroup = (typeof INVOICE_WORK_GROUPS)[number];
 export const EARTHWORKS_CONNECTION_POINT = 'UNDERGROUND';
 export const GEODESY_WORK = 'Нанесення геодезії';
 
-/** The invoice's files as they appear in the API path: its scan and the basis document. */
-export const INVOICE_FILE_KINDS = ['scan', 'basis'] as const;
+/** The invoice's files as they appear in the API path: the basis document. */
+export const INVOICE_FILE_KINDS = ['basis'] as const;
 export type InvoiceFileKind = (typeof INVOICE_FILE_KINDS)[number];
 
 /** One work: its name as written and its cost in hryvnias. */
@@ -59,9 +59,9 @@ const fields = {
     .preprocess(
       blankToNull,
       z
-        .string('Вкажіть № рахунку')
+        .string('Вкажіть № розрахунку')
         .trim()
-        .max(INVOICE_NUMBER_MAX, `№ рахунку: не більше ${INVOICE_NUMBER_MAX} символів`)
+        .max(INVOICE_NUMBER_MAX, `№ розрахунку: не більше ${INVOICE_NUMBER_MAX} символів`)
         .nullable(),
     )
     .default(null),
@@ -155,7 +155,6 @@ export type InvoiceDto = {
   workingDays: number;
   /** Working days past `INVOICE_DEADLINE_DAYS`; 0 when within it. */
   overdueBy: number;
-  scan: ScanDto | null;
   basis: ScanDto | null;
   cancellation: { reason: string; at: string; by: Person } | null;
   createdBy: Person;

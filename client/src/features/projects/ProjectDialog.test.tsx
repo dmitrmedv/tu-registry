@@ -22,6 +22,7 @@ const project = (overrides: Partial<ProjectDto> = {}): ProjectDto => ({
   applicationId: APP.id,
   technicalConditionsId: 'tu000000000000000000001',
   approvalNumber: '125/П',
+  designOrganization: 'ТОВ «Проєктбуд»',
   approvalDate: '2026-03-25',
   engineer: { id: engineers[0]!.id, fullName: 'Бойко Андрій' },
   scan: null,
@@ -39,6 +40,7 @@ const estimate = (overrides: Partial<EstimateDto> = {}): EstimateDto => ({
   projectId: PROJECT_ID,
   checkDate: '2026-03-26',
   amount: 12345.67,
+  subcontractAmount: null,
   scan: null,
   imd: null,
   superseded: null,
@@ -82,11 +84,17 @@ describe('project in the application card', () => {
     expect(engineer).toHaveValue(engineers[0]!.id);
     expect(within(dialog).queryByLabelText('Дата перевірки кошторису')).toBeNull();
     await user.type(within(dialog).getByLabelText('№ узгодження'), '125/П');
+    await user.type(within(dialog).getByLabelText('Проєктна організація'), 'ТОВ «Проєктбуд»');
     await user.click(within(dialog).getByRole('button', { name: 'Додати' }));
 
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
     expect(created).toEqual([
-      { approvalNumber: '125/П', approvalDate: expect.any(String), engineer: engineers[0]!.id },
+      {
+        approvalNumber: '125/П',
+        approvalDate: expect.any(String),
+        designOrganization: 'ТОВ «Проєктбуд»',
+        engineer: engineers[0]!.id,
+      },
     ]);
   });
 
@@ -114,6 +122,7 @@ describe('project in the application card', () => {
     const dialog = await screen.findByRole('dialog', { name: 'Новий кошторис' });
     await user.type(within(dialog).getByLabelText('Дата перевірки кошторису'), '2026-03-26');
     await user.type(within(dialog).getByLabelText('Сума кошторису, грн'), '12345,67');
+    await user.type(within(dialog).getByLabelText('Сума по кошторису (субпідряд), грн'), '4000,5');
     await user.upload(
       within(dialog).getByLabelText('Файл IMD'),
       new File(['IMD'], 'Перевірка.imd', { type: '' }),
@@ -121,7 +130,9 @@ describe('project in the application card', () => {
     await user.click(within(dialog).getByRole('button', { name: 'Додати' }));
 
     await waitFor(() => expect(uploads).toEqual(['imd:Перевірка.imd']));
-    expect(created).toEqual([{ checkDate: '2026-03-26', amount: 12345.67 }]);
+    expect(created).toEqual([
+      { checkDate: '2026-03-26', amount: 12345.67, subcontractAmount: 4000.5 },
+    ]);
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
     const shown = await screen.findByRole('region', { name: 'Кошторис до проєкту № 125/П' });
     await waitFor(() => expect(shown).toHaveTextContent('26.03.2026'));
@@ -176,6 +187,9 @@ describe('project in the application card', () => {
     expect(dialog).toHaveTextContent('проєкт не зміниться');
     await user.type(within(dialog).getByLabelText('Сума кошторису, грн'), '2000');
     await user.click(within(dialog).getByRole('button', { name: 'Додати' }));
-    await waitFor(() => expect(created).toEqual([{ checkDate: null, amount: 2000 }]));
+    // The subcontract sum is optional: left empty.
+    await waitFor(() =>
+      expect(created).toEqual([{ checkDate: null, amount: 2000, subcontractAmount: null }]),
+    );
   });
 });

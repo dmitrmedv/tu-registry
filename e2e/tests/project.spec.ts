@@ -40,6 +40,7 @@ test('adds a project, then its estimate, and recalculates the estimate without t
   // The engineer of the technical conditions by default.
   await expect(dialog.getByLabel('Виконавець')).toHaveValue(engineer.id);
   await dialog.getByLabel('№ узгодження').fill('125/П');
+  await dialog.getByLabel('Проєктна організація').fill('ТОВ «Проєктбуд»');
   await dialog
     .getByRole('region', { name: 'Скан проєкту' })
     .getByLabel('PDF-файл скану')

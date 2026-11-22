@@ -10,7 +10,7 @@ import { fromIsoDate, kyivToday, toIsoDate } from '../../utils/kyivDate';
 import type { Actor } from '../applications/application.access';
 import { loadApplication } from '../applications/application.edit.service';
 import { loadExceptions } from '../calendar/calendar.service';
-import { countWorkingDays, deadline } from '../calendar/workingDays';
+import { countWorkingDays, countWorkingDaysInclusive, deadline } from '../calendar/workingDays';
 import { regNumberOf } from '../documents/document.rules';
 import { ApplicationResponse } from '../responses/response.model';
 import type { ResponseRecord } from '../responses/response.service';
@@ -219,7 +219,7 @@ export async function getProcessing(applicationId: string, actor: Actor): Promis
     ...invoices.map((invoice) => {
       const project = projects.find((row) => row._id.equals(invoice.projectId));
       const used = project
-        ? countWorkingDays(
+        ? countWorkingDaysInclusive(
             toIsoDate(project.approvalDate),
             toIsoDate(invoice.invoiceDate),
             exceptions,

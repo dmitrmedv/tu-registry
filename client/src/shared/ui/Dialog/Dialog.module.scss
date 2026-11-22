@@ -24,6 +24,11 @@
     // Fields of ~380 px beside 530 px of files, with the body's padding.
     width: min(980px, calc(100vw - 2 * var(--space-4)));
   }
+
+  // size="2xl": the invoice, 975 px by its mock-up (2026-11-22).
+  &.wide {
+    width: min(975px, calc(100vw - 2 * var(--space-4)));
+  }
 }
 
 // The title on the left, the cross that closes the dialog in the top right corner.

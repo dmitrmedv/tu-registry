@@ -1,4 +1,4 @@
-import { PROJECT_APPROVAL_NUMBER_MAX } from '@tu-registry/shared';
+import { PROJECT_APPROVAL_NUMBER_MAX, PROJECT_ORGANIZATION_MAX } from '@tu-registry/shared';
 import { type InferSchemaType, Schema, model } from 'mongoose';
 import { cancellationSchema } from '../documents/document.model';
 import { scanRecordSchema } from '../scans/scanRecord.schema';
@@ -23,6 +23,8 @@ const projectSchema = new Schema(
       maxlength: PROJECT_APPROVAL_NUMBER_MAX,
     },
     approvalDate: { type: Date, required: true },
+    // «Проєктна організація» (2026-11-21); projects entered before have none.
+    designOrganization: { type: String, trim: true, maxlength: PROJECT_ORGANIZATION_MAX },
     engineer: { type: Schema.Types.ObjectId, ref: 'Engineer', required: true },
     // As it was when chosen: renaming or deactivating the engineer changes no history.
     engineerName: { type: String, required: true },

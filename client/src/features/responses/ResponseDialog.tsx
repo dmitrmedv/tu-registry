@@ -20,6 +20,7 @@ import {
   useUpdateResponse,
   useUploadResponseScan,
 } from './queries';
+import { useDayOff } from '@/features/calendar';
 
 type FormInput = z.input<typeof createResponseSchema>;
 type FormOutput = z.output<typeof createResponseSchema>;
@@ -50,8 +51,10 @@ export function ResponseDialog({ app, response: initial, onClose, onSaved }: Pro
   const update = useUpdateResponse(app.id);
   const uploadScan = useUploadResponseScan(app.id);
   const removeScan = useRemoveResponseScan(app.id);
+  const dayOff = useDayOff();
   const {
     register,
+    watch,
     handleSubmit,
     setError,
     formState: { errors, isSubmitting },
@@ -135,7 +138,7 @@ export function ResponseDialog({ app, response: initial, onClose, onSaved }: Pro
           label="Дата відповіді"
           type="date"
           max={kyivCalendarDate()}
-          error={errors.responseDate?.message}
+          error={errors.responseDate?.message ?? dayOff(watch('responseDate'))}
           {...register('responseDate')}
         />
         {engineers.isPending ? (

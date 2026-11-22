@@ -1,4 +1,4 @@
-import type { ApplicationDto } from '@tu-registry/shared';
+import { type ApplicationDto, invoiceNumberText } from '@tu-registry/shared';
 import { InvoiceDialog } from '@/features/invoices';
 import { ProjectDialog } from '@/features/projects';
 import { ResponseDialog } from '@/features/responses';
@@ -47,7 +47,7 @@ export function AddInvoiceDialog({ app, onClose, onAdded }: AddDialogProps) {
     <InvoiceDialog
       app={app}
       onClose={onClose}
-      onSaved={(saved) => onAdded(`Рахунок № ${saved.invoiceNumber} додано`)}
+      onSaved={(saved) => onAdded(`Рахунок ${invoiceNumberText(saved.invoiceNumber)} додано`)}
     />
   );
 }

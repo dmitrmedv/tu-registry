@@ -151,7 +151,7 @@ export async function saveTuPayment(
   const { app, tu } = await loadPaymentTarget(applicationId, tuId, actor);
   for (const [field, label] of DATE_FIELDS) {
     const value = input[field];
-    if (value) assertDocumentDate(app, field, value, label);
+    if (value) await assertDocumentDate(app, field, value, label);
   }
   if (input.actTransferMonth) assertTransferMonth(app, input.actTransferMonth);
   const values = {

@@ -316,7 +316,7 @@ describe('application card, editing, annulment and history', () => {
       const sameNumber = await request(app)
         .post(`${BASE}/manual`)
         .set(authorizedOwner.auth)
-        .send({ ...fields, regDate: '2026-03-01', regSeq: '1' });
+        .send({ ...fields, regDate: '2026-03-02', regSeq: '1' });
       expect(sameNumber.status).toBe(409);
     });
 

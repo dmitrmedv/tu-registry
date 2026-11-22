@@ -12,6 +12,7 @@
     "db:seed": "tsx --env-file=.env src/scripts/seed.ts",
     "db:indexes": "tsx --env-file=.env src/scripts/syncIndexes.ts",
     "db:migrate": "tsx --env-file=.env src/scripts/migrate.ts",
+    "db:move-dates-to-working-days": "tsx --env-file=.env src/scripts/moveDatesToWorkingDays.ts",
     "db:start": "tsx src/scripts/devMongo.ts start",
     "db:stop": "tsx src/scripts/devMongo.ts stop",
     "db:status": "tsx src/scripts/devMongo.ts status",

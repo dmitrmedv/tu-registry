@@ -82,16 +82,19 @@ export function ResponsesTab({ app }: { app: ApplicationDto }) {
                 />
               </div>
               <div className={styles.frameFooter}>
-                {response.cancellation && <CancellationNote cancellation={response.cancellation} />}
-                <div className={styles.frameActions}>
-                  {response.scan && (
+                {/* The scan bottom left, the actions bottom right (2026-11-21). */}
+                {response.scan && (
+                  <div className={styles.frameScans}>
                     <IconButton
                       icon="eye"
                       label="Відкрити скан"
                       title={response.scan.name}
                       onClick={() => openScanOf(response)}
                     />
-                  )}
+                  </div>
+                )}
+                {response.cancellation && <CancellationNote cancellation={response.cancellation} />}
+                <div className={styles.frameActions}>
                   {manage && !response.cancellation && (
                     <>
                       <IconButton

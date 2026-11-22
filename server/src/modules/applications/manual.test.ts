@@ -167,7 +167,7 @@ describe('manual (back-dated) registration', () => {
     const ahead = await request(app)
       .post(MANUAL)
       .set(auth)
-      .send({ ...fields, regDate: '2026-03-01', regSeq: 5 });
+      .send({ ...fields, regDate: '2026-03-02', regSeq: 5 });
     const autoNumbers = [];
     for (let i = 0; i < 3; i++) {
       autoNumbers.push((await request(app).post(AUTO).set(auth).send(fields)).body.regNumber);
@@ -178,9 +178,21 @@ describe('manual (back-dated) registration', () => {
     expect((await Counter.findById(counterId(2026, 'ODESA')))?.lastSeq).toBe(6);
   });
 
+  it('refuses a registration date on a day off', async () => {
+    const { auth } = await as({ canManageRegistration: true });
+    const res = await request(app)
+      .post(MANUAL)
+      .set(auth)
+      .send({ ...fields, regDate: '2026-03-01', regSeq: '1' });
+    expect(res.status).toBe(400);
+    expect(res.body.error.details.fieldErrors.regDate).toEqual([
+      'Неробочий день за календарем (01.03.2026) — оберіть робочий',
+    ]);
+  });
+
   it.each([
     ['an automatic', AUTO, fields],
-    ['a manual', MANUAL, { ...fields, regDate: '2026-02-01', regSeq: '1' }],
+    ['a manual', MANUAL, { ...fields, regDate: '2026-02-02', regSeq: '1' }],
   ])('rejects a number already taken by %s registration', async (_kind, url, body) => {
     const { auth } = await as({ canManageRegistration: true });
     await request(app).post(url).set(auth).send(body);

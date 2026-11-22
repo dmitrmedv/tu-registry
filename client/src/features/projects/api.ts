@@ -1,6 +1,7 @@
 import type {
   CancelDocumentInput,
   CreateProjectInput,
+  InvoiceTermDto,
   ProjectDto,
   UpdateProjectInput,
 } from '@tu-registry/shared';
@@ -16,6 +17,11 @@ const progressOf =
 
 export const projectsApi = {
   list: (applicationId: string) => http.get<ProjectDto[]>(base(applicationId)).then((r) => r.data),
+  /** Working days from the approval to `date`, both counted, by the server's calendar. */
+  invoiceTerm: (applicationId: string, id: string, date: string) =>
+    http
+      .get<InvoiceTermDto>(`${base(applicationId)}/${id}/invoice-term`, { params: { date } })
+      .then((r) => r.data),
   create: (applicationId: string, input: CreateProjectInput) =>
     http.post<ProjectDto>(base(applicationId), input).then((r) => r.data),
   update: (applicationId: string, id: string, input: UpdateProjectInput) =>

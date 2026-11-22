@@ -12,6 +12,8 @@ export const projectRouter = Router({ mergeParams: true });
 projectRouter.get('/', controller.list);
 projectRouter.post('/', controller.create);
 projectRouter.patch('/:pid', controller.update);
+// The invoice's term as its date is typed (2026-11-22): the calendar is the server's.
+projectRouter.get('/:pid/invoice-term', controller.invoiceTerm);
 projectRouter.delete('/:pid', requireRole('ADMIN'), controller.remove);
 projectRouter.post('/:pid/cancel', controller.cancel);
 projectRouter.post('/:pid/restore', requireRole('ADMIN'), controller.restore);

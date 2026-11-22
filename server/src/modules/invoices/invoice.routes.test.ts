@@ -14,6 +14,7 @@ import { ApplicationChange } from '../applications/applicationChange.model';
 import { AuditLog } from '../audit/auditLog.model';
 import { Engineer } from '../engineers/engineer.model';
 import { scanPath } from '../scans/scan.storage';
+import { TechnicalConditions } from '../technicalConditions/technicalConditions.model';
 import { Invoice } from './invoice.model';
 
 const app = createApp();
@@ -70,16 +71,23 @@ describe('invoices', () => {
   });
 
   const addProject = () =>
-    request(app)
-      .post(`${APPLICATIONS}/${applicationId}/projects`)
-      .set(owner.auth)
-      .send({ approvalNumber: '86', approvalDate: '2026-11-06' });
+    request(app).post(`${APPLICATIONS}/${applicationId}/projects`).set(owner.auth).send({
+      approvalNumber: '86',
+      approvalDate: '2026-11-06',
+      designOrganization: 'ТОВ «Проєктбуд»',
+    });
   const url = (path = '') => `${APPLICATIONS}/${applicationId}/invoices${path}`;
   const create = (body: Record<string, unknown> = {}, who = owner) =>
     request(app)
       .post(url())
       .set(who.auth)
-      .send({ invoiceNumber: '6442/1', invoiceDate: '2026-11-20', works, ...body });
+      .send({
+        invoiceNumber: '6442/1',
+        agreementNumber: 1,
+        invoiceDate: '2026-11-20',
+        works,
+        ...body,
+      });
 
   it('needs a valid project; adds up the groups as the Excel calculation did', async () => {
     expect((await create()).body.error.code).toBe('NO_PROJECT');
@@ -92,11 +100,16 @@ describe('invoices', () => {
       CONSTRUCTION: 2228653.2,
       TIE_IN: 121792.51,
       WORK_PLAN: 225727.08,
+      EARTHWORKS: 0,
       total: 2576172.79,
     });
     expect(res.body.works).toHaveLength(7);
-    // 06.11 (not counted) → 20.11: ten working days, within the term.
-    expect(res.body).toMatchObject({ workingDays: 10, overdueBy: 0 });
+    expect(res.body.agreementNumber).toBe(1);
+    expect((await create({ agreementNumber: '' })).body.error.details.fieldErrors).toEqual({
+      agreementNumber: ['Вкажіть № додаткової угоди'],
+    });
+    // 06.11 → 20.11, both counted as in Excel (2026-11-22): eleven working days, one too many.
+    expect(res.body).toMatchObject({ workingDays: 11, overdueBy: 1 });
     expect((await request(app).get(url()).set(elsewhere.auth)).status).toBe(404);
     expect(await ApplicationChange.exists({ 'document.kind': 'INVOICE' })).toBeTruthy();
     const audit = (await AuditLog.findOne({ action: 'INVOICE_CREATED' }).lean())!;
@@ -108,15 +121,17 @@ describe('invoices', () => {
       type: 'INVOICE',
       number: '6442/1',
       norm: 10,
-      overdueBy: 0,
+      overdueBy: 1,
     });
   });
 
   it('takes several invoices, shows a late one as overdue, checks the works and dates', async () => {
     await addProject();
-    expect((await create()).status).toBe(201);
+    // 06.11 → 19.11: the tenth working day, the last of the term.
+    const inTime = await create({ invoiceDate: '2026-11-19' });
+    expect(inTime.body).toMatchObject({ workingDays: 10, overdueBy: 0 });
     const late = await create({ invoiceNumber: '6442/2', invoiceDate: '2026-11-23' });
-    expect(late.body).toMatchObject({ workingDays: 11, overdueBy: 1 });
+    expect(late.body).toMatchObject({ workingDays: 12, overdueBy: 2 });
 
     expect((await create({ invoiceDate: '2026-11-05' })).body.error.details.fieldErrors).toEqual({
       invoiceDate: [expect.stringMatching(/^Дата рахунку не може бути раніше дати узгодження/)],
@@ -125,6 +140,64 @@ describe('invoices', () => {
     expect(
       (await create({ works: [{ group: 'TIE_IN', name: 'Врізання', amount: 0 }] })).status,
     ).toBe(400);
+  });
+
+  it('takes several works of a group, and the earthworks permits only underground', async () => {
+    await addProject();
+    const geodesy = { group: 'EARTHWORKS', name: 'Нанесення геодезії', amount: 1000 };
+    const twice = await create({
+      works: [...works, { group: 'TIE_IN', name: 'Врізання', amount: 1 }],
+    });
+    expect(twice.body.totals).toMatchObject({ TIE_IN: 121793.51 });
+    const res = await create({ works: [...works, geodesy] });
+    expect(res.body.totals).toMatchObject({ EARTHWORKS: 1000, total: 2577172.79 });
+
+    await TechnicalConditions.updateOne({}, { connectionPoint: 'ABOVE_GROUND' });
+    // Above ground there are no earthworks: no permit of any kind.
+    const permit = {
+      group: 'EARTHWORKS',
+      name: 'Отримання дозволу на земляні роботи',
+      amount: 500,
+    };
+    for (const work of [geodesy, permit]) {
+      const above = await create({ works: [...works, work] });
+      expect(above.body.error.details.fieldErrors).toEqual({
+        works: ['Дозволи на земляні роботи — лише коли точка приєднання — підземний газопровід'],
+      });
+    }
+  });
+
+  it('is made without a number; the number is added when the accounts department gives it', async () => {
+    await addProject();
+    const res = await create({ invoiceNumber: '  ' });
+    expect(res.body).toMatchObject({ invoiceNumber: null, version: 1 });
+    expect(
+      await ApplicationChange.exists({ 'document.kind': 'INVOICE', 'document.number': 'б/н' }),
+    ).toBeTruthy();
+
+    const numbered = await request(app)
+      .patch(url(`/${res.body.id}`))
+      .set(owner.auth)
+      .send({
+        version: 1,
+        invoiceNumber: '6442/1',
+        agreementNumber: 1,
+        invoiceDate: '2026-11-20',
+        comment: '  Оплата частинами ',
+        works,
+      });
+    expect(numbered.body).toMatchObject({
+      invoiceNumber: '6442/1',
+      comment: 'Оплата частинами',
+      version: 2,
+    });
+    const change = (await AuditLog.findOne({ action: 'INVOICE_UPDATED' }).lean())!;
+    expect(change.details).toMatchObject({
+      changes: [
+        { field: 'invoiceNumber', from: null, to: '6442/1' },
+        { field: 'comment', from: null, to: 'Оплата частинами' },
+      ],
+    });
   });
 
   it('changes the invoice the user saw, journalling the total', async () => {
@@ -136,6 +209,7 @@ describe('invoices', () => {
       .send({
         version: 1,
         invoiceNumber: '6442/1',
+        agreementNumber: 1,
         invoiceDate: '2026-11-20',
         works: [{ group: 'TIE_IN', name: 'Врізання', amount: 100 }],
       });
@@ -147,7 +221,13 @@ describe('invoices', () => {
     const stale = await request(app)
       .patch(url(`/${id}`))
       .set(owner.auth)
-      .send({ version: 1, invoiceNumber: 'x', invoiceDate: '2026-11-20', works });
+      .send({
+        version: 1,
+        invoiceNumber: 'x',
+        agreementNumber: 1,
+        invoiceDate: '2026-11-20',
+        works,
+      });
     expect(stale.body.error.code).toBe('VERSION_CONFLICT');
   });
 

@@ -29,6 +29,7 @@ import {
   toInput,
 } from './tuPaymentForm';
 import styles from './TuPaymentDialog.module.scss';
+import { useDayOff } from '@/features/calendar';
 
 const FORM_ID = 'tu-payment-form';
 
@@ -61,8 +62,10 @@ export function TuPaymentDialog({ applicationId, tu, onClose, onSaved }: Props) 
   const contractDocument = useScanChange(scanChange('contractDocument'));
   // Offered as soon as the dialog opens (2026-11-20); kept only with the contract's date.
   const offered = useNextContractNumber(applicationId, tu.id, !tu.payment?.contractNumber);
+  const dayOff = useDayOff();
   const {
     register,
+    watch,
     handleSubmit,
     setValue,
     getValues,
@@ -125,6 +128,7 @@ export function TuPaymentDialog({ applicationId, tu, onClose, onSaved }: Props) 
   const amountField = (name: 'amount' | 'paidAmount', label: string) => (
     <TextField
       label={label}
+      amount
       inputMode="decimal"
       autoComplete="off"
       placeholder="1 234,56"
@@ -171,7 +175,7 @@ export function TuPaymentDialog({ applicationId, tu, onClose, onSaved }: Props) 
                 label="Дата рахунку"
                 type="date"
                 max={today}
-                error={errors.invoiceDate?.message}
+                error={errors.invoiceDate?.message ?? dayOff(watch('invoiceDate'))}
                 {...register('invoiceDate')}
               />
               <div className={styles.pair}>
@@ -187,7 +191,7 @@ export function TuPaymentDialog({ applicationId, tu, onClose, onSaved }: Props) 
                   label="Дата договору"
                   type="date"
                   max={today}
-                  error={errors.contractDate?.message}
+                  error={errors.contractDate?.message ?? dayOff(watch('contractDate'))}
                   {...register('contractDate')}
                 />
               </div>
@@ -202,7 +206,7 @@ export function TuPaymentDialog({ applicationId, tu, onClose, onSaved }: Props) 
                 label="Дата оплати"
                 type="date"
                 max={today}
-                error={errors.paidDate?.message}
+                error={errors.paidDate?.message ?? dayOff(watch('paidDate'))}
                 {...register('paidDate')}
               />
             </div>

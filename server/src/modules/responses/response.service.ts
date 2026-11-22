@@ -90,7 +90,7 @@ export async function createResponse(
     responseDate,
     engineer: engineerId,
   } = input as Required<Pick<CreateResponseInput, 'outgoingNumber' | 'responseDate' | 'engineer'>>;
-  assertDocumentDate(app, 'responseDate', responseDate, 'Дата відповіді');
+  await assertDocumentDate(app, 'responseDate', responseDate, 'Дата відповіді');
   const engineer = await resolveEngineer(app, engineerId);
   const [created] = await changeDocuments(app, (session) =>
     ApplicationResponse.create(
@@ -140,7 +140,7 @@ export async function updateResponse(
   };
 
   if (next.responseDate !== was.responseDate) {
-    assertDocumentDate(app, 'responseDate', next.responseDate, 'Дата відповіді');
+    await assertDocumentDate(app, 'responseDate', next.responseDate, 'Дата відповіді');
   }
   if (next.documentsReceivedAt && next.documentsReceivedAt !== was.documentsReceivedAt) {
     if (next.documentsReceivedAt > kyivToday().iso) {

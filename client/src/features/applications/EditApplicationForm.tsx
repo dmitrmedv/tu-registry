@@ -21,6 +21,7 @@ import styles from './ApplicationForm.module.scss';
 import { ManualNumberStatus } from './ManualNumberStatus';
 import { useUpdateApplication } from './queries';
 import { notifyError, notifyInfo } from '@/shared/lib/notify';
+import { useDayOff } from '@/features/calendar';
 
 type ServerErrorDetails = { fieldErrors?: Record<string, string[] | undefined> };
 
@@ -122,6 +123,7 @@ export function EditApplicationForm({
   // Outside the form schema (it describes the application's content); admins only.
   const [department, setDepartment] = useState<Department>(app.department);
 
+  const dayOff = useDayOff();
   const form = useForm<ManualApplicationInput, unknown, ManualApplicationData>({
     resolver: zodResolver(
       manualApplicationSchema(today, {
@@ -233,7 +235,7 @@ export function EditApplicationForm({
                   label="Дата реєстрації"
                   type="date"
                   max={today}
-                  error={errors.regDate?.message}
+                  error={errors.regDate?.message ?? dayOff(watch('regDate'))}
                   {...register('regDate')}
                 />
                 <TextField

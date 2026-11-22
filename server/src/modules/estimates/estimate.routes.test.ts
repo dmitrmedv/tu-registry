@@ -75,10 +75,11 @@ describe('estimates', () => {
 
   const addProject = async () => {
     projectId = (
-      await request(app)
-        .post(`${base()}/projects`)
-        .set(owner.auth)
-        .send({ approvalNumber: '125/П', approvalDate: '2026-11-18' })
+      await request(app).post(`${base()}/projects`).set(owner.auth).send({
+        approvalNumber: '125/П',
+        approvalDate: '2026-11-18',
+        designOrganization: 'ТОВ «Проєктбуд»',
+      })
     ).body.id;
   };
 
@@ -87,20 +88,29 @@ describe('estimates', () => {
     await addProject();
     expect((await create({ checkDate: '2026-11-25' })).status).toBe(400);
     expect((await create({ amount: '-1' })).status).toBe(400);
+    expect((await create({ subcontractAmount: '-1' })).status).toBe(400);
 
-    const res = await create({ checkDate: '2026-11-19', amount: '12 345,67' });
+    const res = await create({
+      checkDate: '2026-11-19',
+      amount: '12 345,67',
+      subcontractAmount: '4 000,50',
+    });
 
     expect(res.status).toBe(201);
     expect(res.body).toMatchObject({
       projectId,
       checkDate: '2026-11-19',
       amount: 12345.67,
+      subcontractAmount: 4000.5,
       scan: null,
       imd: null,
       superseded: null,
       version: 1,
     });
-    expect((await Estimate.findById(res.body.id).lean())!.amountKopecks).toBe(1234567);
+    expect(await Estimate.findById(res.body.id).lean()).toMatchObject({
+      amountKopecks: 1234567,
+      subcontractAmountKopecks: 400050,
+    });
     expect((await request(app).get(url()).set(elsewhere.auth)).status).toBe(404);
     expect(
       await ApplicationChange.exists({ 'document.kind': 'ESTIMATE', 'document.number': '125/П' }),
@@ -110,13 +120,26 @@ describe('estimates', () => {
     expect(audit.details).toMatchObject({
       approvalNumber: '125/П',
       amount: formatHryvnias(12345.67),
+      subcontractAmount: formatHryvnias(4000.5),
     });
 
     const edit = await request(app)
       .patch(url(`/${res.body.id}`))
       .set(owner.auth)
       .send({ version: 1, checkDate: null, amount: '100' });
-    expect(edit.body).toMatchObject({ checkDate: null, amount: 100, version: 2 });
+    // Not sent, so cleared: the form always sends the whole estimate.
+    expect(edit.body).toMatchObject({
+      checkDate: null,
+      amount: 100,
+      subcontractAmount: null,
+      version: 2,
+    });
+    const change = (await AuditLog.findOne({ action: 'ESTIMATE_UPDATED' }).lean())!;
+    expect(change.details).toMatchObject({
+      changes: expect.arrayContaining([
+        { field: 'subcontractAmount', from: formatHryvnias(4000.5), to: null },
+      ]),
+    });
     const stale = await request(app)
       .patch(url(`/${res.body.id}`))
       .set(owner.auth)
@@ -264,6 +287,7 @@ describe('estimates', () => {
       projectId,
       checkDate: '2026-11-19',
       amount: null,
+      subcontractAmount: null,
       imd: { name: 'Перевірка.imd' },
       superseded: null,
     });

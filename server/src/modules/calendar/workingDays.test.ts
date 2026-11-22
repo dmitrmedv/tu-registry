@@ -4,6 +4,7 @@ import {
   addWorkingDays,
   type CalendarExceptions,
   countWorkingDays,
+  countWorkingDaysInclusive,
   deadline,
   isWorkingDay,
 } from './workingDays';
@@ -26,6 +27,16 @@ describe('working days', () => {
     expect(countWorkingDays(MONDAY, '2026-11-03', none)).toBe(1);
     expect(countWorkingDays(MONDAY, MONDAY, none)).toBe(0);
     expect(countWorkingDays(MONDAY, '2026-10-30', none)).toBe(0);
+  });
+
+  it('counts both days for the invoice, as Excel does', () => {
+    // Approved and invoiced on the same Monday: 1 working day, though 0 calendar days.
+    expect(countWorkingDaysInclusive(MONDAY, MONDAY, none)).toBe(1);
+    expect(countWorkingDaysInclusive(MONDAY, '2026-11-13', none)).toBe(10);
+    // A Saturday approval is not a working day itself.
+    expect(countWorkingDaysInclusive('2026-11-07', '2026-11-09', none)).toBe(1);
+    expect(countWorkingDaysInclusive('2026-11-07', '2026-11-08', none)).toBe(0);
+    expect(countWorkingDaysInclusive(MONDAY, '2026-10-30', none)).toBe(0);
   });
 
   it('skips the weekend', () => {

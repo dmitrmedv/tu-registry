@@ -3,7 +3,7 @@ import type {
   CreateProjectInput,
   UpdateProjectInput,
 } from '@tu-registry/shared';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { projectsApi as api } from './api';
 
 /** Under the application's key: whatever refreshes the application refreshes these too. */
@@ -15,6 +15,19 @@ export function useProjects(applicationId: string) {
   return useQuery({
     queryKey: projectsKeys.list(applicationId),
     queryFn: () => api.list(applicationId),
+  });
+}
+
+/**
+ * The term of an invoice dated `date` under the project (2026-11-22); the last count stays shown
+ * while the next date's is fetched.
+ */
+export function useInvoiceTerm(applicationId: string, projectId?: string, date?: string) {
+  return useQuery({
+    queryKey: [...projectsKeys.list(applicationId), projectId, 'invoice-term', date] as const,
+    queryFn: () => api.invoiceTerm(applicationId, projectId!, date!),
+    enabled: Boolean(projectId && date),
+    placeholderData: keepPreviousData,
   });
 }
 

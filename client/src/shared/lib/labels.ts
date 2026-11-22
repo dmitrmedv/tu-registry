@@ -196,6 +196,7 @@ export const CONTRACT_FIELD_LABELS: Record<string, string> = {
 export const PROJECT_FIELD_LABELS: Record<string, string> = {
   approvalNumber: '№ узгодження',
   approvalDate: 'дата узгодження',
+  designOrganization: 'проєктна організація',
   engineer: 'виконавець',
   scan: 'скан проєкту',
   estimateCheckDate: 'дата перевірки кошторису',
@@ -207,6 +208,7 @@ export const PROJECT_FIELD_LABELS: Record<string, string> = {
 export const ESTIMATE_FIELD_LABELS: Record<string, string> = {
   checkDate: 'дата перевірки',
   amount: 'сума кошторису',
+  subcontractAmount: 'сума по кошторису (субпідряд)',
   scan: 'скан кошторису',
   imd: 'файл перевірки (IMD)',
   superseded: 'стан',
@@ -215,7 +217,9 @@ export const ESTIMATE_FIELD_LABELS: Record<string, string> = {
 /** Fields of the invoice for the connection, in the journal and the history. */
 export const INVOICE_FIELD_LABELS: Record<string, string> = {
   invoiceNumber: '№ рахунку',
+  agreementNumber: '№ додаткової угоди',
   invoiceDate: 'дата рахунку',
+  comment: 'коментар',
   works: 'загальна вартість робіт',
   scan: 'скан рахунку',
   basis: 'підстава рахунку',
@@ -226,6 +230,7 @@ export const INVOICE_WORK_GROUP_LABELS: Record<InvoiceWorkGroup, string> = {
   CONSTRUCTION: 'Будівельно-монтажні роботи',
   TIE_IN: 'Врізання',
   WORK_PLAN: 'ПВР',
+  EARTHWORKS: 'Дозволи на земляні роботи',
 };
 
 /** Fields of responses and technical conditions, in the journal and the history. */

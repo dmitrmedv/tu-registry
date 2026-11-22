@@ -1,5 +1,6 @@
-import type { UpdateCalendarDayInput } from '@tu-registry/shared';
+import { dayOffMessage, isWorkingDate, type UpdateCalendarDayInput } from '@tu-registry/shared';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useCallback } from 'react';
 import { calendarApi } from './api';
 
 export const calendarKeys = {
@@ -9,6 +10,28 @@ export const calendarKeys = {
 
 export function useCalendarDays(year: number) {
   return useQuery({ queryKey: calendarKeys.year(year), queryFn: () => calendarApi.list(year) });
+}
+
+const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
+
+/**
+ * The error of a date picked on a day off by the administrator's calendar (2026-11-22), shown
+ * as soon as it is picked; the server refuses it with the same words.
+ */
+export function useDayOff() {
+  const { data } = useQuery({
+    queryKey: [...calendarKeys.all, 'exceptions'] as const,
+    queryFn: calendarApi.exceptions,
+    staleTime: 5 * 60_000,
+  });
+  return useCallback(
+    (isoDate: unknown) => {
+      if (!data || typeof isoDate !== 'string' || !ISO_DATE.test(isoDate)) return undefined;
+      const exception = data.find((day) => day.date === isoDate)?.kind;
+      return isWorkingDate(isoDate, exception) ? undefined : dayOffMessage(isoDate);
+    },
+    [data],
+  );
 }
 
 function useCalendarMutation<TVariables, TResult>(fn: (v: TVariables) => Promise<TResult>) {

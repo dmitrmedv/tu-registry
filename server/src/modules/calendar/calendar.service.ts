@@ -4,6 +4,7 @@ import {
   calendarKindError,
   type CreateCalendarDayInput,
   type UpdateCalendarDayInput,
+  type CalendarExceptionDto,
 } from '@tu-registry/shared';
 import mongoose, { type Types } from 'mongoose';
 import { ApiError } from '../../utils/ApiError';
@@ -42,6 +43,15 @@ function fieldError(field: string, message: string, status = 400) {
     formErrors: [],
     fieldErrors: { [field]: [message] },
   });
+}
+
+/** All the exceptions, without who made them: the forms check the dates typed against them. */
+export async function listCalendarExceptions(): Promise<CalendarExceptionDto[]> {
+  const rows = await CalendarDay.find()
+    .sort({ _id: 1 })
+    .select('kind')
+    .lean<{ _id: string; kind: CalendarDayKind }[]>();
+  return rows.map((row) => ({ date: row._id, kind: row.kind }));
 }
 
 export async function listCalendarDays(year: number) {
@@ -140,7 +150,7 @@ export async function deleteCalendarDay(date: string, actor: Actor, context: Req
 
 /** Every exception after `from`: a few dozen a year, so no upper bound is needed. */
 export async function loadExceptions(from: string): Promise<CalendarExceptions> {
-  const rows = await CalendarDay.find({ _id: mongoose.trusted({ $gt: from }) })
+  const rows = await CalendarDay.find({ _id: mongoose.trusted({ $gte: from }) })
     .select('kind')
     .lean<{ _id: string; kind: CalendarDayKind }[]>();
   return new Map(rows.map((row) => [row._id, row.kind]));

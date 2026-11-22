@@ -9,6 +9,8 @@ import type { PreviousScanDto } from './response';
  * (`estimate.ts`): recalculated without the project being approved again.
  */
 export const PROJECT_APPROVAL_NUMBER_MAX = 50;
+/** «Проєктна організація» (2026-11-21): who made the project, required. */
+export const PROJECT_ORGANIZATION_MAX = 300;
 
 const approvalNumberField = z
   .string('Вкажіть № узгодження')
@@ -19,6 +21,14 @@ const approvalNumberField = z
     `№ узгодження: не більше ${PROJECT_APPROVAL_NUMBER_MAX} символів`,
   );
 const dateField = z.iso.date('Вкажіть коректну дату');
+const organizationField = z
+  .string('Вкажіть проєктну організацію')
+  .trim()
+  .min(1, 'Вкажіть проєктну організацію')
+  .max(
+    PROJECT_ORGANIZATION_MAX,
+    `Проєктна організація: не більше ${PROJECT_ORGANIZATION_MAX} символів`,
+  );
 const engineerField = z.string('Оберіть виконавця').regex(/^[a-f\d]{24}$/i, 'Оберіть виконавця');
 const versionField = z.number('Відсутня версія документа').int().min(1);
 
@@ -27,6 +37,7 @@ export const createProjectSchema = z
   .object({
     approvalNumber: approvalNumberField,
     approvalDate: dateField,
+    designOrganization: organizationField,
     engineer: engineerField.optional(),
   })
   .strict();
@@ -36,6 +47,7 @@ export const updateProjectSchema = z
     version: versionField,
     approvalNumber: approvalNumberField.optional(),
     approvalDate: dateField.optional(),
+    designOrganization: organizationField.optional(),
     engineer: engineerField.optional(),
   })
   .strict()
@@ -58,6 +70,8 @@ export type ProjectDto = {
   technicalConditionsId: string;
   approvalNumber: string;
   approvalDate: string;
+  /** Empty for projects entered before the field (2026-11-21). */
+  designOrganization: string;
   engineer: Person;
   scan: ScanDto | null;
   previousScans: PreviousScanDto[];

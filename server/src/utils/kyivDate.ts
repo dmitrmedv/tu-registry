@@ -24,6 +24,11 @@ export function nextIsoDate(isoDate: string) {
   return toIsoDate(new Date(fromIsoDate(isoDate).getTime() + DAY_MS));
 }
 
+/** "2026-03-13" → "2026-03-12". */
+export function previousIsoDate(isoDate: string) {
+  return toIsoDate(new Date(fromIsoDate(isoDate).getTime() - DAY_MS));
+}
+
 /**
  * The UTC instant at which the Kyiv calendar day `isoDate` begins (UTC+2 in winter, UTC+3 in
  * summer). Used to filter timestamps such as audit entries by Kyiv days.

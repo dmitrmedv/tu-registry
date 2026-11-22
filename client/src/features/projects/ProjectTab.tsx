@@ -159,6 +159,7 @@ export function ProjectTab({ app }: { app: ApplicationDto }) {
             )}
             <DataList labels="fixed">
               <DataRow label="Узгодження">{titleOf(shown)}</DataRow>
+              <DataRow label="Проєктна організація">{shown.designOrganization || '—'}</DataRow>
               <DataRow label="Виконавець">
                 <span title={shown.engineer.fullName}>{shortName(shown.engineer.fullName)}</span>
               </DataRow>

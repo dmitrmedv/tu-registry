@@ -4,6 +4,8 @@ import {
   type CreateInvoiceData,
   formatHryvnias,
   fromKopecks,
+  EARTHWORKS_CONNECTION_POINT,
+  INVOICE_NO_NUMBER,
   INVOICE_DEADLINE_DAYS,
   type InvoiceDto,
   invoiceTotals,
@@ -21,10 +23,11 @@ import { loadApplication, loadEditableApplication } from '../applications/applic
 import { type FieldChange, recordDocumentChange } from '../applications/applicationChange.service';
 import { type RequestContext, recordAudit } from '../audit/audit.service';
 import { loadExceptions } from '../calendar/calendar.service';
-import { countWorkingDays } from '../calendar/workingDays';
+import { countWorkingDaysInclusive } from '../calendar/workingDays';
 import type { ScanRecord } from '../documents/document.dto';
 import { assertDocumentDate, fieldError, regNumberOf } from '../documents/document.rules';
 import { Project } from '../projects/project.model';
+import { TechnicalConditions } from '../technicalConditions/technicalConditions.model';
 import { deleteStoredFile } from '../scans/scan.storage';
 import { findUserSummaries } from '../users/user.service';
 import { Invoice } from './invoice.model';
@@ -33,8 +36,10 @@ export type InvoiceRecord = {
   _id: Types.ObjectId;
   applicationId: Types.ObjectId;
   projectId: Types.ObjectId;
-  invoiceNumber: string;
+  invoiceNumber: string | null;
+  agreementNumber?: number | null;
   invoiceDate: Date;
+  comment?: string | null;
   works: { group: InvoiceWorkGroup; name: string; amountKopecks: number }[];
   scan?: ScanRecord | null;
   basis?: ScanRecord | null;
@@ -87,7 +92,11 @@ export async function auditInvoice(
       applicationId: app._id,
       actorId: actor.id,
       action,
-      document: { kind: 'INVOICE', id: invoice._id, number: invoice.invoiceNumber },
+      document: {
+        kind: 'INVOICE',
+        id: invoice._id,
+        number: invoice.invoiceNumber ?? INVOICE_NO_NUMBER,
+      },
       changes,
     },
     session,
@@ -147,13 +156,15 @@ async function toDtos(app: ApplicationDocument, rows: InvoiceRecord[]): Promise<
     const invoiceDate = toIsoDate(row.invoiceDate);
     // A project deleted since: its date is unknown, so is the term.
     const approval = approvals.get(String(row.projectId));
-    const workingDays = approval ? countWorkingDays(approval, invoiceDate, exceptions) : 0;
+    const workingDays = approval ? countWorkingDaysInclusive(approval, invoiceDate, exceptions) : 0;
     return {
       id: String(row._id),
       applicationId: String(row.applicationId),
       projectId: String(row.projectId),
       invoiceNumber: row.invoiceNumber,
+      agreementNumber: row.agreementNumber ?? null,
       invoiceDate,
+      comment: row.comment ?? null,
       works,
       totals: invoiceTotals(works),
       workingDays,
@@ -205,13 +216,34 @@ export async function listInvoices(applicationId: string, actor: Actor) {
 }
 
 /** Not before the project's approval, nor after today; the term itself is only shown. */
-function assertInvoiceDate(app: ApplicationDocument, invoiceDate: string, approvalDate: Date) {
-  assertDocumentDate(app, 'invoiceDate', invoiceDate, 'Дата рахунку');
+async function assertInvoiceDate(
+  app: ApplicationDocument,
+  invoiceDate: string,
+  approvalDate: Date,
+) {
+  await assertDocumentDate(app, 'invoiceDate', invoiceDate, 'Дата рахунку');
   const approval = toIsoDate(approvalDate);
   if (invoiceDate < approval) {
     throw fieldError(
       'invoiceDate',
       `Дата рахунку не може бути раніше дати узгодження проєкту (${approval.split('-').reverse().join('.')})`,
+    );
+  }
+}
+
+const hasEarthworks = (input: CreateInvoiceData) =>
+  input.works.some((work) => work.group === 'EARTHWORKS');
+
+/** Earthworks permits only where the technical conditions connect underground (2026-11-22). */
+async function assertEarthworks(input: CreateInvoiceData, technicalConditionsId: Types.ObjectId) {
+  if (!hasEarthworks(input)) return;
+  const tu = await TechnicalConditions.findById(technicalConditionsId)
+    .select('connectionPoint')
+    .lean<{ connectionPoint: string }>();
+  if (tu?.connectionPoint !== EARTHWORKS_CONNECTION_POINT) {
+    throw fieldError(
+      'works',
+      'Дозволи на земляні роботи — лише коли точка приєднання — підземний газопровід',
     );
   }
 }
@@ -232,8 +264,8 @@ export async function createInvoice(
 ) {
   const app = await loadEditableApplication(applicationId, actor);
   const project = await Project.findOne({ applicationId: app._id, active: true })
-    .select('approvalDate')
-    .lean<{ _id: Types.ObjectId; approvalDate: Date }>();
+    .select('approvalDate technicalConditionsId')
+    .lean<{ _id: Types.ObjectId; approvalDate: Date; technicalConditionsId: Types.ObjectId }>();
   if (!project) {
     throw new ApiError(
       409,
@@ -241,18 +273,22 @@ export async function createInvoice(
       'Рахунок складається за чинним проєктом: спершу внесіть проєкт.',
     );
   }
-  assertInvoiceDate(app, input.invoiceDate, project.approvalDate);
+  await assertInvoiceDate(app, input.invoiceDate, project.approvalDate);
+  await assertEarthworks(input, project.technicalConditionsId);
   const created = await Invoice.create({
     applicationId: app._id,
     projectId: project._id,
     invoiceNumber: input.invoiceNumber,
+    agreementNumber: input.agreementNumber,
     invoiceDate: fromIsoDate(input.invoiceDate),
+    comment: input.comment,
     works: storedWorks(input),
     createdBy: actor.id,
   });
   const record = created.toObject() as unknown as InvoiceRecord;
   await auditInvoice('INVOICE_CREATED', actor, app, record, context, {
     invoiceDate: input.invoiceDate,
+    agreementNumber: input.agreementNumber,
     total: totalText(record),
   });
   return invoiceDto(app, String(created._id));
@@ -272,14 +308,28 @@ export async function updateInvoice(
   if (input.invoiceNumber !== invoice.invoiceNumber) {
     changes.push({ field: 'invoiceNumber', from: invoice.invoiceNumber, to: input.invoiceNumber });
   }
+  const agreementNumber = invoice.agreementNumber ?? null;
+  if (input.agreementNumber !== agreementNumber) {
+    changes.push({ field: 'agreementNumber', from: agreementNumber, to: input.agreementNumber });
+  }
+  const comment = invoice.comment ?? null;
+  if (input.comment !== comment) {
+    changes.push({ field: 'comment', from: comment, to: input.comment });
+  }
   const invoiceDate = toIsoDate(invoice.invoiceDate);
   if (input.invoiceDate !== invoiceDate) {
     const project = await Project.findById(invoice.projectId).select('approvalDate').lean();
-    if (project) assertInvoiceDate(app, input.invoiceDate, project.approvalDate);
-    else assertDocumentDate(app, 'invoiceDate', input.invoiceDate, 'Дата рахунку');
+    if (project) await assertInvoiceDate(app, input.invoiceDate, project.approvalDate);
+    else await assertDocumentDate(app, 'invoiceDate', input.invoiceDate, 'Дата рахунку');
     changes.push({ field: 'invoiceDate', from: invoiceDate, to: input.invoiceDate });
   }
   const works = storedWorks(input);
+  if (hasEarthworks(input)) {
+    const project = await Project.findById(invoice.projectId)
+      .select('technicalConditionsId')
+      .lean<{ technicalConditionsId: Types.ObjectId }>();
+    if (project) await assertEarthworks(input, project.technicalConditionsId);
+  }
   if (
     JSON.stringify(works) !==
     JSON.stringify(
@@ -296,7 +346,9 @@ export async function updateInvoice(
     {
       $set: {
         invoiceNumber: input.invoiceNumber,
+        agreementNumber: input.agreementNumber,
         invoiceDate: fromIsoDate(input.invoiceDate),
+        comment: input.comment,
         works,
         updatedBy: actor.id,
       },

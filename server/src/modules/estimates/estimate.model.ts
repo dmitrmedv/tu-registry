@@ -21,6 +21,8 @@ const estimateSchema = new Schema(
     checkDate: { type: Date, default: null },
     // Kopecks: whole numbers add up exactly.
     amountKopecks: { type: Number, default: null, min: 1 },
+    // «Сума по кошторису (субпідряд)» (2026-11-21); absent in the estimates entered before.
+    subcontractAmountKopecks: { type: Number, default: null, min: 1 },
     // Its scan (PDF) and the check file (.imd).
     scan: { type: scanRecordSchema, default: undefined },
     imd: { type: scanRecordSchema, default: undefined },

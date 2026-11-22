@@ -14,6 +14,7 @@ import {
   moveCountersToDefaultDepartment,
 } from '../modules/applications/application.migration';
 import { moveProjectEstimates } from '../modules/estimates/estimate.migration';
+import { dropInvoiceScans } from '../modules/invoices/invoice.migration';
 import { moveActTransferDateToMonth } from '../modules/tuPayments/tuPayment.migration';
 
 /** Data changes required by new schema rules. Safe to run repeatedly (and on every deploy). */
@@ -47,6 +48,8 @@ async function main() {
     logger.info({ actMonths }, 'Act transfer dates of TU payments turned into months');
     const estimates = await moveProjectEstimates();
     logger.info({ estimates }, 'Estimates moved out of projects into their own collection');
+    const invoiceScans = await dropInvoiceScans();
+    logger.info({ invoiceScans }, 'Invoice scans deleted');
   } finally {
     await disconnectDb();
   }

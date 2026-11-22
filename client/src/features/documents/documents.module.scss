@@ -99,8 +99,10 @@
   align-items: flex-end;
   justify-content: space-between;
   gap: var(--space-3);
-  margin-top: auto;
-  padding-top: 55px;
+  margin-top: 8px;
+  padding-top: 8px;
+
+  // border-top: 1px solid var(--color-border-strong);
 }
 
 // The scans of a frame, bottom left.
@@ -137,7 +139,6 @@
 // Parts of a tab side by side in titled frames (the «ТУ» tab: the conditions and their
 // payment, agreed 2026-11-19); one under the other on narrower screens.
 .split {
-  // outline: 1px solid red;
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   gap: var(--space-6) var(--space-4);

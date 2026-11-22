@@ -10,6 +10,7 @@ import mongoose, { type ClientSession } from 'mongoose';
 import { ApiError } from '../../utils/ApiError';
 import { clock } from '../../utils/clock';
 import { inTransaction, isDuplicateKey } from '../../utils/db';
+import { recomputeProcessing } from '../processing/processing.summary';
 import { fromIsoDate, toIsoDate } from '../../utils/kyivDate';
 import type { Actor } from '../applications/application.access';
 import type { ApplicationDocument } from '../applications/application.dto';
@@ -234,6 +235,8 @@ export async function createContract(
   await auditContract('CONTRACT_CREATED', actor, app, created, context, {
     contractDate: input.contractDate,
   });
+  // Its number goes into the search (2026-11-22).
+  await recomputeProcessing(app._id);
   return contractDto(app, String(created._id));
 }
 
@@ -282,6 +285,7 @@ export async function updateContract(
     context,
     { changes },
   );
+  if (input.contractNumber !== contract.contractNumber) await recomputeProcessing(app._id);
   return contractDto(app, id);
 }
 
@@ -304,6 +308,8 @@ export async function cancelContract(
   );
   if (matchedCount === 0) throw contractConflict();
   await auditContract('CONTRACT_CANCELLED', actor, app, contract, context);
+  // A cancelled contract is not found by its number, like the other documents.
+  await recomputeProcessing(app._id);
   return contractDto(app, id);
 }
 
@@ -325,6 +331,7 @@ export async function deleteContract(
     const { deletedCount } = await Contract.deleteOne({ _id: contract._id, version }, { session });
     if (deletedCount === 0) throw contractConflict();
     await auditContract('CONTRACT_DELETED', actor, app, contract, context, {}, session);
+    await recomputeProcessing(app._id, session);
   });
   // After the commit: a failed deletion must not lose the files of a contract still in place.
   await Promise.all(

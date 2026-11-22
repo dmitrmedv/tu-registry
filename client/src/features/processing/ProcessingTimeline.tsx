@@ -15,7 +15,7 @@ const TITLES: Record<TimelineEventDto['type'], string> = {
   CONTRACT: 'Договір',
   CONTRACT_SIGNED: 'Договір укладено',
   PROJECT: 'Проєкт',
-  INVOICE: 'Рахунок',
+  INVOICE: 'Розрахунок',
 };
 
 type Props = {

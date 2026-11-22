@@ -122,7 +122,7 @@ describe('responses in the application card', () => {
       ['Технічні умови', false],
       ['Договір', false],
       ['Проєкт', false],
-      ['Рахунок', false],
+      ['Розрахунок', false],
     ]);
   });
 
@@ -175,7 +175,7 @@ describe('responses in the application card', () => {
       ['Технічні умови', false],
       ['Договір', false],
       ['Проєкт', false],
-      ['Рахунок', false],
+      ['Розрахунок', false],
     ]);
   });
 

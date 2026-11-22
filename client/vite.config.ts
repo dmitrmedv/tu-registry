@@ -26,6 +26,10 @@ export default defineConfig({
               test: /node_modules[\\/](react|react-dom|scheduler|react-router)[\\/]/,
               priority: 2,
             },
+            // Only for the calculation's Excel file, loaded when asked for (2026-11-22).
+            { name: 'exceljs', test: /node_modules[\\/]exceljs[\\/]/, priority: 3 },
+            // Only for the calculation's PDF (2026-11-23).
+            { name: 'pdfmake', test: /node_modules[\\/]pdfmake[\\/]/, priority: 3 },
             { name: 'vendor', test: /node_modules[\\/]/, priority: 1 },
           ],
         },

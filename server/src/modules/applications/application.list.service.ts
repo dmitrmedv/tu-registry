@@ -45,6 +45,7 @@ type ListedApplication = {
     lastResponseNumber?: string;
     tuDate?: Date;
     tuNumber?: string;
+    contractNumber?: string;
     gasFlow?: number;
     connectionType?: ApplicationListItemDto['connectionType'];
     engineerName?: string;
@@ -115,6 +116,7 @@ async function findComputed(
 const STORED_KEYS = {
   lastResponseNumber: '$processing.lastResponseNumber',
   tuNumber: '$processing.tuNumber',
+  contractNumber: '$processing.contractNumber',
   gasFlow: '$processing.gasFlow',
   engineer: '$processing.engineerName',
 } as const;
@@ -226,6 +228,7 @@ export async function listApplications(
       lastResponseNumber: row.processing?.lastResponseNumber ?? null,
       tuDate: row.processing?.tuDate ? toIsoDate(row.processing.tuDate) : null,
       tuNumber: row.processing?.tuNumber ?? null,
+      contractNumber: row.processing?.contractNumber ?? null,
       gasFlow: row.processing?.gasFlow ?? null,
       connectionType: row.processing?.connectionType ?? null,
       engineerName: row.processing?.engineerName ?? null,

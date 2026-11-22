@@ -37,6 +37,7 @@ const row = (overrides: Partial<ApplicationListItemDto> = {}): ApplicationListIt
   lastResponseNumber: null,
   tuDate: null,
   tuNumber: null,
+  contractNumber: null,
   gasFlow: null,
   connectionType: null,
   engineerName: null,
@@ -282,6 +283,29 @@ describe('RegistryPage — card links and status', () => {
     expect(link).toHaveAttribute('href', '/applications/a1');
     const annulledRow = screen.getByRole('link', { name: '16т/26-8' }).closest('tr')!;
     expect(within(annulledRow).getByText('Анульовано')).toBeInTheDocument();
+  });
+
+  it('hides «№» from «Колонки»: the first column then links to the card (2026-11-22)', async () => {
+    serveRegistry([row(), row({ id: 'a2', regNumber: '16т/26-8', status: 'ANNULLED' })]);
+    const { user } = renderApp('/');
+    const table = await screen.findByRole('table', { name: 'Реєстр заяв' });
+
+    await user.click(screen.getByRole('button', { name: /^Колонки/ }));
+    await user.click(screen.getByRole('checkbox', { name: '№ реєстрації' }));
+
+    expect(within(table).queryByRole('columnheader', { name: /^№/ })).toBeNull();
+    expect(screen.getByRole('link', { name: 'Заява 15т/26-8' })).toHaveAttribute(
+      'href',
+      '/applications/a1',
+    );
+    const annulledRow = screen.getByRole('link', { name: 'Заява 16т/26-8' }).closest('tr')!;
+    expect(within(annulledRow).getByText('Анульовано')).toBeInTheDocument();
+    expect(
+      JSON.parse(window.localStorage.getItem(`tu-registry:registry-columns:${me.id}`) ?? '{}'),
+    ).toEqual({ regNumber: false });
+
+    await user.click(screen.getByRole('checkbox', { name: '№ реєстрації' }));
+    expect(screen.getByRole('link', { name: '15т/26-8' })).toBeInTheDocument();
   });
 
   it('opens the card from anywhere in the row; Ctrl+click opens a new tab', async () => {

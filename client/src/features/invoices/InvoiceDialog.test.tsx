@@ -23,7 +23,6 @@ const saved: InvoiceDto = {
   totals: { CONSTRUCTION: 0, TIE_IN: 0, WORK_PLAN: 0, EARTHWORKS: 0, total: 0 },
   workingDays: 3,
   overdueBy: 0,
-  scan: null,
   basis: null,
   cancellation: null,
   createdBy: { id: owner.id, fullName: 'Олена Коваль' },
@@ -108,10 +107,10 @@ describe('invoice in the application card', () => {
     stubCard('UNDERGROUND', created);
     const { user } = renderApp(`/applications/${APP.id}`);
 
-    await addModule(user, 'Рахунок');
-    const dialog = await screen.findByRole('dialog', { name: 'Новий рахунок' });
+    await addModule(user, 'Розрахунок');
+    const dialog = await screen.findByRole('dialog', { name: 'Новий розрахунок' });
     expect(within(dialog).getByLabelText('До додаткової угоди №')).toHaveValue('1');
-    expect(within(dialog).getByLabelText('№ рахунку')).toHaveValue('1');
+    expect(within(dialog).getByLabelText('№ розрахунку')).toHaveValue('1');
     expect(within(dialog).getAllByText('Робіт ще не додано.')).toHaveLength(3);
     expect(suggestions(within(dialog).getByRole('region', { name: CONSTRUCTION }))).toEqual([
       'Будівельно-монтажні роботи за кошторисом',
@@ -178,16 +177,16 @@ describe('invoice in the application card', () => {
     const { user } = renderApp(`/applications/${APP.id}?tab=invoice`);
 
     // The second invoice of the application, from its tab.
-    await user.click(await screen.findByRole('button', { name: 'Додати рахунок' }));
-    const dialog = await screen.findByRole('dialog', { name: 'Новий рахунок' });
+    await user.click(await screen.findByRole('button', { name: 'Додати розрахунок' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Новий розрахунок' });
     // Agreement 1 is taken by the invoice already there.
     expect(within(dialog).getByLabelText('До додаткової угоди №')).toHaveValue('2');
     // The next after invoice 7; «6442/1» is not a plain number.
-    expect(within(dialog).getByLabelText('№ рахунку')).toHaveValue('8');
+    expect(within(dialog).getByLabelText('№ розрахунку')).toHaveValue('8');
     // Above ground there are no earthworks: no list of their permits.
     expect(within(dialog).queryByRole('region', { name: EARTHWORKS })).toBeNull();
     const note = within(dialog).getByRole('status');
-    const date = within(dialog).getByLabelText('Дата рахунку');
+    const date = within(dialog).getByLabelText('Дата розрахунку');
 
     await user.clear(date);
     await user.type(date, '2026-04-02');

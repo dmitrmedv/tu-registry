@@ -95,12 +95,12 @@ function dateNote(
 }
 
 /**
- * «Рахунок» (mock-up of 2026-11-22). On the left: «До додаткової угоди №» (the next agreement
+ * «Розрахунок» (mock-up of 2026-11-22). On the left: «До додаткової угоди №» (the next agreement
  * by default) and the total; the number (given later by the accounts department) and the date,
  * with the working days from the approval beside the date, green within the term, red past it; then three
  * lists of works, empty at first — construction with the tie-in, the work plan (ПВР) and the
  * earthworks permits, only where the connection is underground (2026-11-22). On the
- * right, staying in place: the basis and the scan of the invoice. Files change only on
+ * right, staying in place: the basis (the scan was dropped, 2026-11-22). Files change only on
  * «Зберегти», after the fields; if a file fails, the invoice is already saved.
  */
 export function InvoiceDialog(props: Props) {
@@ -110,7 +110,11 @@ export function InvoiceDialog(props: Props) {
   const tus = useTechnicalConditions(props.app.id);
   if (projects.isPending || invoices.isPending || estimates.isPending || tus.isPending) {
     return (
-      <Dialog open title={props.invoice ? 'Рахунок' : 'Новий рахунок'} onClose={props.onClose}>
+      <Dialog
+        open
+        title={props.invoice ? 'Розрахунок' : 'Новий розрахунок'}
+        onClose={props.onClose}
+      >
         <Spinner label="Завантаження проєкту…" />
       </Dialog>
     );
@@ -163,7 +167,6 @@ function InvoiceForm({
       upload.mutateAsync({ id: idRef.current!, kind, file, onProgress }),
     remove: () => removeFile.mutateAsync({ id: idRef.current!, kind }),
   });
-  const scan = useScanChange(fileChange('scan'));
   const basis = useScanChange(fileChange('basis'));
   const defaults = formDefaults(initial, nextAgreement, nextNumber);
   // The permits only underground; an invoice that has some keeps the list, to clear it.
@@ -229,11 +232,10 @@ function InvoiceForm({
     idRef.current = saved.id;
     setInvoice(saved);
     try {
-      await scan.apply();
       await basis.apply();
     } catch {
       // The invoice stands, a file does not: the reason is in a notification already.
-      if (!invoice) notifySuccess(`Рахунок ${invoiceNumberText(saved.invoiceNumber)} збережено`);
+      if (!invoice) notifySuccess(`Розрахунок ${invoiceNumberText(saved.invoiceNumber)} збережено`);
       return;
     }
     onSaved(saved);
@@ -242,7 +244,7 @@ function InvoiceForm({
   const view = (kind: InvoiceFileKind) => () =>
     openPdf(
       () => invoicesApi.file(app.id, invoice!.id, kind),
-      invoice?.[kind]?.name ?? 'рахунок.pdf',
+      invoice?.[kind]?.name ?? 'розрахунок.pdf',
     );
 
   const amountProps = (name: FieldPath<FormInput>) =>
@@ -327,7 +329,9 @@ function InvoiceForm({
       busy={isSubmitting}
       open
       size="2xl"
-      title={invoice ? `Рахунок ${invoiceNumberText(invoice.invoiceNumber)}` : 'Новий рахунок'}
+      title={
+        invoice ? `Розрахунок ${invoiceNumberText(invoice.invoiceNumber)}` : 'Новий розрахунок'
+      }
       onClose={onClose}
       footer={
         <Button type="submit" form={FORM_ID} variant="primary" loading={isSubmitting}>
@@ -353,7 +357,7 @@ function InvoiceForm({
           </div>
           <div className={styles.head}>
             <TextField
-              label="№ рахунку"
+              label="№ розрахунку"
               className={styles.invoiceNumber}
               autoComplete="off"
               // hint="Можна внести пізніше, коли надасть бухгалтерія"
@@ -361,7 +365,7 @@ function InvoiceForm({
               {...register('invoiceNumber')}
             />
             <TextField
-              label="Дата рахунку"
+              label="Дата розрахунку"
               type="date"
               max={kyivCalendarDate()}
               error={errors.invoiceDate?.message}
@@ -386,17 +390,10 @@ function InvoiceForm({
         </div>
         <div className={styles.files}>
           <ScanPanel
-            title="Підстава рахунку"
+            title="Підстава розрахунку"
             scan={invoice?.basis ?? null}
             scanChange={basis}
             onView={view('basis')}
-            disabled={isSubmitting}
-          />
-          <ScanPanel
-            title="Скан рахунку"
-            scan={invoice?.scan ?? null}
-            scanChange={scan}
-            onView={view('scan')}
             disabled={isSubmitting}
           />
         </div>

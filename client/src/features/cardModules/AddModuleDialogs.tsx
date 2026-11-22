@@ -47,7 +47,7 @@ export function AddInvoiceDialog({ app, onClose, onAdded }: AddDialogProps) {
     <InvoiceDialog
       app={app}
       onClose={onClose}
-      onSaved={(saved) => onAdded(`Рахунок ${invoiceNumberText(saved.invoiceNumber)} додано`)}
+      onSaved={(saved) => onAdded(`Розрахунок ${invoiceNumberText(saved.invoiceNumber)} додано`)}
     />
   );
 }

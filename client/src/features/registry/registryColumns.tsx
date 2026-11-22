@@ -126,6 +126,14 @@ export const REGISTRY_COLUMNS: RegistryColumn[] = [
     visibleByDefault: true,
   },
   {
+    // The last contract not cancelled (2026-11-22).
+    id: 'contractNumber',
+    label: 'Номер договору',
+    size: 140,
+    cell: (row) => row.contractNumber ?? '—',
+    visibleByDefault: false,
+  },
+  {
     id: 'gasFlow',
     label: 'Витрати газу, м³/год',
     size: 120,

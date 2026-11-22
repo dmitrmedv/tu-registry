@@ -1,26 +1,24 @@
 import {
   type ApplicationDto,
   formatHryvnias,
-  INVOICE_DEADLINE_DAYS,
-  INVOICE_WORK_GROUPS,
   type InvoiceDto,
   type InvoiceFileKind,
   invoiceNumberText,
 } from '@tu-registry/shared';
+import clsx from 'clsx';
 import { useState } from 'react';
 import { canDeleteDocument, canManageDocuments, canRestoreDocument } from '@/features/applications';
 import { useCurrentUser } from '@/features/auth';
+import { useContracts } from '@/features/contracts/queries';
 import {
   CancelDocumentDialog,
   CancellationNote,
-  DocumentFrame,
   documentStyles as styles,
 } from '@/features/documents';
 import { toApiError } from '@/shared/api/apiError';
-import { formatCalendarDate, formatDateTime } from '@/shared/lib/format';
-import { INVOICE_WORK_GROUP_LABELS } from '@/shared/lib/labels';
+import { formatDateTime } from '@/shared/lib/format';
 import { notifyError, notifySuccess } from '@/shared/lib/notify';
-import { openPdf } from '@/shared/lib/pdf';
+import { downloadFile, openPdf } from '@/shared/lib/pdf';
 import {
   Badge,
   CardFooter,
@@ -29,10 +27,12 @@ import {
   DataRow,
   IconButton,
   LoadFailed,
+  MenuButton,
   Spinner,
 } from '@/shared/ui';
 import { invoicesApi } from './api';
 import { InvoiceDialog } from './InvoiceDialog';
+import { contractInForce, invoiceDocument, invoiceSections, invoiceTitle } from './invoiceSections';
 import tabStyles from './InvoiceTab.module.scss';
 import { useCancelInvoice, useDeleteInvoice, useInvoices, useRestoreInvoice } from './queries';
 
@@ -43,70 +43,80 @@ type DialogState =
   | { kind: 'cancel'; invoice: InvoiceDto }
   | { kind: 'delete'; invoice: InvoiceDto };
 
-const titleOf = (invoice: InvoiceDto) =>
-  `${invoiceNumberText(invoice.invoiceNumber)} від ${formatCalendarDate(invoice.invoiceDate)}`;
+const titleOf = invoiceTitle;
 
-/** One invoice: its works by group with their sums, the total and its term. */
+/**
+ * One calculation (mock-up of 2026-11-22): on the left its data and the comment, on the right
+ * its works by section with their sums and the total; one column where the card is narrow.
+ */
 function InvoiceView({ invoice }: { invoice: InvoiceDto }) {
   return (
-    <>
-      <DataList labels="fixed">
-        <DataRow label="Рахунок">{titleOf(invoice)}</DataRow>
-        <DataRow label="Додаткова угода">
-          {invoice.agreementNumber === null ? '—' : `№ ${invoice.agreementNumber}`}
-        </DataRow>
-        <DataRow label="Від узгодження проєкту">
-          {invoice.workingDays} роб. дн. (строк — {INVOICE_DEADLINE_DAYS})
-          {invoice.overdueBy > 0 && (
-            <>
-              {' '}
-              <Badge tone="danger">прострочено на {invoice.overdueBy} роб. дн.</Badge>
-            </>
+    <div className={tabStyles.view}>
+      <div className={tabStyles.columns}>
+        <div>
+          <DataList labels="fixed">
+            <DataRow label="Розрахунок">{titleOf(invoice)}</DataRow>
+            <DataRow label="Додаткова угода">
+              {invoice.agreementNumber === null ? '—' : `№ ${invoice.agreementNumber}`}
+            </DataRow>
+            <DataRow label="Від узгодження проєкту">
+              {invoice.workingDays} роб. дн.
+              {invoice.overdueBy > 0 && (
+                <>
+                  {' '}
+                  <Badge tone="danger">прострочено на {invoice.overdueBy} роб. дн.</Badge>
+                </>
+              )}
+            </DataRow>
+            <DataRow label="Внесено">{formatDateTime(invoice.createdAt)}</DataRow>
+          </DataList>
+          {invoice.comment && (
+            <section className={tabStyles.comment} aria-label="Коментар">
+              <h4 className={tabStyles.commentTitle}>Коментар</h4>
+              <p className={tabStyles.commentText}>{invoice.comment}</p>
+            </section>
           )}
-        </DataRow>
-        <DataRow label="Внесено">{formatDateTime(invoice.createdAt)}</DataRow>
-        {invoice.comment && <DataRow label="Коментар">{invoice.comment}</DataRow>}
-      </DataList>
-      {INVOICE_WORK_GROUPS.map((group) => {
-        const works = invoice.works.filter((work) => work.group === group);
-        // Geodesy only where it was entered: most connections have none.
-        // The permits only where they were entered: most connections have none.
-        if (group === 'EARTHWORKS' && works.length === 0) return null;
-        return (
-          <section key={group} aria-label={INVOICE_WORK_GROUP_LABELS[group]}>
-            <h4 className={tabStyles.groupTitle}>
-              <span>{INVOICE_WORK_GROUP_LABELS[group]}</span>
-              <span>{formatHryvnias(invoice.totals[group])}</span>
-            </h4>
-            {works.length > 0 && (
-              <ul className={tabStyles.works}>
-                {works.map((work, index) => (
-                  <li key={index}>
-                    <span>{work.name}</span>
-                    <span>{formatHryvnias(work.amount)}</span>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </section>
-        );
-      })}
-      <p className={tabStyles.total}>
-        <span>Загальна вартість приєднання</span>
-        <span>{formatHryvnias(invoice.totals.total)}</span>
-      </p>
-    </>
+        </div>
+        <div className={tabStyles.sections}>
+          {invoiceSections(invoice).map(({ label, sum, works }) => {
+            return (
+              <section key={label} aria-label={label}>
+                <h4 className={tabStyles.groupTitle}>
+                  <span>{label}</span>
+                  <span>{formatHryvnias(sum)}</span>
+                </h4>
+                {works.length > 0 && (
+                  <ul className={tabStyles.works}>
+                    {works.map((work, index) => (
+                      <li key={index}>
+                        <span>{work.name}</span>
+                        <span>{formatHryvnias(work.amount)}</span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </section>
+            );
+          })}
+          <p className={tabStyles.total}>
+            <span>Всього:</span>
+            <span>{formatHryvnias(invoice.totals.total)}</span>
+          </p>
+        </div>
+      </div>
+    </div>
   );
 }
 
 /**
- * The «Рахунок» tab of the card: one invoice at a time, ‹ › page through all of them in the
+ * The «Розрахунок» tab of the card: one invoice at a time, ‹ › page through all of them in the
  * order made (one per stage of construction). ＋ adds another at any time; the server asks for
  * a valid project.
  */
 export function InvoiceTab({ app }: { app: ApplicationDto }) {
   const user = useCurrentUser();
   const list = useInvoices(app.id);
+  const contracts = useContracts(app.id);
   const cancel = useCancelInvoice(app.id);
   const restore = useRestoreInvoice(app.id);
   const remove = useDeleteInvoice(app.id);
@@ -127,11 +137,28 @@ export function InvoiceTab({ app }: { app: ApplicationDto }) {
     run(() =>
       openPdf(
         () => invoicesApi.file(app.id, invoice.id, kind),
-        invoice[kind]?.name ?? 'рахунок.pdf',
+        invoice[kind]?.name ?? 'розрахунок.pdf',
       ),
     );
 
-  if (list.isPending) return <Spinner label="Завантаження рахунків…" />;
+  // The libraries only when asked for: they are large (2026-11-23).
+  const documentOf = (invoice: InvoiceDto) =>
+    invoiceDocument(invoice, app, contractInForce(contracts.data ?? []));
+  const downloadExcel = (invoice: InvoiceDto) =>
+    run(async () => {
+      const doc = documentOf(invoice);
+      const excel = await import('./invoiceExcel');
+      await downloadFile(() => excel.invoiceWorkbook(doc), `${doc.fileName}.xlsx`);
+    });
+  // The tab opens within the click (see openPdf), the PDF follows.
+  const openInvoicePdf = (invoice: InvoiceDto) => {
+    const doc = documentOf(invoice);
+    return run(() =>
+      openPdf(async () => (await import('./invoicePdf')).invoicePdf(doc), `${doc.fileName}.pdf`),
+    );
+  };
+
+  if (list.isPending) return <Spinner label="Завантаження розрахунків…" />;
   if (list.isError) return <LoadFailed error={list.error} onRetry={() => list.refetch()} />;
 
   const invoices = list.data;
@@ -142,107 +169,113 @@ export function InvoiceTab({ app }: { app: ApplicationDto }) {
     invoices.at(-1);
   const position = shown ? invoices.indexOf(shown) : -1;
   const addButton = manage && (
-    <IconButton icon="plus" label="Додати рахунок" onClick={() => setDialog({ kind: 'create' })} />
+    <IconButton
+      icon="plus"
+      label="Додати розрахунок"
+      onClick={() => setDialog({ kind: 'create' })}
+    />
   );
 
   return (
     <>
       {shown ? (
-        <DocumentFrame
-          title={invoices.length > 1 ? `Рахунок ${position + 1} з ${invoices.length}` : 'Рахунок'}
-          label={`Рахунок ${titleOf(shown)}`}
-          cancelled={Boolean(shown.cancellation)}
-          footer={
-            <>
-              <div className={styles.frameActions}>
-                {shown.scan && (
-                  <IconButton
-                    icon="eye"
-                    label="Відкрити скан рахунку"
-                    title={shown.scan.name}
-                    onClick={() => openFile(shown, 'scan')}
-                  />
-                )}
-                {shown.basis && (
-                  <IconButton
-                    icon="eye"
-                    label="Відкрити підставу рахунку"
-                    title={shown.basis.name}
-                    onClick={() => openFile(shown, 'basis')}
-                  />
-                )}
-              </div>
-              <div className={styles.frameFooterEnd}>
-                {invoices.length > 1 && (
-                  <div className={styles.frameActions}>
-                    <IconButton
-                      icon="chevronLeft"
-                      label="Попередній рахунок"
-                      disabled={position === 0}
-                      onClick={() => setShownId(invoices[position - 1]!.id)}
-                    />
-                    <IconButton
-                      icon="chevronRight"
-                      label="Наступний рахунок"
-                      disabled={position === invoices.length - 1}
-                      onClick={() => setShownId(invoices[position + 1]!.id)}
-                    />
-                  </div>
-                )}
-                <div className={styles.frameActions}>
-                  {addButton}
-                  {manage && !shown.cancellation && (
-                    <>
-                      <IconButton
-                        icon="pencil"
-                        label="Редагувати"
-                        onClick={() => setDialog({ kind: 'edit', invoice: shown })}
-                      />
-                      <IconButton
-                        icon="ban"
-                        label="Скасувати"
-                        tone="danger"
-                        onClick={() => setDialog({ kind: 'cancel', invoice: shown })}
-                      />
-                    </>
-                  )}
-                  {shown.cancellation && canRestoreDocument(app, user) && (
-                    <IconButton
-                      icon="restore"
-                      label="Відновити"
-                      loading={restore.isPending}
-                      onClick={() =>
-                        run(
-                          () => restore.mutateAsync({ id: shown.id, version: shown.version }),
-                          `Рахунок ${invoiceNumberText(shown.invoiceNumber)} відновлено`,
-                        )
-                      }
-                    />
-                  )}
-                  {canDeleteDocument(app, user) && (
-                    <IconButton
-                      icon="trash"
-                      label="Видалити"
-                      tone="danger"
-                      onClick={() => setDialog({ kind: 'delete', invoice: shown })}
-                    />
-                  )}
-                </div>
-              </div>
-            </>
-          }
+        // Straight on the tab, with no frame of its own (mock-up of 2026-11-22).
+        <section
+          aria-label={`Розрахунок ${titleOf(shown)}`}
+          className={clsx(tabStyles.document, shown.cancellation && tabStyles.cancelled)}
         >
           {shown.cancellation && (
-            <span className={styles.frameBadge}>
+            <span className={tabStyles.badge}>
               <Badge tone="danger">Скасовано</Badge>
             </span>
           )}
           <InvoiceView invoice={shown} />
           {shown.cancellation && <CancellationNote cancellation={shown.cancellation} />}
-        </DocumentFrame>
+          <div className={clsx(styles.frameFooter, tabStyles.footer)}>
+            <div className={styles.frameActions}>
+              {shown.basis && (
+                <IconButton
+                  icon="eye"
+                  label="Відкрити підставу розрахунку"
+                  title={shown.basis.name}
+                  onClick={() => openFile(shown, 'basis')}
+                />
+              )}
+              <MenuButton
+                icon="download"
+                label="Завантажити розрахунок"
+                align="start"
+                items={[
+                  { label: '.xlsx', onSelect: () => downloadExcel(shown) },
+                  { label: 'PDF', onSelect: () => openInvoicePdf(shown) },
+                ]}
+              />
+            </div>
+            <div className={styles.frameFooterEnd}>
+              {invoices.length > 1 && (
+                <div className={styles.frameActions}>
+                  <span className={tabStyles.position}>
+                    {position + 1} з {invoices.length}
+                  </span>
+                  <IconButton
+                    icon="chevronLeft"
+                    label="Попередній розрахунок"
+                    disabled={position === 0}
+                    onClick={() => setShownId(invoices[position - 1]!.id)}
+                  />
+                  <IconButton
+                    icon="chevronRight"
+                    label="Наступний розрахунок"
+                    disabled={position === invoices.length - 1}
+                    onClick={() => setShownId(invoices[position + 1]!.id)}
+                  />
+                </div>
+              )}
+              <div className={styles.frameActions}>
+                {addButton}
+                {manage && !shown.cancellation && (
+                  <>
+                    <IconButton
+                      icon="pencil"
+                      label="Редагувати"
+                      onClick={() => setDialog({ kind: 'edit', invoice: shown })}
+                    />
+                    <IconButton
+                      icon="ban"
+                      label="Скасувати"
+                      tone="danger"
+                      onClick={() => setDialog({ kind: 'cancel', invoice: shown })}
+                    />
+                  </>
+                )}
+                {shown.cancellation && canRestoreDocument(app, user) && (
+                  <IconButton
+                    icon="restore"
+                    label="Відновити"
+                    loading={restore.isPending}
+                    onClick={() =>
+                      run(
+                        () => restore.mutateAsync({ id: shown.id, version: shown.version }),
+                        `Розрахунок ${invoiceNumberText(shown.invoiceNumber)} відновлено`,
+                      )
+                    }
+                  />
+                )}
+                {canDeleteDocument(app, user) && (
+                  <IconButton
+                    icon="trash"
+                    label="Видалити"
+                    tone="danger"
+                    onClick={() => setDialog({ kind: 'delete', invoice: shown })}
+                  />
+                )}
+              </div>
+            </div>
+          </div>
+        </section>
       ) : (
         <>
-          <p className={styles.muted}>Рахунків ще немає.</p>
+          <p className={styles.muted}>Розрахунків ще немає.</p>
           <CardFooter actions={addButton} />
         </>
       )}
@@ -254,7 +287,7 @@ export function InvoiceTab({ app }: { app: ApplicationDto }) {
           onClose={close}
           onSaved={(saved) => {
             notifySuccess(
-              `Рахунок ${invoiceNumberText(saved.invoiceNumber)} ${dialog.kind === 'edit' ? 'збережено' : 'додано'}`,
+              `Розрахунок ${invoiceNumberText(saved.invoiceNumber)} ${dialog.kind === 'edit' ? 'збережено' : 'додано'}`,
             );
             setShownId(saved.id);
             close();
@@ -265,7 +298,7 @@ export function InvoiceTab({ app }: { app: ApplicationDto }) {
         <ConfirmDialog
           open
           danger
-          title={`Видалити рахунок ${invoiceNumberText(dialog.invoice.invoiceNumber)}?`}
+          title={`Видалити розрахунок ${invoiceNumberText(dialog.invoice.invoiceNumber)}?`}
           confirmLabel="Видалити"
           loading={remove.isPending}
           onCancel={close}
@@ -275,18 +308,18 @@ export function InvoiceTab({ app }: { app: ApplicationDto }) {
               await remove.mutateAsync({ id: invoice.id, version: invoice.version });
               close();
               setShownId(null);
-              notifySuccess(`Рахунок ${invoiceNumberText(invoice.invoiceNumber)} видалено`);
+              notifySuccess(`Розрахунок ${invoiceNumberText(invoice.invoiceNumber)} видалено`);
             } catch (e) {
               notifyError(toApiError(e).message);
             }
           }}
         >
-          <p>Рахунок і його файли буде видалено назавжди. Цю дію не можна скасувати.</p>
+          <p>Розрахунок і його файли буде видалено назавжди. Цю дію не можна скасувати.</p>
         </ConfirmDialog>
       )}
       {dialog.kind === 'cancel' && (
         <CancelDocumentDialog
-          title={`Скасувати рахунок ${invoiceNumberText(dialog.invoice.invoiceNumber)}?`}
+          title={`Скасувати розрахунок ${invoiceNumberText(dialog.invoice.invoiceNumber)}?`}
           onClose={close}
           onConfirm={(reason) =>
             cancel.mutateAsync({

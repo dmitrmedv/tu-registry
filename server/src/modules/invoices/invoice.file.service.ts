@@ -30,7 +30,7 @@ export async function assertFileEditable(applicationId: string, id: string, acto
 }
 
 /**
- * Adds or replaces the invoice's scan or its basis document (both PDF, agreed 2026-11-21). A
+ * Adds or replaces the invoice's basis document (PDF, agreed 2026-11-21). A
  * replaced file is deleted; the audit records the change. Files do not bump the version.
  */
 export async function attachInvoiceFile(

@@ -4,7 +4,7 @@ import {
   type SortField,
 } from '@tu-registry/shared';
 import clsx from 'clsx';
-import { type MouseEvent, useMemo } from 'react';
+import { type MouseEvent, type ReactNode, useMemo } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router';
 import { useDepartments } from '@/features/departments';
 import { Badge, type ColumnWidths, DataTable, type DataTableColumn } from '@/shared/ui';
@@ -17,6 +17,8 @@ type Props = {
   rows: Row[];
   /** The columns after «№», as the viewer chose them (see useRegistryColumns). */
   columns: RegistryColumn[];
+  /** «№ реєстрації» shown (the viewer may hide it, 2026-11-22). */
+  showNumber?: boolean;
   sort: ApplicationSort;
   onSort: (sort: ApplicationSort) => void;
   widths: ColumnWidths;
@@ -71,6 +73,7 @@ function useRowOpener(registrySearch: string) {
 export function RegistryTable({
   rows,
   columns,
+  showNumber = true,
   sort,
   onSort,
   widths,
@@ -82,47 +85,66 @@ export function RegistryTable({
   const openRow = useRowOpener(search);
   const { nameOf } = useDepartments();
 
-  const tableColumns = useMemo<DataTableColumn<Row>[]>(
-    () => [
-      {
-        id: 'regNumber',
-        label: '№',
-        size: 130,
-        minSize: 90,
-        // «Анульовано» goes under the number rather than widening the column.
-        wrap: true,
-        // The row's link: always first.
-        fixed: true,
-        ...sortable('regNumber', '№', { sort, onSort }),
-        cell: (row) => (
-          <>
-            <Link
-              to={`/applications/${row.id}`}
-              state={{ registrySearch: search }}
-              className={styles.rowLink}
-            >
-              {row.regNumber}
-            </Link>
-            {row.status === 'ANNULLED' && (
-              <>
-                {' '}
-                <Badge tone="danger">Анульовано</Badge>
-              </>
-            )}
-          </>
-        ),
-      },
-      ...columns.map((column) => ({
+  const tableColumns = useMemo<DataTableColumn<Row>[]>(() => {
+    const rowLink = (row: Row, content: ReactNode, label?: string) => (
+      <Link
+        to={`/applications/${row.id}`}
+        state={{ registrySearch: search }}
+        className={styles.rowLink}
+        aria-label={label}
+      >
+        {content}
+      </Link>
+    );
+    const annulled = (row: Row) =>
+      row.status === 'ANNULLED' && (
+        <>
+          {' '}
+          <Badge tone="danger">Анульовано</Badge>
+        </>
+      );
+    return [
+      ...(showNumber
+        ? [
+            {
+              id: 'regNumber',
+              label: '№',
+              size: 130,
+              minSize: 90,
+              // «Анульовано» goes under the number rather than widening the column.
+              wrap: true,
+              // The row's link: always first.
+              fixed: true,
+              ...sortable('regNumber', '№', { sort, onSort }),
+              cell: (row: Row) => (
+                <>
+                  {rowLink(row, row.regNumber)}
+                  {annulled(row)}
+                </>
+              ),
+            },
+          ]
+        : []),
+      ...columns.map((column, index) => ({
         id: column.id,
         label: column.label,
         size: column.size,
         wrap: column.wrap,
         ...sortable(column.id, column.label, { sort, onSort }),
-        cell: (row: Row) => column.cell(row, nameOf),
+        // «№» hidden (2026-11-22): the first column carries the link (the keyboard way to the
+        // card) and «Анульовано».
+        cell:
+          showNumber || index > 0
+            ? (row: Row) => column.cell(row, nameOf)
+            : (row: Row) => (
+                <>
+                  {rowLink(row, column.cell(row, nameOf), `Заява ${row.regNumber}`)}
+                  {annulled(row)}
+                </>
+              ),
       })),
-    ],
-    [columns, sort, onSort, search, nameOf],
-  );
+    ];
+  }, [columns, sort, onSort, search, nameOf, showNumber]);
 
   return (
     <DataTable

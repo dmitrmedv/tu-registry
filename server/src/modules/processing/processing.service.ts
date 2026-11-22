@@ -228,7 +228,7 @@ export async function getProcessing(applicationId: string, actor: Actor): Promis
       return event('INVOICE', invoice.invoiceDate, {
         number: invoice.invoiceNumber,
         documentId: String(invoice._id),
-        scanName: invoice.scan?.name ?? null,
+        scanName: null,
         cancelled: !!invoice.cancellation,
         createdAt: invoice.createdAt,
         norm: INVOICE_DEADLINE_DAYS,

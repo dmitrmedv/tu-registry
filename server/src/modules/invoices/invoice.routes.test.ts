@@ -1,4 +1,7 @@
 import { existsSync } from 'node:fs';
+import { writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import path from 'node:path';
 import request from 'supertest';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createApp } from '../../app';
@@ -13,8 +16,9 @@ import { clock } from '../../utils/clock';
 import { ApplicationChange } from '../applications/applicationChange.model';
 import { AuditLog } from '../audit/auditLog.model';
 import { Engineer } from '../engineers/engineer.model';
-import { scanPath } from '../scans/scan.storage';
+import { scanPath, storeScan } from '../scans/scan.storage';
 import { TechnicalConditions } from '../technicalConditions/technicalConditions.model';
+import { dropInvoiceScans } from './invoice.migration';
 import { Invoice } from './invoice.model';
 
 const app = createApp();
@@ -134,7 +138,7 @@ describe('invoices', () => {
     expect(late.body).toMatchObject({ workingDays: 12, overdueBy: 2 });
 
     expect((await create({ invoiceDate: '2026-11-05' })).body.error.details.fieldErrors).toEqual({
-      invoiceDate: [expect.stringMatching(/^Дата рахунку не може бути раніше дати узгодження/)],
+      invoiceDate: [expect.stringMatching(/^Дата розрахунку не може бути раніше дати узгодження/)],
     });
     expect((await create({ works: [] })).status).toBe(400);
     expect(
@@ -231,7 +235,7 @@ describe('invoices', () => {
     expect(stale.body.error.code).toBe('VERSION_CONFLICT');
   });
 
-  it('keeps the scan and the basis document, PDF only', async () => {
+  it('keeps the basis document, PDF only; the scan is gone', async () => {
     await addProject();
     const { id } = (await create()).body;
     const put = (kind: string, file: Buffer, name: string) =>
@@ -240,9 +244,7 @@ describe('invoices', () => {
         .set(owner.auth)
         .attach('scan', file, { filename: name, contentType: 'application/pdf' });
 
-    expect((await put('scan', pdf('р'), 'Рахунок.pdf')).body.scan).toMatchObject({
-      name: 'Рахунок.pdf',
-    });
+    expect((await put('scan', pdf('р'), 'Розрахунок.pdf')).status).toBe(400);
     expect((await put('basis', pdf('п'), 'Підстава.pdf')).body.basis).toMatchObject({
       name: 'Підстава.pdf',
     });
@@ -259,13 +261,36 @@ describe('invoices', () => {
     expect(file.headers['content-type']).toBe('application/pdf');
   });
 
+  it('drops the scans saved before 2026-11-22 with their files, the basis stays', async () => {
+    await addProject();
+    const { id } = (await create()).body;
+    await request(app)
+      .put(url(`/${id}/files/basis`))
+      .set(owner.auth)
+      .attach('scan', pdf('п'), { filename: 'п.pdf', contentType: 'application/pdf' });
+    const temp = path.join(tmpdir(), `invoice-scan-${Date.now()}.pdf`);
+    await writeFile(temp, pdf('р'));
+    const fileId = await storeScan(temp, 'pdf');
+    await Invoice.collection.updateOne(
+      { _id: (await Invoice.findById(id))!._id },
+      { $set: { scan: { fileId, name: 'р.pdf', size: 1, uploadedAt: new Date() } } },
+    );
+
+    expect(await dropInvoiceScans()).toBe(1);
+    expect(existsSync(scanPath(fileId))).toBe(false);
+    const row = (await Invoice.collection.findOne({}))!;
+    expect(row).not.toHaveProperty('scan');
+    expect(row.basis).toMatchObject({ name: 'п.pdf' });
+    expect(await dropInvoiceScans()).toBe(0);
+  });
+
   it('is cancelled with a reason, restored and deleted by an admin only, and goes with its application', async () => {
     await addProject();
     const { id } = (await create()).body;
     await request(app)
-      .put(url(`/${id}/files/scan`))
+      .put(url(`/${id}/files/basis`))
       .set(owner.auth)
-      .attach('scan', pdf('р'), { filename: 'р.pdf', contentType: 'application/pdf' });
+      .attach('scan', pdf('п'), { filename: 'п.pdf', contentType: 'application/pdf' });
 
     const cancelled = await request(app)
       .post(url(`/${id}/cancel`))
@@ -280,7 +305,7 @@ describe('invoices', () => {
     expect((await restore(owner)).status).toBe(403);
     expect((await restore(admin)).body).toMatchObject({ cancellation: null, version: 3 });
 
-    const file = (await Invoice.findById(id).lean())!.scan!.fileId;
+    const file = (await Invoice.findById(id).lean())!.basis!.fileId;
     expect(
       (
         await request(app)

@@ -264,7 +264,7 @@ describe('ApplicationPage', () => {
       'Технічні умовиуже додано',
       'Договір',
       'Проєкт',
-      'Рахунок',
+      'Розрахунок',
     ]);
     expect(choices[2]).toBeEnabled();
     for (const choice of choices.slice(0, 2)) {

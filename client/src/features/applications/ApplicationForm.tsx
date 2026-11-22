@@ -36,6 +36,7 @@ import styles from './ApplicationForm.module.scss';
 import { ManualNumberStatus } from './ManualNumberStatus';
 import { useCreateApplication, useCreateManualApplication, useNextNumber } from './queries';
 import { notifyError } from '@/shared/lib/notify';
+import { useDayOff } from '@/features/calendar';
 
 type FormValues = CreateApplicationInput & { manual: boolean; regDate: string; regSeq: string };
 type Submitted =
@@ -123,6 +124,7 @@ export function ApplicationForm({ onCreated }: Props) {
   const draft = useFormDraft(`new-application:${user.id}`, emptyValues);
   const [draftNoticeVisible, setDraftNoticeVisible] = useState(draft.restoredAt !== null);
 
+  const dayOff = useDayOff();
   const form = useForm<FormValues, unknown, Submitted>({
     resolver: useApplicationResolver(today),
     // Rights may have been revoked since the draft was saved.
@@ -227,7 +229,7 @@ export function ApplicationForm({ onCreated }: Props) {
                   label="Дата реєстрації"
                   type="date"
                   max={today}
-                  error={errors.regDate?.message}
+                  error={errors.regDate?.message ?? dayOff(watch('regDate'))}
                   {...register('regDate')}
                 />
                 <TextField

@@ -170,6 +170,9 @@ export function EstimateFrame({ app, project }: { app: ApplicationDto; project: 
             <DataRow label="Сума кошторису">
               {shown.amount === null ? '—' : formatHryvnias(shown.amount)}
             </DataRow>
+            <DataRow label="Сума по кошторису (субпідряд)">
+              {shown.subcontractAmount === null ? '—' : formatHryvnias(shown.subcontractAmount)}
+            </DataRow>
             <DataRow label="Внесено">{formatDateTime(shown.createdAt)}</DataRow>
             {shown.superseded && (
               <DataRow label="Перераховано">

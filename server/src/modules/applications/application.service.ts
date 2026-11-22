@@ -10,6 +10,7 @@ import mongoose, { type ClientSession } from 'mongoose';
 import { ApiError } from '../../utils/ApiError';
 import { inTransaction, isDuplicateKey } from '../../utils/db';
 import { fromIsoDate, kyivToday, toIsoDate } from '../../utils/kyivDate';
+import { assertWorkingDate } from '../documents/document.rules';
 import { type RequestContext, recordAudit } from '../audit/audit.service';
 import { departmentCode } from '../departments/department.service';
 import { issueNextNumber, peekNextNumber } from '../numbering/numbering.service';
@@ -138,6 +139,7 @@ export async function createManualApplication(
   actor: Actor,
   context: RequestContext,
 ) {
+  await assertWorkingDate('regDate', regDate);
   // The year is always the registration date's year: "14" on 2024-05-20 is "14т/24".
   const year = yearOf(regDate);
   const code = await departmentCode(department);

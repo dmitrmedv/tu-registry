@@ -7,10 +7,21 @@ export type TextFieldProps = InputHTMLAttributes<HTMLInputElement> & {
   label: string;
   error?: string;
   hint?: string;
+  /** A sum: aligned to the right, figures of one width, so the sums read easier. */
+  amount?: boolean;
   ref?: Ref<HTMLInputElement>;
 };
 
-export function TextField({ label, error, hint, id, className, ref, ...rest }: TextFieldProps) {
+export function TextField({
+  label,
+  error,
+  hint,
+  amount,
+  id,
+  className,
+  ref,
+  ...rest
+}: TextFieldProps) {
   const ids = useFieldIds(id, Boolean(hint), Boolean(error));
   return (
     <div className={clsx(styles.field, className)}>
@@ -20,7 +31,7 @@ export function TextField({ label, error, hint, id, className, ref, ...rest }: T
       <input
         id={ids.controlId}
         ref={ref}
-        className={styles.control}
+        className={clsx(styles.control, amount && styles.amount)}
         aria-invalid={error ? true : undefined}
         aria-describedby={ids.describedBy}
         {...rest}

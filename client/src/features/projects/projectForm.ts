@@ -21,6 +21,7 @@ type ServerErrorDetails = { fieldErrors?: Record<string, string[] | undefined> }
 export function formDefaults(project?: ProjectDto, tuEngineerId?: string): FormInput {
   return {
     approvalNumber: project?.approvalNumber ?? '',
+    designOrganization: project?.designOrganization ?? '',
     approvalDate: project?.approvalDate ?? kyivCalendarDate(),
     engineer: project?.engineer.id ?? tuEngineerId ?? '',
   };
@@ -30,6 +31,7 @@ export function formDefaults(project?: ProjectDto, tuEngineerId?: string): FormI
 export function changedFields(project: ProjectDto, values: FormData): UpdateProjectInput | null {
   const current: FormData = {
     approvalNumber: project.approvalNumber,
+    designOrganization: project.designOrganization,
     approvalDate: project.approvalDate,
     engineer: project.engineer.id,
   };

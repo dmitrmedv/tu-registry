@@ -118,7 +118,7 @@ export async function createTechnicalConditions(
   if (await TechnicalConditions.exists({ applicationId: app._id, active: true })) {
     throw alreadyValid();
   }
-  assertDocumentDate(app, 'preparedDate', input.preparedDate, 'Дата підготовки ТУ');
+  await assertDocumentDate(app, 'preparedDate', input.preparedDate, 'Дата підготовки ТУ');
   const engineer = await resolveEngineer(app, input.engineer);
   let created;
   try {
@@ -181,7 +181,7 @@ export async function updateTechnicalConditions(
   }
   const preparedDate = toIsoDate(current.preparedDate);
   if (input.preparedDate && input.preparedDate !== preparedDate) {
-    assertDocumentDate(app, 'preparedDate', input.preparedDate, 'Дата підготовки ТУ');
+    await assertDocumentDate(app, 'preparedDate', input.preparedDate, 'Дата підготовки ТУ');
     changes.push({ field: 'preparedDate', from: preparedDate, to: input.preparedDate });
     $set.preparedDate = fromIsoDate(input.preparedDate);
   }

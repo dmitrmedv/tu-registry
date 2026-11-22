@@ -30,6 +30,7 @@ export type EstimateRecord = {
   projectId: Types.ObjectId;
   checkDate: Date | null;
   amountKopecks: number | null;
+  subcontractAmountKopecks?: number | null;
   scan?: ScanRecord | null;
   imd?: ScanRecord | null;
   superseded?: { at: Date; by: Types.ObjectId } | null;
@@ -130,6 +131,11 @@ async function toDtos(rows: EstimateRecord[]): Promise<EstimateDto[]> {
     projectId: String(row.projectId),
     checkDate: row.checkDate ? toIsoDate(row.checkDate) : null,
     amount: row.amountKopecks === null ? null : fromKopecks(row.amountKopecks),
+    // Absent in the estimates entered before the field.
+    subcontractAmount:
+      (row.subcontractAmountKopecks ?? null) === null
+        ? null
+        : fromKopecks(row.subcontractAmountKopecks!),
     scan: fileDto(row.scan),
     imd: fileDto(row.imd),
     superseded: row.superseded
@@ -197,8 +203,8 @@ export async function listEstimates(applicationId: string, actor: Actor) {
   return toDtos(rows);
 }
 
-const checkDateOf = (app: ApplicationDocument, checkDate: string | null) => {
-  if (checkDate) assertDocumentDate(app, 'checkDate', checkDate, 'Дата перевірки кошторису');
+const checkDateOf = async (app: ApplicationDocument, checkDate: string | null) => {
+  if (checkDate) await assertDocumentDate(app, 'checkDate', checkDate, 'Дата перевірки кошторису');
   return checkDate ? fromIsoDate(checkDate) : null;
 };
 
@@ -223,8 +229,10 @@ export async function createEstimate(
       'Кошторис вносять за чинним проєктом: спершу внесіть проєкт.',
     );
   }
-  const checkDate = checkDateOf(app, input.checkDate);
+  const checkDate = await checkDateOf(app, input.checkDate);
   const amountKopecks = input.amount === null ? null : toKopecks(input.amount);
+  const subcontractAmountKopecks =
+    input.subcontractAmount === null ? null : toKopecks(input.subcontractAmount);
   let result: { created: EstimateRecord; replaced: EstimateRecord | null };
   try {
     result = await inTransaction(async (session) => {
@@ -253,6 +261,7 @@ export async function createEstimate(
             projectId: project._id,
             checkDate,
             amountKopecks,
+            subcontractAmountKopecks,
             createdBy: actor.id,
           },
         ],
@@ -273,6 +282,9 @@ export async function createEstimate(
   await auditEstimate('ESTIMATE_CREATED', actor, app, project, result.created, context, {
     ...(input.checkDate && { checkDate: input.checkDate }),
     ...(amountKopecks !== null && { amount: amountText(amountKopecks) }),
+    ...(subcontractAmountKopecks !== null && {
+      subcontractAmount: amountText(subcontractAmountKopecks),
+    }),
     ...(result.replaced && { recalculated: true }),
   });
   return estimateDto(app, String(result.created._id));
@@ -292,7 +304,7 @@ export async function updateEstimate(
   const $set: Record<string, unknown> = { updatedBy: actor.id };
   const checkDate = estimate.checkDate ? toIsoDate(estimate.checkDate) : null;
   if (input.checkDate !== checkDate) {
-    $set.checkDate = checkDateOf(app, input.checkDate);
+    $set.checkDate = await checkDateOf(app, input.checkDate);
     changes.push({ field: 'checkDate', from: checkDate, to: input.checkDate });
   }
   const amountKopecks = input.amount === null ? null : toKopecks(input.amount);
@@ -302,6 +314,17 @@ export async function updateEstimate(
       field: 'amount',
       from: amountText(estimate.amountKopecks),
       to: amountText(amountKopecks),
+    });
+  }
+  const subcontractAmountKopecks =
+    input.subcontractAmount === null ? null : toKopecks(input.subcontractAmount);
+  const subcontractBefore = estimate.subcontractAmountKopecks ?? null;
+  if (subcontractAmountKopecks !== subcontractBefore) {
+    $set.subcontractAmountKopecks = subcontractAmountKopecks;
+    changes.push({
+      field: 'subcontractAmount',
+      from: amountText(subcontractBefore),
+      to: amountText(subcontractAmountKopecks),
     });
   }
   if (changes.length === 0) return estimateDto(app, id);

@@ -1,8 +1,10 @@
-import type {
-  CancelDocumentInput,
-  CreateProjectData,
-  ProjectDto,
-  UpdateProjectData,
+import {
+  type CancelDocumentInput,
+  type CreateProjectData,
+  INVOICE_DEADLINE_DAYS,
+  type InvoiceTermDto,
+  type ProjectDto,
+  type UpdateProjectData,
 } from '@tu-registry/shared';
 import type { Types } from 'mongoose';
 import { ApiError } from '../../utils/ApiError';
@@ -12,6 +14,8 @@ import type { Actor } from '../applications/application.access';
 import type { ApplicationDocument } from '../applications/application.dto';
 import { loadApplication, loadEditableApplication } from '../applications/application.edit.service';
 import type { RequestContext } from '../audit/audit.service';
+import { loadExceptions } from '../calendar/calendar.service';
+import { countWorkingDaysInclusive } from '../calendar/workingDays';
 import { type DocumentRecord, documentDtoParts, documentFileIds } from '../documents/document.dto';
 import { assertDocumentDate, resolveEngineer } from '../documents/document.rules';
 import {
@@ -34,6 +38,7 @@ import { Project } from './project.model';
 export type ProjectRecord = DocumentRecord & {
   technicalConditionsId: Types.ObjectId;
   approvalNumber: string;
+  designOrganization?: string | null;
   approvalDate: Date;
 };
 
@@ -79,7 +84,26 @@ async function toDtos(rows: ProjectRecord[]): Promise<ProjectDto[]> {
     technicalConditionsId: String(row.technicalConditionsId),
     approvalNumber: row.approvalNumber,
     approvalDate: toIsoDate(row.approvalDate),
+    designOrganization: row.designOrganization ?? '',
   }));
+}
+
+/** The term of an invoice dated `date` under the project: working days as in Excel. */
+export async function invoiceTerm(
+  applicationId: string,
+  id: string,
+  date: string,
+  actor: Actor,
+): Promise<InvoiceTermDto> {
+  const app = await loadApplication(applicationId, actor);
+  const project = await loadDocument(PROJECT, app, id);
+  const approval = toIsoDate(project.approvalDate);
+  const workingDays = countWorkingDaysInclusive(approval, date, await loadExceptions(approval));
+  return {
+    workingDays,
+    norm: INVOICE_DEADLINE_DAYS,
+    overdueBy: Math.max(0, workingDays - INVOICE_DEADLINE_DAYS),
+  };
 }
 
 export async function projectDto(app: ApplicationDocument, id: string) {
@@ -112,7 +136,7 @@ export async function createProject(
     );
   }
   if (await Project.exists({ applicationId: app._id, active: true })) throw alreadyValid();
-  assertDocumentDate(app, 'approvalDate', input.approvalDate, 'Дата узгодження');
+  await assertDocumentDate(app, 'approvalDate', input.approvalDate, 'Дата узгодження');
   // By default, the engineer of the technical conditions, even if deactivated since.
   const engineer = await resolveEngineer(
     app,
@@ -129,6 +153,7 @@ export async function createProject(
             technicalConditionsId: tu._id,
             approvalNumber: input.approvalNumber,
             approvalDate: fromIsoDate(input.approvalDate),
+            designOrganization: input.designOrganization,
             engineer: engineer._id,
             engineerName: engineer.fullName,
             createdBy: actor.id,
@@ -171,9 +196,18 @@ export async function updateProject(
   }
   const approvalDate = toIsoDate(current.approvalDate);
   if (input.approvalDate && input.approvalDate !== approvalDate) {
-    assertDocumentDate(app, 'approvalDate', input.approvalDate, 'Дата узгодження');
+    await assertDocumentDate(app, 'approvalDate', input.approvalDate, 'Дата узгодження');
     changes.push({ field: 'approvalDate', from: approvalDate, to: input.approvalDate });
     $set.approvalDate = fromIsoDate(input.approvalDate);
+  }
+  const organization = current.designOrganization ?? '';
+  if (input.designOrganization !== undefined && input.designOrganization !== organization) {
+    changes.push({
+      field: 'designOrganization',
+      from: organization || null,
+      to: input.designOrganization,
+    });
+    $set.designOrganization = input.designOrganization;
   }
   if (input.engineer && input.engineer !== String(current.engineer)) {
     const engineer = await resolveEngineer(app, input.engineer, String(current.engineer));

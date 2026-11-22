@@ -9,6 +9,10 @@ import { parseRequest } from '../../utils/parseRequest';
 import { requestContext } from '../audit/audit.service';
 import * as calendarService from './calendar.service';
 
+export const exceptions: RequestHandler = async (_req, res) => {
+  res.json(await calendarService.listCalendarExceptions());
+};
+
 export const list: RequestHandler = async (req, res) => {
   const { query } = parseRequest(req, { query: calendarYearQuerySchema });
   res.json(await calendarService.listCalendarDays(query.year));

@@ -210,10 +210,11 @@ describe('history of an application: its documents too', () => {
       gasPressure: 'LOW',
       connectionPoint: 'UNDERGROUND',
     });
-    await request(app)
-      .post(`${base()}/projects`)
-      .set(owner.auth)
-      .send({ approvalNumber: '125/П', approvalDate: '2026-11-18' });
+    await request(app).post(`${base()}/projects`).set(owner.auth).send({
+      approvalNumber: '125/П',
+      approvalDate: '2026-11-18',
+      designOrganization: 'ТОВ «Проєктбуд»',
+    });
     const created = await request(app).post(`${base()}/estimates`).set(owner.auth).send({});
     const url = `/estimates/${created.body.id}`;
     await request(app)

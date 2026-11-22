@@ -25,6 +25,7 @@ import {
   useUploadProjectScan,
 } from './queries';
 import styles from './ProjectDialog.module.scss';
+import { useDayOff } from '@/features/calendar';
 
 const FORM_ID = 'project-form';
 
@@ -78,8 +79,10 @@ function ProjectForm({
     app.department,
     engineerId,
   );
+  const dayOff = useDayOff();
   const {
     register,
+    watch,
     handleSubmit,
     setError,
     formState: { errors, isSubmitting },
@@ -144,8 +147,14 @@ function ProjectForm({
               label="Дата узгодження"
               type="date"
               max={today}
-              error={errors.approvalDate?.message}
+              error={errors.approvalDate?.message ?? dayOff(watch('approvalDate'))}
               {...register('approvalDate')}
+            />
+            <TextField
+              label="Проєктна організація"
+              autoComplete="off"
+              error={errors.designOrganization?.message}
+              {...register('designOrganization')}
             />
             {engineers.isPending ? (
               // An uncontrolled select would otherwise settle on whichever option comes first.

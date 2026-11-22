@@ -186,10 +186,10 @@ export async function contractDraft(
   };
 }
 
-function assertDates(app: ApplicationDocument, input: SaveContractData) {
-  assertDocumentDate(app, 'contractDate', input.contractDate, 'Дата договору');
+async function assertDates(app: ApplicationDocument, input: SaveContractData) {
+  await assertDocumentDate(app, 'contractDate', input.contractDate, 'Дата договору');
   if (input.signedDate) {
-    assertDocumentDate(app, 'signedDate', input.signedDate, 'Дата укладання договору');
+    await assertDocumentDate(app, 'signedDate', input.signedDate, 'Дата укладання договору');
   }
 }
 
@@ -216,7 +216,7 @@ export async function createContract(
   const tu = await validTechnicalConditions(app);
   if (!tu) throw noTechnicalConditions();
   await assertUsableDepartment(input.department);
-  assertDates(app, input);
+  await assertDates(app, input);
   let created;
   try {
     created = await Contract.create({
@@ -248,7 +248,7 @@ export async function updateContract(
   const { app, contract } = await loadChangeableContract(applicationId, id, actor);
   if (input.version !== contract.version) throw contractConflict();
   if (input.department !== contract.department) await assertUsableDepartment(input.department);
-  assertDates(app, input);
+  await assertDates(app, input);
   const shown = {
     contractNumber: contract.contractNumber,
     contractDate: toIsoDate(contract.contractDate),

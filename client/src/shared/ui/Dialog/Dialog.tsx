@@ -20,8 +20,11 @@ type Props = {
   onClose: () => void;
   children: ReactNode;
   footer?: ReactNode;
-  /** `lg` for content laid out in a grid (tiles), `xl` for a form with files beside it. */
-  size?: 'md' | 'lg' | 'xl';
+  /**
+   * `lg` for content laid out in a grid (tiles), `xl` for a form with files beside it, `2xl`
+   * for a wide form laid out by a mock-up (the invoice).
+   */
+  size?: 'md' | 'lg' | 'xl' | '2xl';
   /** Saving: the cross is disabled until it is done. */
   busy?: boolean;
 };
@@ -90,6 +93,7 @@ export function Dialog({
         styles.dialog,
         size === 'lg' && styles.large,
         size === 'xl' && styles.extraLarge,
+        size === '2xl' && styles.wide,
       )}
       aria-labelledby={titleId}
       onCancel={(event) => {

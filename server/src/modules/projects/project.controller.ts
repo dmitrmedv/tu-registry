@@ -3,6 +3,7 @@ import {
   createProjectSchema,
   deleteDocumentQuerySchema,
   documentScanQuerySchema,
+  invoiceTermQuerySchema,
   restoreDocumentSchema,
   updateProjectSchema,
 } from '@tu-registry/shared';
@@ -23,6 +24,15 @@ const paramsSchema = idParamsSchema.extend({
 export const list: RequestHandler = async (req, res) => {
   const { params } = parseRequest(req, { params: idParamsSchema });
   res.json(await service.listProjects(params.id, req.user!));
+};
+
+/** The working days an invoice dated `?date=` would take from the project's approval. */
+export const invoiceTerm: RequestHandler = async (req, res) => {
+  const { params, query } = parseRequest(req, {
+    params: paramsSchema,
+    query: invoiceTermQuerySchema,
+  });
+  res.json(await service.invoiceTerm(params.id, params.pid, query.date, req.user!));
 };
 
 export const create: RequestHandler = async (req, res) => {

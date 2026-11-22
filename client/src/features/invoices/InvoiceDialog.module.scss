@@ -1,14 +1,122 @@
 @use '@/styles/mixins' as *;
 
-// Number and date side by side; one under the other on phones.
-.pair {
+// The mock-up of 2026-11-22: the invoice on the left, its two files on the right.
+.layout {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-6);
+  align-items: start;
+
+  // The files take about a quarter of the dialog, as in the mock-up, whatever its width.
+  @include up(md) {
+    grid-template-columns: minmax(0, 1fr) minmax(200px, 0.36fr);
+  }
+}
+
+// The rows below are laid out by the column's own width (the dialog's width is set apart).
+.main {
+  container-type: inline-size;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+// «До додаткової угоди №» on the left, the total on the right.
+.top {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  // justify-content: space-between;
+  gap: var(--space-8);
+}
+
+// The label as a heading, the number's short box beside it.
+.agreement {
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: center;
   gap: var(--space-3);
 
-  @include up(sm) {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+  > label {
+    font-size: var(--text-xl);
+    font-weight: 700;
   }
+
+  > input {
+    width: 4rem;
+  }
+
+  > p {
+    flex-basis: 100%;
+  }
+}
+
+.total {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin: 0;
+  font-size: var(--text-lg);
+  font-weight: 700;
+}
+
+.totalSum {
+  font-size: var(--text-xl);
+  white-space: nowrap;
+}
+
+// Number, date and the note on the term in a row; one under the other on phones.
+.head {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-3) var(--space-4);
+  align-items: start;
+
+  @container (min-width: 360px) {
+    grid-template-columns: max-content minmax(0, 1fr);
+  }
+
+  @container (min-width: 600px) {
+    grid-template-columns: max-content max-content minmax(0, 1fr);
+  }
+}
+
+// The number is short (2026-11-22).
+.invoiceNumber > input {
+  width: 4rem;
+}
+
+// Beside the date's field, level with its box.
+.dateNote {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--color-text-muted);
+
+  // Beside the date only when the three fit in a row; under them otherwise.
+  @container (max-width: 599px) {
+    grid-column: 1 / -1;
+  }
+
+  @container (min-width: 600px) {
+    align-self: center;
+    padding-top: var(--space-6);
+  }
+}
+
+// The working days from the approval: green within the term, red past it (2026-11-22).
+.ok {
+  color: var(--color-success);
+  font-weight: 600;
+}
+
+.dateNote.error {
+  font-weight: 600;
+}
+
+.error {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--color-danger);
 }
 
 .group {
@@ -19,22 +127,15 @@
   border-top: 1px solid var(--color-border);
 }
 
-.groupHeader {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: space-between;
-  gap: var(--space-2);
+// «Робіт ще не додано.»: 8 px above and below (2026-11-22).
+.empty {
+  margin-block: var(--space-2);
 }
 
 .groupTitle {
   margin: 0;
   font-size: var(--text-md);
   font-weight: 600;
-}
-
-.sum {
-  font-weight: 600;
-  white-space: nowrap;
 }
 
 // A work: its name, its sum, the remove button; stacked on phones.
@@ -48,8 +149,8 @@
     grid-column: 1 / -1;
   }
 
-  @include up(md) {
-    grid-template-columns: minmax(0, 1fr) 12rem auto;
+  @container (min-width: 420px) {
+    grid-template-columns: minmax(0, 1fr) 9.5rem auto;
 
     > :first-child {
       grid-column: auto;
@@ -57,30 +158,14 @@
   }
 }
 
-.total {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: space-between;
-  gap: var(--space-2);
-  margin: 0;
-  padding-top: var(--space-3);
-  border-top: 2px solid var(--color-border);
-  font-size: var(--text-md);
-  font-weight: 700;
-}
-
-.error {
-  margin: 0;
-  font-size: var(--text-sm);
-  color: var(--color-danger);
-}
-
+// The basis and the scan, one under the other; they stay in place while the works scroll.
 .files {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  gap: var(--space-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
 
-  @include up(sm) {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+  @include up(md) {
+    position: sticky;
+    top: 0;
   }
 }

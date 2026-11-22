@@ -5,6 +5,7 @@ import {
   INVOICE_WORK_GROUPS,
   type InvoiceDto,
   type InvoiceFileKind,
+  invoiceNumberText,
 } from '@tu-registry/shared';
 import { useState } from 'react';
 import { canDeleteDocument, canManageDocuments, canRestoreDocument } from '@/features/applications';
@@ -43,7 +44,7 @@ type DialogState =
   | { kind: 'delete'; invoice: InvoiceDto };
 
 const titleOf = (invoice: InvoiceDto) =>
-  `№ ${invoice.invoiceNumber} від ${formatCalendarDate(invoice.invoiceDate)}`;
+  `${invoiceNumberText(invoice.invoiceNumber)} від ${formatCalendarDate(invoice.invoiceDate)}`;
 
 /** One invoice: its works by group with their sums, the total and its term. */
 function InvoiceView({ invoice }: { invoice: InvoiceDto }) {
@@ -51,6 +52,9 @@ function InvoiceView({ invoice }: { invoice: InvoiceDto }) {
     <>
       <DataList labels="fixed">
         <DataRow label="Рахунок">{titleOf(invoice)}</DataRow>
+        <DataRow label="Додаткова угода">
+          {invoice.agreementNumber === null ? '—' : `№ ${invoice.agreementNumber}`}
+        </DataRow>
         <DataRow label="Від узгодження проєкту">
           {invoice.workingDays} роб. дн. (строк — {INVOICE_DEADLINE_DAYS})
           {invoice.overdueBy > 0 && (
@@ -61,9 +65,13 @@ function InvoiceView({ invoice }: { invoice: InvoiceDto }) {
           )}
         </DataRow>
         <DataRow label="Внесено">{formatDateTime(invoice.createdAt)}</DataRow>
+        {invoice.comment && <DataRow label="Коментар">{invoice.comment}</DataRow>}
       </DataList>
       {INVOICE_WORK_GROUPS.map((group) => {
         const works = invoice.works.filter((work) => work.group === group);
+        // Geodesy only where it was entered: most connections have none.
+        // The permits only where they were entered: most connections have none.
+        if (group === 'EARTHWORKS' && works.length === 0) return null;
         return (
           <section key={group} aria-label={INVOICE_WORK_GROUP_LABELS[group]}>
             <h4 className={tabStyles.groupTitle}>
@@ -206,7 +214,7 @@ export function InvoiceTab({ app }: { app: ApplicationDto }) {
                       onClick={() =>
                         run(
                           () => restore.mutateAsync({ id: shown.id, version: shown.version }),
-                          `Рахунок № ${shown.invoiceNumber} відновлено`,
+                          `Рахунок ${invoiceNumberText(shown.invoiceNumber)} відновлено`,
                         )
                       }
                     />
@@ -246,7 +254,7 @@ export function InvoiceTab({ app }: { app: ApplicationDto }) {
           onClose={close}
           onSaved={(saved) => {
             notifySuccess(
-              `Рахунок № ${saved.invoiceNumber} ${dialog.kind === 'edit' ? 'збережено' : 'додано'}`,
+              `Рахунок ${invoiceNumberText(saved.invoiceNumber)} ${dialog.kind === 'edit' ? 'збережено' : 'додано'}`,
             );
             setShownId(saved.id);
             close();
@@ -257,7 +265,7 @@ export function InvoiceTab({ app }: { app: ApplicationDto }) {
         <ConfirmDialog
           open
           danger
-          title={`Видалити рахунок № ${dialog.invoice.invoiceNumber}?`}
+          title={`Видалити рахунок ${invoiceNumberText(dialog.invoice.invoiceNumber)}?`}
           confirmLabel="Видалити"
           loading={remove.isPending}
           onCancel={close}
@@ -267,7 +275,7 @@ export function InvoiceTab({ app }: { app: ApplicationDto }) {
               await remove.mutateAsync({ id: invoice.id, version: invoice.version });
               close();
               setShownId(null);
-              notifySuccess(`Рахунок № ${invoice.invoiceNumber} видалено`);
+              notifySuccess(`Рахунок ${invoiceNumberText(invoice.invoiceNumber)} видалено`);
             } catch (e) {
               notifyError(toApiError(e).message);
             }
@@ -278,7 +286,7 @@ export function InvoiceTab({ app }: { app: ApplicationDto }) {
       )}
       {dialog.kind === 'cancel' && (
         <CancelDocumentDialog
-          title={`Скасувати рахунок № ${dialog.invoice.invoiceNumber}?`}
+          title={`Скасувати рахунок ${invoiceNumberText(dialog.invoice.invoiceNumber)}?`}
           onClose={close}
           onConfirm={(reason) =>
             cancel.mutateAsync({

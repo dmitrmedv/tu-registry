@@ -12,6 +12,7 @@ import { type RequestContext, recordAccessDenied, recordAudit } from '../audit/a
 import { assertUsableDepartment, departmentCode } from '../departments/department.service';
 import { findUserSummaries } from '../users/user.service';
 import { type Actor, applicationNotFound, canAccess, isAdmin } from './application.access';
+import { assertWorkingDate } from '../documents/document.rules';
 import { type ApplicationDocument, toApplicationDto } from './application.dto';
 import { Application } from './application.model';
 import { numberTaken, yearOf } from './application.service';
@@ -198,6 +199,7 @@ export async function updateApplication(
     set.department = newDepartment;
   }
   if (newDate !== oldDate) {
+    await assertWorkingDate('regDate', newDate);
     changes.push({ field: 'regDate', oldValue: oldDate, newValue: newDate });
     set.regDate = fromIsoDate(newDate);
   }

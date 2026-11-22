@@ -15,6 +15,22 @@ export function isWeekendDate(isoDate: string) {
   return day === 0 || day === 6;
 }
 
+/** A day is worked as the calendar's exception says; without one, Monday to Friday. */
+export function isWorkingDate(isoDate: string, exception?: CalendarDayKind | null) {
+  return exception ? exception === 'WORKING' : !isWeekendDate(isoDate);
+}
+
+/**
+ * A document date on a day off (2026-11-22): refused by the server and shown at once in the
+ * form, with the same words.
+ */
+export function dayOffMessage(isoDate: string) {
+  return `Неробочий день за календарем (${isoDate.split('-').reverse().join('.')}) — оберіть робочий`;
+}
+
+/** An exception of the calendar as every user may read it, to check a date while it is typed. */
+export type CalendarExceptionDto = { date: string; kind: CalendarDayKind };
+
 /**
  * An exception must change something: a weekday off or a weekend day worked. Anything else
  * is what the calendar says anyway, and would only make the list harder to read.

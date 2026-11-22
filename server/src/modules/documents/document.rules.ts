@@ -1,7 +1,8 @@
-import { formatRegNumber } from '@tu-registry/shared';
+import { dayOffMessage, formatRegNumber, isWorkingDate } from '@tu-registry/shared';
 import { ApiError } from '../../utils/ApiError';
 import { kyivToday, toIsoDate } from '../../utils/kyivDate';
 import type { ApplicationDocument } from '../applications/application.dto';
+import { CalendarDay } from '../calendar/calendarDay.model';
 import { departmentCode } from '../departments/department.service';
 import { Engineer } from '../engineers/engineer.model';
 
@@ -17,8 +18,14 @@ export async function regNumberOf(app: ApplicationDocument) {
   return formatRegNumber(app.regYear, app.regSeq, await departmentCode(app.department));
 }
 
-/** Documents are dated between the registration and today (Kyiv). */
-export function assertDocumentDate(
+/** A date the user picks: on a working day by the administrator's calendar (2026-11-22). */
+export async function assertWorkingDate(field: string, isoDate: string) {
+  const exception = await CalendarDay.findById(isoDate).select('kind').lean();
+  if (!isWorkingDate(isoDate, exception?.kind)) throw fieldError(field, dayOffMessage(isoDate));
+}
+
+/** Documents are dated between the registration and today (Kyiv), on a working day. */
+export async function assertDocumentDate(
   app: ApplicationDocument,
   field: string,
   isoDate: string,
@@ -32,6 +39,7 @@ export function assertDocumentDate(
     );
   }
   if (isoDate > kyivToday().iso) throw fieldError(field, `${label} не може бути в майбутньому`);
+  await assertWorkingDate(field, isoDate);
 }
 
 /**

@@ -23,6 +23,8 @@ const estimateFields = {
     .default(null),
   /** Hryvnias with kopecks, like the payments; stored in kopecks. */
   amount: z.preprocess(emptyToNull, amountField.nullable()).default(null),
+  /** «Сума по кошторису (субпідряд)» (2026-11-21): optional, like the sum. */
+  subcontractAmount: z.preprocess(emptyToNull, amountField.nullable()).default(null),
 };
 
 /** A new estimate: the first one, or a recalculation that replaces the current one. */
@@ -47,6 +49,8 @@ export type EstimateDto = {
   checkDate: string | null;
   /** Hryvnias. */
   amount: number | null;
+  /** Hryvnias: the subcontract's part of the estimate. */
+  subcontractAmount: number | null;
   scan: ScanDto | null;
   imd: ScanDto | null;
   /** Replaced by a recalculation: kept, no longer changed. */

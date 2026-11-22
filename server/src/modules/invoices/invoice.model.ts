@@ -1,4 +1,5 @@
 import {
+  INVOICE_COMMENT_MAX,
   INVOICE_NUMBER_MAX,
   INVOICE_WORK_GROUPS,
   INVOICE_WORK_NAME_MAX,
@@ -26,8 +27,12 @@ const invoiceSchema = new Schema(
   {
     applicationId: { type: Schema.Types.ObjectId, ref: 'Application', required: true },
     projectId: { type: Schema.Types.ObjectId, ref: 'Project', required: true },
-    invoiceNumber: { type: String, required: true, trim: true, maxlength: INVOICE_NUMBER_MAX },
+    // Given by the accounts department later (2026-11-22): null until then.
+    invoiceNumber: { type: String, default: null, trim: true, maxlength: INVOICE_NUMBER_MAX },
+    // The additional agreement it becomes (2026-11-22); none in the invoices before.
+    agreementNumber: { type: Number, min: 1, default: null },
     invoiceDate: { type: Date, required: true },
+    comment: { type: String, default: null, trim: true, maxlength: INVOICE_COMMENT_MAX },
     works: {
       type: [workSchema],
       required: true,

@@ -15,6 +15,9 @@ export function formDefaults(estimate?: EstimateDto): FormInput {
   return {
     checkDate: estimate?.checkDate ?? '',
     amount: estimate?.amount ? formatAmountInput(estimate.amount) : '',
+    subcontractAmount: estimate?.subcontractAmount
+      ? formatAmountInput(estimate.subcontractAmount)
+      : '',
   };
 }
 

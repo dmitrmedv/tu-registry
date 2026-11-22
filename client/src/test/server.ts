@@ -5,7 +5,7 @@ import { setupServer } from 'msw/node';
 /**
  * Network-level mock: tests talk to the real axios client and interceptors.
  * Defaults (restored after each test): an empty registry, no users or engineers, the 14 initial
- * departments.
+ * departments, a calendar without exceptions.
  */
 export const server = setupServer(
   http.get('*/api/v1/applications', () =>
@@ -14,6 +14,8 @@ export const server = setupServer(
   http.get('*/api/v1/users/options', () => HttpResponse.json([])),
   http.get('*/api/v1/engineers', () => HttpResponse.json([])),
   http.get('*/api/v1/departments', () => HttpResponse.json(departmentsList())),
+  // No exceptions: Saturday and Sunday are the days off.
+  http.get('*/api/v1/calendar/exceptions', () => HttpResponse.json([])),
 );
 
 /** The departments as the API returns them; `usersCount`/`applicationsCount` for admins. */

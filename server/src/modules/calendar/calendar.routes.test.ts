@@ -109,6 +109,18 @@ describe('working-day calendar API', () => {
     });
   });
 
+  it('lets every user read the exceptions, to check the dates typed', async () => {
+    await add({ date: '2026-11-04', kind: 'NON_WORKING', description: 'Вихідний' });
+    await add({ date: '2026-11-07', kind: 'WORKING', description: 'Відпрацювання' });
+    const res = await request(app).get(`${CALENDAR}/exceptions`).set(user.auth);
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual([
+      { date: '2026-11-04', kind: 'NON_WORKING' },
+      { date: '2026-11-07', kind: 'WORKING' },
+    ]);
+    expect((await request(app).get(`${CALENDAR}/exceptions`)).status).toBe(401);
+  });
+
   it('is for admins only', async () => {
     expect((await request(app).get(CALENDAR).query({ year: 2026 }).set(user.auth)).status).toBe(
       403,

@@ -14,6 +14,7 @@ import {
 } from '@/shared/lib/labels';
 import { ChoiceField, LoadFailed, SelectField, Spinner, TextField } from '@/shared/ui';
 import type { FormInput } from './technicalConditionsForm';
+import { useDayOff } from '@/features/calendar';
 
 const options = <Code extends string>(codes: readonly Code[], labels: Record<Code, string>) =>
   codes.map((code) => ({ value: code, label: labels[code] }));
@@ -27,8 +28,10 @@ export function DocumentFields({
   /** Kept on offer even when deactivated since. */
   engineerId?: string;
 }) {
+  const dayOff = useDayOff();
   const {
     register,
+    watch,
     formState: { errors },
   } = useFormContext<FormInput>();
   const { query: engineers, options: engineerOptions } = useEngineerOptions(department, engineerId);
@@ -44,7 +47,7 @@ export function DocumentFields({
         label="Дата підготовки ТУ"
         type="date"
         max={kyivCalendarDate()}
-        error={errors.preparedDate?.message}
+        error={errors.preparedDate?.message ?? dayOff(watch('preparedDate'))}
         {...register('preparedDate')}
       />
       {engineers.isPending ? (

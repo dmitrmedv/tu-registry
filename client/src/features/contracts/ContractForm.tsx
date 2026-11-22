@@ -8,6 +8,7 @@ import { useDepartments } from '@/features/departments';
 import { Button, LinkButton, SelectField, TextAreaField, TextField } from '@/shared/ui';
 import { type FormData, type FormInput, formSchema } from './contractFormValues';
 import styles from './ContractForm.module.scss';
+import { useDayOff } from '@/features/calendar';
 
 type Props = {
   defaultValues: FormInput;
@@ -46,8 +47,10 @@ export function ContractForm({
   onSubmit,
 }: Props) {
   const { optionsWith } = useDepartments();
+  const dayOff = useDayOff();
   const {
     register,
+    watch,
     handleSubmit,
     setError,
     setValue,
@@ -80,7 +83,7 @@ export function ContractForm({
               label="Дата договору"
               type="date"
               max={today}
-              error={errors.contractDate?.message}
+              error={errors.contractDate?.message ?? dayOff(watch('contractDate'))}
               {...register('contractDate')}
             />
             <TextField
@@ -120,7 +123,7 @@ export function ContractForm({
               label="Дата укладання договору"
               type="date"
               max={today}
-              error={errors.signedDate?.message}
+              error={errors.signedDate?.message ?? dayOff(watch('signedDate'))}
               {...register('signedDate')}
             />
             <TextField

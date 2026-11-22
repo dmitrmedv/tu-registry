@@ -23,6 +23,7 @@ import {
   useUploadEstimateFile,
 } from './queries';
 import styles from './EstimateDialog.module.scss';
+import { useDayOff } from '@/features/calendar';
 
 const FORM_ID = 'estimate-form';
 
@@ -62,8 +63,10 @@ export function EstimateDialog({
   });
   const scan = useScanChange(fileChange('scan'));
   const imd = useScanChange(fileChange('imd'));
+  const dayOff = useDayOff();
   const {
     register,
+    watch,
     handleSubmit,
     setError,
     setValue,
@@ -75,7 +78,10 @@ export function EstimateDialog({
 
   const save = async (values: FormData) => {
     if (!estimate) return create.mutateAsync(values);
-    const unchanged = values.checkDate === estimate.checkDate && values.amount === estimate.amount;
+    const unchanged =
+      values.checkDate === estimate.checkDate &&
+      values.amount === estimate.amount &&
+      values.subcontractAmount === estimate.subcontractAmount;
     return unchanged
       ? estimate
       : update.mutateAsync({ id: estimate.id, input: { ...values, version: estimate.version } });
@@ -134,11 +140,12 @@ export function EstimateDialog({
               label="Дата перевірки кошторису"
               type="date"
               max={kyivCalendarDate()}
-              error={errors.checkDate?.message}
+              error={errors.checkDate?.message ?? dayOff(watch('checkDate'))}
               {...register('checkDate')}
             />
             <TextField
               label="Сума кошторису, грн"
+              amount
               inputMode="decimal"
               autoComplete="off"
               placeholder="1 234,56"
@@ -146,6 +153,18 @@ export function EstimateDialog({
               {...register('amount', {
                 onBlur: (event: FocusEvent<HTMLInputElement>) =>
                   setValue('amount', tidyAmount(event.target.value)),
+              })}
+            />
+            <TextField
+              label="Сума по кошторису (субпідряд), грн"
+              amount
+              inputMode="decimal"
+              autoComplete="off"
+              placeholder="1 234,56"
+              error={errors.subcontractAmount?.message}
+              {...register('subcontractAmount', {
+                onBlur: (event: FocusEvent<HTMLInputElement>) =>
+                  setValue('subcontractAmount', tidyAmount(event.target.value)),
               })}
             />
           </div>

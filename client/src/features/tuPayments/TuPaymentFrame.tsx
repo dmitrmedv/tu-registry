@@ -76,9 +76,11 @@ export function TuPaymentFrame({ app, tu }: Props) {
   const withFiles = (text: ReactNode, ...files: ReactNode[]) => (
     <span className={frameStyles.withFiles}>
       {text || '—'}
-      {files.map((file, index) => (
-        <Fragment key={index}>{file}</Fragment>
-      ))}
+      <span className={frameStyles.files}>
+        {files.map((file, index) => (
+          <Fragment key={index}>{file}</Fragment>
+        ))}
+      </span>
     </span>
   );
   const hasContract =

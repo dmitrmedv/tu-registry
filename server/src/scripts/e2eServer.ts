@@ -35,6 +35,24 @@ const { seedAdmin, seedAdminFromEnv } = await import('../modules/users/seedAdmin
 await connectDb(env.MONGO_URI);
 await seedAdmin(seedAdminFromEnv(process.env));
 
+// The tests date their documents today, and a document date must be a working day (2026-11-22):
+// a run at the weekend works today, as an exception of the calendar.
+const { isWeekendDate } = await import('@tu-registry/shared');
+const { kyivToday } = await import('../utils/kyivDate');
+const { CalendarDay } = await import('../modules/calendar/calendarDay.model');
+const { User } = await import('../modules/users/user.model');
+const today = kyivToday().iso;
+if (isWeekendDate(today)) {
+  const admin = await User.findOne({ role: 'ADMIN' }).select('_id').lean();
+  await CalendarDay.create({
+    _id: today,
+    kind: 'WORKING',
+    description: 'Робочий день для E2E',
+    createdBy: admin!._id,
+    updatedBy: admin!._id,
+  });
+}
+
 const server: Server = createApp().listen(env.API_PORT, () => {
   console.log(`E2E API listening on http://localhost:${env.API_PORT}`);
 });

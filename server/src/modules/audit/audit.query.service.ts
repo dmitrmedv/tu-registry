@@ -2,6 +2,7 @@ import {
   type AuditListQueryData,
   type AuditLogDto,
   formatRegNumber,
+  INVOICE_NO_NUMBER,
   type Paginated,
 } from '@tu-registry/shared';
 import mongoose from 'mongoose';
@@ -83,7 +84,7 @@ export async function listAuditLogs(query: AuditListQueryData): Promise<Paginate
             : entityType === 'Department'
               ? (departments.get(entityId)?.name ?? detailString(row.details, 'name'))
               : entityType === 'Invoice'
-                ? `${detailString(row.details, 'invoiceNumber') ?? ''} до заяви ${detailString(row.details, 'regNumber') ?? ''}`
+                ? `${detailString(row.details, 'invoiceNumber') ?? INVOICE_NO_NUMBER} до заяви ${detailString(row.details, 'regNumber') ?? ''}`
                 : entityType === 'Estimate'
                   ? `до проєкту ${detailString(row.details, 'approvalNumber') ?? ''}, заява ${detailString(row.details, 'regNumber') ?? ''}`
                   : entityType === 'Project'

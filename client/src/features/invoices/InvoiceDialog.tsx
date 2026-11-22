@@ -2,41 +2,61 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import {
   type ApplicationDto,
   formatHryvnias,
-  INVOICE_WORK_GROUPS,
+  EARTHWORKS_CONNECTION_POINT,
+  INVOICE_DEADLINE_DAYS,
   type InvoiceDto,
   type InvoiceFileKind,
-  invoiceTotals,
-  type InvoiceWorkGroup,
   kyivCalendarDate,
+  type ProjectDto,
+  invoiceNumberText,
 } from '@tu-registry/shared';
-import { type FocusEvent, useId, useRef, useState } from 'react';
-import { useFieldArray, useForm } from 'react-hook-form';
+import clsx from 'clsx';
+import { type ChangeEvent, type FocusEvent, useId, useRef, useState } from 'react';
+import { type FieldPath, useFieldArray, useForm } from 'react-hook-form';
 import { ScanPanel, useScanChange } from '@/features/applications';
 import { documentStyles } from '@/features/documents';
-import { tidyAmount } from '@/features/tuPayments';
-import { INVOICE_WORK_GROUP_LABELS } from '@/shared/lib/labels';
+import { useEstimates } from '@/features/estimates';
+import { useInvoiceTerm, useProjects } from '@/features/projects';
+import { useTechnicalConditions } from '@/features/technicalConditions';
+import { formatAmountInput, tidyAmount } from '@/features/tuPayments';
+import { formatCalendarDate } from '@/shared/lib/format';
 import { notifySuccess } from '@/shared/lib/notify';
 import { openPdf } from '@/shared/lib/pdf';
-import { Button, Dialog, Icon, IconButton, TextField } from '@/shared/ui';
+import { Button, Dialog, Icon, IconButton, Spinner, TextAreaField, TextField } from '@/shared/ui';
 import { invoicesApi } from './api';
 import {
+  CONSTRUCTION_SUGGESTIONS,
+  EARTHWORKS_SUGGESTIONS,
   type FormData,
   formDefaults,
   type FormInput,
   formSchema,
+  isByEstimate,
+  nextAgreementNumber,
+  nextInvoiceNumber,
   showServerError,
+  toInput,
   typedAmount,
-  WORK_SUGGESTIONS,
+  WORK_PLAN_SUGGESTIONS,
 } from './invoiceForm';
 import {
   useCreateInvoice,
+  useInvoices,
   useRemoveInvoiceFile,
   useUpdateInvoice,
   useUploadInvoiceFile,
 } from './queries';
 import styles from './InvoiceDialog.module.scss';
+import { useDayOff } from '@/features/calendar';
 
 const FORM_ID = 'invoice-form';
+/** The lists of works (mock-up of 2026-11-22), each added with «＋ Додати роботу». */
+const LISTS = {
+  works: 'Будівельно-монтажні роботи та врізання',
+  workPlan: 'ПВР',
+  earthworks: 'Дозволи на земляні роботи',
+} as const;
+type ListName = keyof typeof LISTS;
 
 type Props = {
   app: ApplicationDto;
@@ -47,12 +67,89 @@ type Props = {
 };
 
 /**
- * «Рахунок» (2026-11-21): its number and date, then its works in three groups — each added with
- * «＋ Додати роботу» as a name and a sum — with each group's sum and the total of the connection
- * kept up to date; then the invoice's scan and the document it was made from. Files change only
- * on «Зберегти», after the fields; if a file fails, the invoice is already saved.
+ * The note beside the date (2026-11-22): the working days from the project's approval, counted as
+ * in Excel — green within the term, red past it — or what is wrong with the date.
  */
-export function InvoiceDialog({ app, invoice: initial, onClose, onSaved }: Props) {
+function dateNote(
+  date: string,
+  project: ProjectDto | undefined,
+  workingDays?: number,
+  dayOff?: string,
+) {
+  // A day off by the calendar, said in the note's place as soon as it is picked (2026-11-22).
+  if (dayOff) return { tone: 'error' as const, text: dayOff };
+  if (!project || !date) return null;
+  if (date < project.approvalDate) {
+    return {
+      tone: 'error' as const,
+      text: `Раніше дати узгодження проєкту (${formatCalendarDate(project.approvalDate)})`,
+    };
+  }
+  return {
+    tone:
+      workingDays !== undefined && workingDays > INVOICE_DEADLINE_DAYS
+        ? ('error' as const)
+        : ('ok' as const),
+    text: `Кількість днів з дня узгодження — ${workingDays ?? '…'}`,
+  };
+}
+
+/**
+ * «Рахунок» (mock-up of 2026-11-22). On the left: «До додаткової угоди №» (the next agreement
+ * by default) and the total; the number (given later by the accounts department) and the date,
+ * with the working days from the approval beside the date, green within the term, red past it; then three
+ * lists of works, empty at first — construction with the tie-in, the work plan (ПВР) and the
+ * earthworks permits, only where the connection is underground (2026-11-22). On the
+ * right, staying in place: the basis and the scan of the invoice. Files change only on
+ * «Зберегти», after the fields; if a file fails, the invoice is already saved.
+ */
+export function InvoiceDialog(props: Props) {
+  const projects = useProjects(props.app.id);
+  const invoices = useInvoices(props.app.id);
+  const estimates = useEstimates(props.app.id);
+  const tus = useTechnicalConditions(props.app.id);
+  if (projects.isPending || invoices.isPending || estimates.isPending || tus.isPending) {
+    return (
+      <Dialog open title={props.invoice ? 'Рахунок' : 'Новий рахунок'} onClose={props.onClose}>
+        <Spinner label="Завантаження проєкту…" />
+      </Dialog>
+    );
+  }
+  const project = props.invoice
+    ? projects.data?.find((row) => row.id === props.invoice!.projectId)
+    : projects.data?.find((row) => !row.cancellation);
+  const tu = tus.data?.find((row) => row.id === project?.technicalConditionsId);
+  const estimate = estimates.data?.find((row) => row.projectId === project?.id && !row.superseded);
+  return (
+    <InvoiceForm
+      {...props}
+      project={project}
+      nextAgreement={nextAgreementNumber(invoices.data ?? [])}
+      nextNumber={nextInvoiceNumber(invoices.data ?? [])}
+      estimateAmount={estimate?.amount ?? null}
+      underground={tu?.connectionPoint === EARTHWORKS_CONNECTION_POINT}
+    />
+  );
+}
+
+function InvoiceForm({
+  app,
+  invoice: initial,
+  project,
+  nextAgreement,
+  nextNumber,
+  estimateAmount,
+  underground,
+  onClose,
+  onSaved,
+}: Props & {
+  project?: ProjectDto;
+  nextAgreement: number;
+  nextNumber: string;
+  /** The current estimate's sum: for «…за кошторисом» when it is chosen. */
+  estimateAmount: number | null;
+  underground: boolean;
+}) {
   const [invoice, setInvoice] = useState(initial);
   // The files go to the invoice just saved: its id is known only after the fields are.
   const idRef = useRef(initial?.id);
@@ -68,28 +165,58 @@ export function InvoiceDialog({ app, invoice: initial, onClose, onSaved }: Props
   });
   const scan = useScanChange(fileChange('scan'));
   const basis = useScanChange(fileChange('basis'));
+  const defaults = formDefaults(initial, nextAgreement, nextNumber);
+  // The permits only underground; an invoice that has some keeps the list, to clear it.
+  const shown = (Object.keys(LISTS) as ListName[]).filter(
+    (name) => name !== 'earthworks' || underground || defaults.earthworks.length > 0,
+  );
   const {
     control,
     register,
     handleSubmit,
     setValue,
+    getValues,
     setError,
     watch,
     formState: { errors, isSubmitting },
   } = useForm<FormInput, unknown, FormData>({
     resolver: zodResolver(formSchema),
-    defaultValues: formDefaults(initial),
+    defaultValues: defaults,
   });
-  const { fields, append, remove } = useFieldArray({ control, name: 'works' });
-  const typed = watch('works');
-  const totals = invoiceTotals(
-    typed.map((work) => ({ group: work.group, amount: typedAmount(work.amount) })),
+  const lists = {
+    works: useFieldArray({ control, name: 'works' }),
+    workPlan: useFieldArray({ control, name: 'workPlan' }),
+    earthworks: useFieldArray({ control, name: 'earthworks' }),
+  };
+  const suggestions: Record<ListName, string[]> = {
+    works: CONSTRUCTION_SUGGESTIONS,
+    workPlan: WORK_PLAN_SUGGESTIONS,
+    earthworks: EARTHWORKS_SUGGESTIONS,
+  };
+  const typed = watch();
+  const dayOff = useDayOff();
+  const total = [
+    ...(typed.works ?? []),
+    ...(typed.workPlan ?? []),
+    ...(typed.earthworks ?? []),
+  ].reduce<number>((sum, work) => sum + Math.round(typedAmount(work.amount) * 100), 0);
+  const date = String(typed.invoiceDate ?? '');
+  const dateOff = dayOff(date);
+  const term = useInvoiceTerm(
+    app.id,
+    project?.id,
+    project && !dateOff && /^\d{4}-\d{2}-\d{2}$/.test(date) && date >= project.approvalDate
+      ? date
+      : undefined,
   );
+  const note = dateNote(date, project, term.data?.workingDays, dateOff);
 
-  const save = (values: FormData) =>
-    invoice
-      ? update.mutateAsync({ id: invoice.id, input: { ...values, version: invoice.version } })
-      : create.mutateAsync(values);
+  const save = (values: FormData) => {
+    const input = toInput(values);
+    return invoice
+      ? update.mutateAsync({ id: invoice.id, input: { ...input, version: invoice.version } })
+      : create.mutateAsync(input);
+  };
 
   const onSubmit = handleSubmit(async (values) => {
     let saved: InvoiceDto;
@@ -106,7 +233,7 @@ export function InvoiceDialog({ app, invoice: initial, onClose, onSaved }: Props
       await basis.apply();
     } catch {
       // The invoice stands, a file does not: the reason is in a notification already.
-      if (!invoice) notifySuccess(`Рахунок № ${saved.invoiceNumber} збережено`);
+      if (!invoice) notifySuccess(`Рахунок ${invoiceNumberText(saved.invoiceNumber)} збережено`);
       return;
     }
     onSaved(saved);
@@ -117,64 +244,80 @@ export function InvoiceDialog({ app, invoice: initial, onClose, onSaved }: Props
       () => invoicesApi.file(app.id, invoice!.id, kind),
       invoice?.[kind]?.name ?? 'рахунок.pdf',
     );
-  const worksError = errors.works?.root?.message ?? errors.works?.message;
 
-  const group = (code: InvoiceWorkGroup) => {
-    const title = INVOICE_WORK_GROUP_LABELS[code];
-    const rows = fields
-      .map((field, index) => ({ field, index }))
-      .filter(({ field }) => field.group === code);
+  const amountProps = (name: FieldPath<FormInput>) =>
+    register(name, {
+      onBlur: (event: FocusEvent<HTMLInputElement>) =>
+        setValue(name, tidyAmount(event.target.value)),
+    });
+
+  /** «…за кошторисом» chosen with no sum yet: the current estimate's sum by default. */
+  const fillFromEstimate = (name: ListName, index: number, work: string) => {
+    if (name !== 'works' || estimateAmount === null || !isByEstimate(work)) return;
+    if (String(getValues(`works.${index}.amount`) ?? '').trim() !== '') return;
+    setValue(`works.${index}.amount`, formatAmountInput(estimateAmount));
+  };
+
+  /** A list of works: a name (with suggestions) and a sum each, «＋ Додати роботу» under it. */
+  const workList = (name: ListName) => {
+    const { fields, append, remove } = lists[name];
+    const listError = errors[name]?.root?.message ?? errors[name]?.message;
     return (
-      <section key={code} aria-label={title} className={styles.group}>
-        <div className={styles.groupHeader}>
-          <h3 className={styles.groupTitle}>{title}</h3>
-          <span className={styles.sum}>{formatHryvnias(totals[code])}</span>
-        </div>
-        {rows.length === 0 && <p className={documentStyles.muted}>Робіт ще не додано.</p>}
-        {rows.map(({ field, index }, position) => (
+      <section key={name} aria-label={LISTS[name]} className={styles.group}>
+        <h3 className={styles.groupTitle}>{LISTS[name]}</h3>
+        {fields.length === 0 && (
+          <p className={clsx(documentStyles.muted, styles.empty)}>Робіт ще не додано.</p>
+        )}
+        {fields.map((field, index) => (
           <div key={field.id} className={styles.work}>
             <TextField
-              label={`Робота ${position + 1}`}
+              label={`Робота ${index + 1}`}
               autoComplete="off"
-              list={`${listId}-${code}`}
-              error={errors.works?.[index]?.name?.message}
-              {...register(`works.${index}.name`)}
+              list={`${listId}-${name}`}
+              error={errors[name]?.[index]?.name?.message}
+              {...register(`${name}.${index}.name`, {
+                onChange: (event: ChangeEvent<HTMLInputElement>) =>
+                  fillFromEstimate(name, index, event.target.value),
+              })}
             />
             <TextField
               label="Вартість, грн"
+              amount
               inputMode="decimal"
               autoComplete="off"
               placeholder="1 234,56"
-              error={errors.works?.[index]?.amount?.message}
-              {...register(`works.${index}.amount`, {
-                onBlur: (event: FocusEvent<HTMLInputElement>) =>
-                  setValue(`works.${index}.amount`, tidyAmount(event.target.value)),
-              })}
+              error={errors[name]?.[index]?.amount?.message}
+              {...amountProps(`${name}.${index}.amount`)}
             />
             <IconButton
               icon="trash"
-              label={`Прибрати роботу ${position + 1}`}
+              label={`Прибрати роботу ${index + 1}`}
               tone="danger"
               disabled={isSubmitting}
               onClick={() => remove(index)}
             />
           </div>
         ))}
-        <datalist id={`${listId}-${code}`}>
-          {WORK_SUGGESTIONS[code].map((name) => (
-            <option key={name} value={name} />
+        <datalist id={`${listId}-${name}`}>
+          {suggestions[name].map((suggestion) => (
+            <option key={suggestion} value={suggestion} />
           ))}
         </datalist>
         <div>
           <Button
             size="sm"
             disabled={isSubmitting}
-            onClick={() => append({ group: code, name: '', amount: '' })}
+            onClick={() => append({ name: '', amount: '' })}
           >
             <Icon name="plus" />
             Додати роботу
           </Button>
         </div>
+        {listError && (
+          <p role="alert" className={styles.error}>
+            {listError}
+          </p>
+        )}
       </section>
     );
   };
@@ -183,8 +326,8 @@ export function InvoiceDialog({ app, invoice: initial, onClose, onSaved }: Props
     <Dialog
       busy={isSubmitting}
       open
-      size="xl"
-      title={invoice ? `Рахунок № ${invoice.invoiceNumber}` : 'Новий рахунок'}
+      size="2xl"
+      title={invoice ? `Рахунок ${invoiceNumberText(invoice.invoiceNumber)}` : 'Новий рахунок'}
       onClose={onClose}
       footer={
         <Button type="submit" form={FORM_ID} variant="primary" loading={isSubmitting}>
@@ -192,46 +335,68 @@ export function InvoiceDialog({ app, invoice: initial, onClose, onSaved }: Props
         </Button>
       }
     >
-      <form id={FORM_ID} onSubmit={onSubmit} noValidate className={documentStyles.formContents}>
-        <div className={styles.pair}>
-          <TextField
-            label="№ рахунку"
-            autoComplete="off"
-            error={errors.invoiceNumber?.message}
-            {...register('invoiceNumber')}
-          />
-          <TextField
-            label="Дата рахунку"
-            type="date"
-            max={kyivCalendarDate()}
-            hint="Не пізніше 10 робочих днів від узгодження проєкту"
-            error={errors.invoiceDate?.message}
-            {...register('invoiceDate')}
+      <form id={FORM_ID} onSubmit={onSubmit} noValidate className={styles.layout}>
+        <div className={styles.main}>
+          <div className={styles.top}>
+            <TextField
+              label="До додаткової угоди №"
+              className={styles.agreement}
+              inputMode="numeric"
+              autoComplete="off"
+              error={errors.agreementNumber?.message}
+              {...register('agreementNumber')}
+            />
+            <p className={styles.total}>
+              <span>Загальна вартість</span>
+              <span className={styles.totalSum}>{formatHryvnias(total / 100)}</span>
+            </p>
+          </div>
+          <div className={styles.head}>
+            <TextField
+              label="№ рахунку"
+              className={styles.invoiceNumber}
+              autoComplete="off"
+              // hint="Можна внести пізніше, коли надасть бухгалтерія"
+              error={errors.invoiceNumber?.message}
+              {...register('invoiceNumber')}
+            />
+            <TextField
+              label="Дата рахунку"
+              type="date"
+              max={kyivCalendarDate()}
+              error={errors.invoiceDate?.message}
+              aria-invalid={dateOff ? true : undefined}
+              {...register('invoiceDate')}
+            />
+            <p
+              role="status"
+              aria-live="polite"
+              className={clsx(styles.dateNote, note && styles[note.tone])}
+            >
+              {note?.text}
+            </p>
+          </div>
+          {shown.map(workList)}
+          <TextAreaField
+            label="Коментар (необовʼязково)"
+            rows={3}
+            error={errors.comment?.message}
+            {...register('comment')}
           />
         </div>
-        {INVOICE_WORK_GROUPS.map(group)}
-        {worksError && (
-          <p role="alert" className={styles.error}>
-            {worksError}
-          </p>
-        )}
-        <p className={styles.total}>
-          <span>Загальна вартість приєднання</span>
-          <span>{formatHryvnias(totals.total)}</span>
-        </p>
         <div className={styles.files}>
-          <ScanPanel
-            title="Скан рахунку"
-            scan={invoice?.scan ?? null}
-            scanChange={scan}
-            onView={view('scan')}
-            disabled={isSubmitting}
-          />
           <ScanPanel
             title="Підстава рахунку"
             scan={invoice?.basis ?? null}
             scanChange={basis}
             onView={view('basis')}
+            disabled={isSubmitting}
+          />
+          <ScanPanel
+            title="Скан рахунку"
+            scan={invoice?.scan ?? null}
+            scanChange={scan}
+            onView={view('scan')}
             disabled={isSubmitting}
           />
         </div>
